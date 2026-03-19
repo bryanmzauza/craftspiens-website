@@ -1,0 +1,19 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Cronograma",
+  description: "Grade curricular e cronograma de aulas da CraftSapiens.",
+};
+
+export default function CronogramaPage() {
+  return (
+    <div className="mx-auto max-w-7xl px-4 pt-24 pb-16 lg:px-6">
+      <h1 className="font-[family-name:var(--font-press-start)] text-3xl text-white sm:text-4xl">
+        CRONOGRAMA
+      </h1>
+      <p className="mt-4 text-[#E0E0E0]">
+        Grade curricular semanal e mensal com todas as aulas.
+      </p>
+    </div>
+  );
+}
