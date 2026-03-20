@@ -7,6 +7,81 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.2] — 20/03/2026 — Implementação das páginas de conteúdo e autenticação
+
+### Adicionado
+
+- **Componente PageHero** (`src/components/ui/PageHero.tsx`) — Hero reutilizável para páginas internas: breadcrumb de navegação, título animado (Framer Motion fade-in), subtítulo opcional, gradiente de fundo
+- **Componente Input** (`src/components/ui/Input.tsx`) — Input de formulário reutilizável com label, estado de erro, forwarded ref, estilização consistente com o design system
+- **Componente SectionTitle** (`src/components/ui/SectionTitle.tsx`) — Título de seção animado com Framer Motion, suporte a subtítulo, centralizado por padrão
+- **Página Sobre** (`src/components/sobre/SobreContent.tsx`) — Implementação completa conforme docs/paginas/02-sobre.md:
+  - Timeline interativa (2020–2026) com items animados
+  - Citação do fundador PH com card estilizado
+  - Seção "Quem Somos" com placeholder para vídeo institucional
+  - Cards de Missão, Visão e Valores com ícones
+  - Grid de reconhecimento na mídia (6 veículos)
+  - Grid da equipe (7 membros com avatar, nome, cargo)
+  - Listagem da hierarquia do servidor (5 cargos com descrição)
+- **Página Contato** (`src/components/contato/ContatoContent.tsx`) — Implementação completa conforme docs/paginas/08-contato.md:
+  - 3 cards de canais de contato (WhatsApp, Email, Discord) com links diretos
+  - Grid de redes sociais (7 redes com ícones e cores)
+  - Formulário de contato com campos nome, email, assunto (select), mensagem (textarea), campo honeypot anti-bot
+  - FAQ accordion (6 perguntas frequentes) com animação de abertura/fechamento
+  - Seção de localização/horário de atendimento
+- **Página Termos** (`src/components/termos/TermosContent.tsx`) — Implementação completa conforme docs/paginas/12-termos.md:
+  - Toggle de abas Termos / Política de Privacidade
+  - 13 seções de Termos e Condições completas
+  - 8 seções de Política de Privacidade (LGPD)
+  - Sidebar fixa com Table of Contents e scroll spy via IntersectionObserver
+  - Botão de impressão
+  - Meta de "última atualização"
+- **Página Status do Servidor** (`src/components/status/StatusContent.tsx`) — Implementação completa conforme docs/paginas/10-status-servidor.md:
+  - Painel de status em tempo real (fetch `/api/server-status` a cada 15s com auto-refresh)
+  - Indicador online/offline com animação de pulso
+  - Grid de estatísticas (jogadores, versão, MOTD, IP com botão copiar)
+  - Sistema de abas de ranking (XP, Moedas, Tempo Online, Aulas) com dados mock
+  - Tabela de ranking estilizada com medalhas (ouro/prata/bronze)
+- **Página Aulas** (`src/components/aulas/AulasContent.tsx`) — Implementação completa conforme docs/paginas/03-aulas.md:
+  - Seção "Como Funciona" com 4 cards explicativos do método gamificado
+  - Catálogo de 8 disciplinas com ícone, cor, nível e quantidade de cursos
+  - Barra de busca e filtro por nível (Fundamental/Médio/Todos)
+  - Seção ENEM & Reforço com CTA
+  - Seção informativa para pais com benefícios
+- **Página Login aprimorada** (`src/components/auth/LoginContent.tsx`) — Enhacement do formulário de login:
+  - Toggle de visibilidade de senha (eye icon)
+  - Checkbox "Lembrar de mim"
+  - Link "Esqueci a senha" para `/recuperar-senha`
+  - Validação client-side, estado de loading e exibição de erros
+  - Ícone Gamepad2 e título estilizado
+- **Página Registro aprimorada** (`src/components/auth/RegistroContent.tsx`) — Implementação completa conforme docs/paginas/07-auth.md:
+  - Campo username com validação (3-16 chars, alfanumérico + _) e indicador visual ✅/❌
+  - Campo email com autoComplete
+  - Campo data de nascimento com validação de idade mínima (13 anos)
+  - Campo senha com toggle de visibilidade e indicador de força (5 níveis: Fraca → Muito Forte)
+  - Campo confirmar senha com validação de match em tempo real
+  - Checkbox de aceitar Termos e Condições (link abre em nova aba)
+  - Validação completa client-side antes do submit
+
+### Modificado
+
+- **`src/app/sobre/page.tsx`** — Delega renderização para SobreContent (separação server/client component)
+- **`src/app/contato/page.tsx`** — Delega renderização para ContatoContent
+- **`src/app/termos/page.tsx`** — Delega renderização para TermosContent
+- **`src/app/status/page.tsx`** — Delega renderização para StatusContent
+- **`src/app/aulas/page.tsx`** — Delega renderização para AulasContent
+- **`src/app/login/page.tsx`** — Delega renderização para LoginContent, mantém apenas metadata no server component
+- **`src/app/registro/page.tsx`** — Delega renderização para RegistroContent, atualização da meta description
+
+### Decisões técnicas
+
+- **Padrão server/client component**: Todas as páginas seguem o padrão onde `page.tsx` é server component (exporta metadata) e delega para um componente `*Content.tsx` client component. Isso garante SEO via metadata estática e interatividade via client components
+- **Dados mock para rankings**: A página de Status usa dados mock para a tabela de rankings. A integração com o banco de dados real será implementada quando a API de dados do servidor estiver disponível
+- **Dados estáticos para disciplinas**: O catálogo de aulas usa dados estáticos definidos no componente. Serão migrados para o banco de dados via Prisma quando o CMS de aulas for implementado
+- **Formulário de contato simulado**: O envio do formulário de contato simula um delay de 1s. A integração com a API de ContactMessage será implementada junto com o backend
+- **Validação client-side first**: Login e Registro fazem validação completa no client antes do submit. A validação server-side será adicionada junto com as API routes de autenticação
+
+---
+
 ## [v0.1] — 19/03/2026 — Estrutura base do projeto e Landing Page
 
 ### Adicionado
