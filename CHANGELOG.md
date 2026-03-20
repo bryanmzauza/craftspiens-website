@@ -7,6 +7,129 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.3] — 20/03/2026 — Implementação completa de todas as páginas restantes
+
+### Adicionado
+
+- **Página Cronograma** (`src/components/cronograma/CronogramaContent.tsx`) — Implementação completa conforme docs/paginas/04-cronograma.md:
+  - Hero com breadcrumb reutilizável (PageHero)
+  - Visão semanal com grid 7 colunas por dia da semana, highlight no dia atual
+  - Visão mensal com calendário navegável (← Anterior / Próximo →), dias com indicadores coloridos de aulas
+  - Clique no dia do mês expande lista de aulas com animação
+  - Filtros por disciplina, nível, professor e turno com selects, botão "Limpar filtros"
+  - Toggle Semanal/Mensal com ícones
+  - Botão "Exportar Calendário" (estrutura preparada para implementação .ics)
+  - Sidebar "Próximas Aulas" com 5 aulas ordenadas cronologicamente e countdown relativo (em Xh Xmin / Amanhã / Dia da semana)
+  - Modal de detalhes da aula com disciplina, professor, horário, descrição, IP do servidor, botões "Ver Disciplina" e "Adicionar Lembrete"
+  - Indicador "AO VIVO" com pulse animado para aulas em andamento
+  - Navegação entre semanas (← Semana anterior / Próxima semana →) com offset
+  - Layout responsivo: desktop grid 7 colunas, mobile lista vertical por dia com barra de cor
+  - 10 aulas mock distribuídas na semana com dados realistas de professores e disciplinas
+
+- **Página Blog** (`src/components/blog/BlogContent.tsx`) — Implementação completa conforme docs/paginas/11-blog.md:
+  - Hero com breadcrumb
+  - Barra de busca global com ícone, filtra por título, resumo e tags
+  - 7 categorias filtráveis (Todos, Novidades, Aulas, Eventos, Mídia, Tutoriais, Comunidade) com cores individuais
+  - Post em destaque (primeiro post, card maior com imagem hero 21:9)
+  - Grid responsivo de cards 3 colunas com: placeholder de imagem, badge de categoria colorido, título, resumo truncado (line-clamp-2), data, tempo de leitura
+  - Paginação com navegação por números e setas
+  - Estado vazio com ícone e mensagem quando nenhum post é encontrado
+  - 9 posts mock com dados realistas (autores, categorias, tags, datas)
+  - Links preparados para rota `/blog/[slug]`
+
+- **Página Loja** (`src/components/loja/LojaContent.tsx`) — Implementação completa conforme docs/paginas/05-loja.md:
+  - Hero com breadcrumb
+  - Seção destaque "Planos VIP / Premium" com 3 cards comparativos (VIP, VIP+, Premium)
+    - Cada plano com ícone, preço mensal, lista de features com ✅/❌, botão "Assinar"
+    - Plano VIP+ marcado como "MAIS POPULAR" com borda destacada e banner dourado
+  - Catálogo de 8 produtos em 4 categorias (Ranks, Cosméticos, Moedas, Kits)
+  - Filtro por categoria com tabs
+  - Card de produto com: placeholder de ícone colorido, badge (NOVO, POPULAR, MAIS VENDIDO), nome, descrição curta, preço com desconto riscado, botão "Adicionar"
+  - Carrinho funcional com state local (Map):
+    - Adicionar/remover itens
+    - Contagem de itens e total calculado em tempo real
+    - Barra flutuante fixa no bottom com contagem e total
+    - Modal de carrinho com lista de itens, remoção individual, total e botão "Finalizar Compra"
+  - Animações de entrada com Framer Motion stagger
+
+- **Página Comunidade** (`src/components/comunidade/ComunidadeContent.tsx`) — Implementação completa conforme docs/paginas/06-comunidade.md:
+  - Hero com breadcrumb dinâmico (muda conforme categoria aberta)
+  - Barra de busca global do fórum
+  - 7 categorias (Anúncios, Geral, Dúvidas, Sugestões, Bugs, Showroom, Off-Topic) com:
+    - Emoji + ícone, nome, descrição, badge "STAFF" para categorias restritas
+    - Contagem de tópicos e comentários
+    - Último post com título, autor e tempo relativo
+  - Navegação interna: clique em categoria → lista de tópicos
+  - Lista de tópicos com: badges fixado (📌), fechado (🔒), resolvido (✅), título, autor com cargo, contagem de comentários e views, tempo da última atividade
+  - Botão "Novo Tópico" (requer implementação de auth)
+  - Botão "Voltar" para retornar à lista de categorias
+  - Barra de estatísticas (total de tópicos, comentários, membros)
+  - Estado vazio para categorias sem tópicos
+  - 6 tópicos mock na categoria "Geral" com variações de fixado/fechado
+
+- **Página Perfil — Dashboard** (`src/components/perfil/PerfilContent.tsx`) — Implementação completa conforme docs/paginas/09-perfil.md:
+  - Header do perfil com avatar Minecraft (via mc-heads.net), username, badge de rank (VIP+) com cor, badge de reputação (Veterano), data de registro, último acesso, botão "Editar Perfil"
+  - 6 cards de métricas: Moedas SAPIENS, XP Total, Tempo Online, Aulas Concluídas, Ranking Geral, Plano Atual com expiração
+  - Seção "Progresso de Aulas" com barras de progresso animadas (Framer Motion) por disciplina, cores individuais, percentual e contagem
+  - Toggle "Ver todas / Ver menos" para lista de disciplinas
+  - Seção "Atividade Recente" com timeline de 6 ações (login, aula, fórum, compra, conquista, milestone) com ícones e cores específicas
+  - Links de navegação rápida: Minhas Compras, Configurações, Meu Ranking
+
+- **Página Perfil — Compras** (`src/components/perfil/ComprasContent.tsx`) — Implementação completa conforme docs/paginas/09-perfil.md (RN-PERFIL-02):
+  - Hero com breadcrumb de 3 níveis (Home > Perfil > Compras)
+  - Banner de VIP ativo com data de expiração e botão "Renovar" → /loja
+  - Resumo: total gasto e número de pedidos
+  - Filtro por status (Todos, Aprovados, Pendentes, Cancelados, Reembolsados)
+  - Lista de 6 pedidos mock com: produto, badge de status colorido (✅ Aprovado, ⏳ Pendente, ❌ Cancelado, 🔄 Reembolsado), data, método de pagamento (PIX/Cartão/Boleto), código do pedido, valor
+  - Estado vazio quando filtro não encontra resultados
+  - Meta robots noindex, nofollow (página protegida)
+
+- **Página Perfil — Configurações** (`src/components/perfil/ConfiguracoesContent.tsx`) — Implementação completa conforme docs/paginas/09-perfil.md (RN-PERFIL-03):
+  - Sidebar de navegação com 5 abas: Dados Pessoais, Alterar Senha, Notificações, Privacidade, Zona de Perigo
+  - **Dados Pessoais**: Username (readonly), email editável com aviso de confirmação, bio com textarea e contador de caracteres (500 max), data de nascimento (readonly)
+  - **Alterar Senha**: Campos senha atual, nova senha e confirmação com validação de match, aviso de sync com nLogin/Minecraft, botão desabilitado até validação
+  - **Notificações**: 4 toggles (Respostas no fórum, Lembretes de aulas, Novidades, Resumo semanal) com selects (Email/Apenas no site/Desligado)
+  - **Privacidade**: 3 toggles visuais (Perfil público, Exibir tempo online, Exibir atividade) com descrições
+  - **Zona de Perigo**: Seção "Desativar Conta" (preserva dados, botão amarelo) + seção "Excluir Conta Permanentemente" (input de confirmação "username CONFIRMAR", botão vermelho desabilitado até confirmação correta)
+  - Animação de transição entre abas (Framer Motion)
+  - Feedback visual "Salvo!" temporário em todos os botões de salvar
+
+### Modificado
+
+- **`src/app/cronograma/page.tsx`** — Delega renderização para CronogramaContent, metadata SEO atualizada
+- **`src/app/blog/page.tsx`** — Delega renderização para BlogContent, metadata SEO atualizada
+- **`src/app/loja/page.tsx`** — Delega renderização para LojaContent, metadata SEO atualizada
+- **`src/app/comunidade/page.tsx`** — Delega renderização para ComunidadeContent, metadata SEO atualizada
+- **`src/app/perfil/page.tsx`** — Delega renderização para PerfilContent, adicionado robots noindex
+- **`src/app/perfil/compras/page.tsx`** — Delega renderização para ComprasContent, adicionado robots noindex
+- **`src/app/perfil/configuracoes/page.tsx`** — Delega renderização para ConfiguracoesContent, adicionado robots noindex
+
+### Decisões técnicas
+
+- **Dados mock em todas as páginas**: Todas as novas páginas usam dados estáticos/mock definidos nos componentes. Serão migrados para o banco de dados via Prisma quando as respectivas APIs estiverem implementadas
+- **Carrinho com state local (Map)**: O carrinho da Loja usa `useState<Map>` em memória. A persistência em localStorage (usuário deslogado) e banco de dados (usuário logado) será implementada junto com o sistema de autenticação completo
+- **Navegação interna no fórum**: A Comunidade usa state local para navegar entre categorias e tópicos (sem routing). Será migrado para rotas dinâmicas `/comunidade/[categoria]` e `/comunidade/[categoria]/[topico]` quando a integração com banco estiver pronta
+- **Perfil com dados mock fixos**: O dashboard do perfil exibe dados de um jogador fictício. A integração com sessão NextAuth e queries ao banco de dados do servidor será feita em versão futura
+- **Páginas de perfil com noindex**: Todas as rotas `/perfil/*` têm meta robots noindex,nofollow conforme documentação (são páginas protegidas que não devem ser indexadas)
+- **SectionTitle reaproveitado**: O componente `SectionTitle` já existente foi reutilizado nas novas páginas (Loja), mantendo consistência visual
+
+### Próximos passos (v0.4+)
+
+1. **Autenticação completa com nLogin** — Fluxo real de login/registro via API do servidor Minecraft, integração com NextAuth sessions, proteção de rotas com middleware
+2. **API Routes para formulários** — Contact form (`/api/contato`), newsletter (`/api/newsletter`), carrinho/checkout
+3. **Integração com banco de dados** — Migrar dados mock para queries Prisma em todas as páginas (blog, loja, comunidade, perfil, cronograma)
+4. **Página de detalhe do blog** — Rota dinâmica `/blog/[slug]` com conteúdo completo, compartilhamento social, posts relacionados
+5. **Integração MercadoPago** — Processamento de pagamentos para a loja (PIX, cartão, boleto) conforme docs/paginas/05-loja.md
+6. **Status do servidor em tempo real** — Polling ou WebSocket para dados reais do Minecraft Server (jogadores online, TPS, plugins)
+7. **Rotas dinâmicas do fórum** — `/comunidade/[categoria]` e `/comunidade/[categoria]/[topico]` com SSR e paginação
+8. **Assets visuais** — Fotos da equipe, capas do blog, imagens de produtos, ícones de disciplinas
+9. **Fonte Minecrafter** — Substituir Press Start 2P pela fonte customizada Minecrafter conforme design system
+10. **CRUD do fórum** — Criação de tópicos, comentários, reações, denúncias, moderação
+11. **Exportação de calendário** — Gerar arquivo .ics para download/integração com Google Calendar
+12. **Persistência do carrinho** — localStorage para visitantes, banco de dados para usuários logados
+
+---
+
 ## [v0.2] — 20/03/2026 — Implementação das páginas de conteúdo e autenticação
 
 ### Adicionado
