@@ -48,10 +48,12 @@ export function checkRateLimit(
   return { success: true, remaining: config.maxAttempts - entry.count, resetAt: entry.resetAt }
 }
 
-// Presets conforme docs/paginas/07-auth.md e 08-contato.md
+// Presets conforme docs/paginas/07-auth.md, 08-contato.md e 06-comunidade.md
 export const RATE_LIMITS = {
-  login: { maxAttempts: 5, windowMs: 15 * 60 * 1000 },     // 5 tentativas / 15 min
-  contact: { maxAttempts: 3, windowMs: 60 * 60 * 1000 },    // 3 envios / 1 hora
-  register: { maxAttempts: 3, windowMs: 60 * 60 * 1000 },   // 3 registros / 1 hora
-  passwordChange: { maxAttempts: 5, windowMs: 15 * 60 * 1000 }, // 5 tentativas / 15 min
+  login: { maxAttempts: 5, windowMs: 15 * 60 * 1000 },          // 5 tentativas / 15 min
+  contact: { maxAttempts: 3, windowMs: 60 * 60 * 1000 },         // 3 envios / 1 hora
+  register: { maxAttempts: 3, windowMs: 60 * 60 * 1000 },        // 3 registros / 1 hora
+  passwordChange: { maxAttempts: 5, windowMs: 15 * 60 * 1000 },  // 5 tentativas / 15 min
+  forumTopic: { maxAttempts: 5, windowMs: 60 * 60 * 1000 },      // 5 tópicos / 1 hora (RN-FORUM-05)
+  forumComment: { maxAttempts: 10, windowMs: 15 * 60 * 1000 },   // 10 comentários / 15 min
 } as const

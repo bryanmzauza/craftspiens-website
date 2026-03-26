@@ -162,12 +162,14 @@ model Coupon {
 
 // Fórum
 model ForumCategory {
-  id          String @id @default(cuid())
-  name        String @db.VarChar(100)
-  slug        String @unique @db.VarChar(100)
+  id          String  @id @default(cuid())
+  name        String  @db.VarChar(100)
+  slug        String  @unique @db.VarChar(100)
   description String? @db.Text
   icon        String? @db.VarChar(50)
-  order       Int    @default(0)
+  order       Int     @default(0)
+  staffOnly   Boolean @default(false) @map("staff_only")
+  active      Boolean @default(true)
 
   topics Post[]
 
@@ -175,16 +177,20 @@ model ForumCategory {
 }
 
 model Post {
-  id          String   @id @default(cuid())
-  title       String   @db.VarChar(255)
-  content     String   @db.Text
-  authorId    String   @map("author_id")
-  categoryId  String   @map("category_id")
-  pinned      Boolean  @default(false)
-  locked      Boolean  @default(false)
-  views       Int      @default(0)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id             String    @id @default(cuid())
+  title          String    @db.VarChar(255)
+  slug           String    @unique @db.VarChar(300)
+  content        String    @db.Text
+  authorId       String    @map("author_id")
+  categoryId     String    @map("category_id")
+  pinned         Boolean   @default(false)
+  locked         Boolean   @default(false)
+  resolved       Boolean   @default(false)
+  views          Int       @default(0)
+  tags           String?   @db.Text
+  lastActivityAt DateTime  @default(now()) @map("last_activity_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
   author   User          @relation(fields: [authorId], references: [id])
   category ForumCategory @relation(fields: [categoryId], references: [id])

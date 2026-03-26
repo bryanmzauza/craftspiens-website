@@ -7,6 +7,110 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.7] — 27/03/2026 — CRUD do fórum e comunidade dinâmica
+
+### Adicionado
+
+- **API de Categorias do Fórum** (`src/app/api/forum/categorias/route.ts`) — `GET /api/forum/categorias`:
+  - Retorna todas as categorias ativas com contagem de tópicos, total de membros e último post
+  - Query otimizada com `_count`, `include` de último post e autor
+  - Filtra por `active: true` e ordena por `order`
+
+- **API de Tópicos — Listagem e Criação** (`src/app/api/forum/topicos/route.ts`):
+  - `GET /api/forum/topicos` — Listagem paginada com filtro por categoria (`categoria` slug), busca textual (`busca`), ordenação por fixados + última atividade
+  - `POST /api/forum/topicos` — Criação de tópico com:
+    - Autenticação obrigatória via `auth()`
+    - Rate limiting (5 tópicos/hora via `RATE_LIMITS.forumTopic`)
+    - Anti-spam: conta precisa ter >1h de idade
+    - Restrição de categorias `staffOnly` para ADMIN/MODERADOR
+    - Detecção de duplicatas (mesmo título na mesma categoria em 24h)
+    - Geração automática de slug com tratamento de colisão (sufixo numérico)
+    - Validação: título 5-100 chars, conteúdo 10-10000 chars
+
+- **API de Tópico Individual** (`src/app/api/forum/topicos/[slug]/route.ts`):
+  - `GET /api/forum/topicos/[slug]` — Detalhe do tópico com incremento de views, dados do autor com reputação calculada (posts + comentários + curtidas×2 - descurtidas), contagem de posts/comentários do autor
+  - `PUT /api/forum/topicos/[slug]` — Edição com janela de 30min para autores, staff sem restrição; suporta fixar, trancar e resolver (staff only)
+  - `DELETE /api/forum/topicos/[slug]` — Autor pode deletar se não há comentários, staff pode deletar sempre
+
+- **API de Comentários** (`src/app/api/forum/comentarios/route.ts`):
+  - `GET /api/forum/comentarios` — Listagem paginada por tópico com respostas aninhadas (1 nível), dados do autor com role e UUID
+  - `POST /api/forum/comentarios` — Criação com autenticação, rate limiting (10/15min), verificação de tópico trancado, enforcement de 1 nível de aninhamento, atualiza `lastActivityAt` do post pai
+
+- **API de Comentário Individual** (`src/app/api/forum/comentarios/[id]/route.ts`):
+  - `PUT` — Edição com janela de 30min para autor
+  - `DELETE` — Autor pode deletar se não há respostas, staff pode deletar sempre
+
+- **API de Reações** (`src/app/api/forum/reacoes/route.ts`) — `POST /api/forum/reacoes`:
+  - Toggle de like/dislike em posts ou comentários
+  - Estados: criar reação, remover se já existe igual, ou trocar se tipo diferente
+  - Autenticação obrigatória
+
+- **Componente ComunidadeContent** reescrito (`src/components/comunidade/ComunidadeContent.tsx`):
+  - Removidos todos os dados mock (CATEGORIES, MOCK_TOPICS, STATS)
+  - Busca dinâmica de categorias via `GET /api/forum/categorias`
+  - Cards de categoria com ícone, contagem de tópicos/posts, último tópico e autor
+  - Barra de estatísticas em tempo real (membros, total de tópicos)
+  - Links para rotas dinâmicas `/comunidade/[slug]`
+
+- **Componente CategoriaContent** (`src/components/comunidade/CategoriaContent.tsx`):
+  - Listagem de tópicos de uma categoria com busca, paginação e estados de loading/vazio
+  - Modal de criação de tópico com validação (título 5-100, conteúdo 10-10000 chars)
+  - Avatares via mc-heads.net (UUID), badges de role (Admin/Moderador/Professor)
+  - Ícones de fixado, trancado e resolvido; contagem de respostas e views
+
+- **Componente TopicoContent** (`src/components/comunidade/TopicoContent.tsx`):
+  - Visualizador completo de tópico com sidebar do autor (avatar, role, badge de reputação, stats)
+  - Sistema de reputação visual: Novato 🌱, Membro ⭐, Veterano 🏆, Lenda 💎
+  - Renderizador de conteúdo com bold, italic, code inline e sanitização XSS
+  - Seção de comentários com respostas aninhadas (1 nível), paginação, reações (like/dislike)
+  - Formulário de resposta com suporte a reply direto a comentário
+  - Estados: tópico trancado, não autenticado, compartilhar link, reportar
+  - Framer Motion para animações de entrada
+
+- **Rotas dinâmicas do fórum**:
+  - `/comunidade/[categoria]/page.tsx` — Página de categoria passando slug para CategoriaContent
+  - `/comunidade/[categoria]/[topico]/page.tsx` — Página de tópico passando slugs para TopicoContent
+
+- **Script de seed do fórum** (`scripts/seed-forum.mjs`):
+  - Popula banco com 7 categorias: Anúncios, Geral, Dúvidas de Aulas, Sugestões, Bugs & Problemas, Showroom, Off-Topic
+  - Ícones emoji, descrições, flags staffOnly e slugs únicos
+  - Uso: `node scripts/seed-forum.mjs` (requer `DATABASE_URL` no `.env`)
+  - Idempotente com `ON DUPLICATE KEY UPDATE`
+
+### Modificado
+
+- **Schema Prisma** (`prisma/schema.prisma`):
+  - `ForumCategory`: adicionados campos `staffOnly Boolean @default(false)` e `active Boolean @default(true)`
+  - `Post`: adicionados campos `slug String @unique`, `resolved Boolean @default(false)`, `tags String? @db.Text`, `lastActivityAt DateTime @default(now())`
+
+- **Rate Limiter** (`src/lib/rate-limit.ts`):
+  - Adicionados presets `forumTopic` (5 tentativas / 1 hora) e `forumComment` (10 tentativas / 15 minutos)
+
+### Decisões técnicas
+
+- **API-first com Client Components**: Mesma abordagem do blog — fetch dinâmico em componentes client para permitir interatividade (busca, paginação, modais) sem full page reload.
+- **Slug com colisão handling**: Geração automática de slug via `slugify()` com checagem de unicidade e sufixo numérico incremental para evitar conflitos.
+- **Reputação calculada on-the-fly**: Score = posts + comentários + (curtidas em posts × 2) + curtidas em comentários - descurtidas. Calculado no GET do tópico, sem campo persistido, para simplicidade e consistência.
+- **Aninhamento de 1 nível**: Comentários permitem apenas 1 nível de resposta (reply a reply é bloqueado). Evita threads infinitamente aninhadas e simplifica a UI.
+- **Edit window de 30 minutos**: Autores podem editar posts/comentários apenas nos primeiros 30min. Staff (Admin/Moderador) não tem restrição. Previne alteração de contexto em discussões longas.
+- **Anti-spam multi-camada**: Rate limiting + idade mínima da conta (1h) + detecção de duplicatas (24h) para criação de tópicos.
+- **Seed com mariadb nativo**: Mesmo padrão do seed-blog — driver `mariadb` direto, sem dependência de Prisma Client, idempotente.
+
+### Próximos passos (v0.8+)
+
+- **Recuperação de senha por email** — Fluxo esqueci-senha com token temporário e envio de email (requer configuração SMTP)
+- **Envio de emails** — Módulo Nodemailer ou Resend para emails transacionais (confirmação, recuperação, newsletter)
+- **Integração MercadoPago** — API de pagamentos para planos VIP/Premium e produtos da loja
+- **Rotas dinâmicas de aulas** — `/aulas/[slug]` com conteúdo da aula, vídeo e exercícios
+- **Persistência do carrinho** — Carrinho de compras salvo no banco (atualmente inexistente)
+- **Newsletter double opt-in** — Confirmação de email antes de ativar inscrição
+- **Migrar rate limiter para Redis** — Substituir store in-memory por Redis para produção multi-instância
+- **Página /loja/carrinho** — Página dedicada para o carrinho de compras
+- **Sistema de reports/denúncias** — UI para reportar posts/comentários + painel de moderação
+- **Notificações** — Notificar autores sobre respostas aos seus tópicos/comentários
+
+---
+
 ## [v0.6] — 26/03/2026 — Blog dinâmico, gerenciamento de conta e .env.example
 
 ### Adicionado
