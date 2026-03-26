@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   Calculator,
@@ -16,85 +16,35 @@ import {
   Users,
   Clock,
   BarChart3,
+  Loader2,
 } from "lucide-react";
+import Link from "next/link";
 import { PageHero } from "@/components/ui/PageHero";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { Button } from "@/components/ui/Button";
 
-const DISCIPLINES = [
-  {
-    slug: "matematica",
-    name: "Matemática",
-    icon: Calculator,
-    description: "Álgebra, geometria, aritmética e lógica matemática através de construções e puzzles no Minecraft.",
-    levels: ["Fundamental", "Médio"],
-    courses: 8,
-    color: "#2196F3",
-  },
-  {
-    slug: "ciencias",
-    name: "Ciências",
-    icon: Microscope,
-    description: "Biologia, Física e Química com experimentos virtuais, biomas e construções temáticas no servidor.",
-    levels: ["Fundamental", "Médio"],
-    courses: 6,
-    color: "#4CAF50",
-  },
-  {
-    slug: "historia",
-    name: "História",
-    icon: Globe,
-    description: "Viaje no tempo visitando civilizações construídas em escala dentro do Minecraft. Egito, Roma, Brasil Colonial.",
-    levels: ["Fundamental", "Médio"],
-    courses: 5,
-    color: "#FF9800",
-  },
-  {
-    slug: "portugues",
-    name: "Português",
-    icon: BookOpen,
-    description: "Gramática, interpretação de texto e redação com missões temáticas e desafios literários interativos.",
-    levels: ["Fundamental", "Médio"],
-    courses: 6,
-    color: "#E91E63",
-  },
-  {
-    slug: "artes",
-    name: "Artes",
-    icon: Palette,
-    description: "Expressão artística, história da arte e criatividade através de pixel art e construções estéticas.",
-    levels: ["Fundamental"],
-    courses: 3,
-    color: "#9C27B0",
-  },
-  {
-    slug: "programacao",
-    name: "Programação",
-    icon: Code,
-    description: "Lógica de programação, algoritmos e pensamento computacional com redstone e command blocks.",
-    levels: ["Fundamental", "Médio"],
-    courses: 4,
-    color: "#00BCD4",
-  },
-  {
-    slug: "ingles",
-    name: "Inglês",
-    icon: Languages,
-    description: "Vocabulário, gramática e conversação em inglês com imersão em ambientes temáticos bilíngues.",
-    levels: ["Fundamental", "Médio"],
-    courses: 5,
-    color: "#FF5722",
-  },
-  {
-    slug: "educacao-fisica",
-    name: "Educação Física",
-    icon: Dumbbell,
-    description: "Minigames esportivos, parkour educativo e atividades que promovem coordenação e estratégia.",
-    levels: ["Fundamental"],
-    courses: 3,
-    color: "#795548",
-  },
-];
+const ICON_MAP: Record<string, typeof Calculator> = {
+  Calculator,
+  Microscope,
+  Globe,
+  BookOpen,
+  Palette,
+  Code,
+  Languages,
+  Dumbbell,
+};
+
+interface DisciplineData {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  shortDescription: string;
+  icon: string;
+  color: string;
+  levels: string[];
+  lessonsCount: number;
+}
 
 const HOW_IT_WORKS = [
   {
@@ -134,16 +84,31 @@ const fadeIn = {
 export function AulasContent() {
   const [search, setSearch] = useState("");
   const [level, setLevel] = useState<string>("Todos");
+  const [disciplines, setDisciplines] = useState<DisciplineData[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filtered = useMemo(() => {
-    return DISCIPLINES.filter((d) => {
-      const matchSearch =
-        d.name.toLowerCase().includes(search.toLowerCase()) ||
-        d.description.toLowerCase().includes(search.toLowerCase());
-      const matchLevel = level === "Todos" || d.levels.includes(level);
-      return matchSearch && matchLevel;
-    });
+  const fetchDisciplines = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (search) params.set("busca", search);
+      if (level !== "Todos") params.set("nivel", level);
+      const res = await fetch(`/api/aulas?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setDisciplines(data.disciplines);
+      }
+    } catch {
+      // silently fail — shows empty state
+    } finally {
+      setLoading(false);
+    }
   }, [search, level]);
+
+  useEffect(() => {
+    const timer = setTimeout(fetchDisciplines, 300);
+    return () => clearTimeout(timer);
+  }, [fetchDisciplines]);
 
   return (
     <>
@@ -217,48 +182,63 @@ export function AulasContent() {
           </div>
 
           {/* Grid */}
-          <motion.div
-            variants={stagger}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-          >
-            {filtered.map((discipline) => (
-              <motion.div
-                key={discipline.slug}
-                variants={fadeIn}
-                className="group rounded-xl border border-white/10 bg-white/5 p-6 backdrop-blur transition-all hover:border-green-cs hover:scale-[1.02] hover:shadow-[0_4px_24px_rgba(0,0,0,0.3)]"
-              >
-                <div
-                  className="flex h-12 w-12 items-center justify-center rounded-xl"
-                  style={{ backgroundColor: `${discipline.color}20`, borderColor: `${discipline.color}40`, borderWidth: 1 }}
-                >
-                  <discipline.icon className="h-6 w-6" style={{ color: discipline.color }} />
-                </div>
+          {loading ? (
+            <div className="mt-12 flex justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-green-cs" />
+            </div>
+          ) : (
+            <motion.div
+              variants={stagger}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+            >
+              {disciplines.map((discipline) => {
+                const Icon = ICON_MAP[discipline.icon] || GraduationCap;
+                return (
+                  <motion.div key={discipline.slug} variants={fadeIn}>
+                    <Link href={`/aulas/${discipline.slug}`} className="block">
+                      <div className="group rounded-xl border border-white/10 bg-white/5 p-6 backdrop-blur transition-all hover:border-green-cs hover:scale-[1.02] hover:shadow-[0_4px_24px_rgba(0,0,0,0.3)]">
+                        <div
+                          className="flex h-12 w-12 items-center justify-center rounded-xl"
+                          style={{ backgroundColor: `${discipline.color}20`, borderColor: `${discipline.color}40`, borderWidth: 1 }}
+                        >
+                          <Icon className="h-6 w-6" style={{ color: discipline.color }} />
+                        </div>
 
-                <h3 className="mt-4 text-lg font-bold text-white">{discipline.name}</h3>
-                <p className="mt-2 text-sm text-[#E0E0E0] line-clamp-3">{discipline.description}</p>
+                        <h3 className="mt-4 text-lg font-bold text-white">{discipline.name}</h3>
+                        <p className="mt-2 text-sm text-[#E0E0E0] line-clamp-3">
+                          {discipline.shortDescription}
+                        </p>
 
-                <div className="mt-4 flex flex-wrap gap-1.5">
-                  {discipline.levels.map((l) => (
-                    <span
-                      key={l}
-                      className="rounded-full bg-green-cs/10 px-2.5 py-0.5 text-xs font-medium text-green-cs"
-                    >
-                      {l}
-                    </span>
-                  ))}
-                </div>
+                        <div className="mt-4 flex flex-wrap gap-1.5">
+                          {discipline.levels.map((l) => (
+                            <span
+                              key={l}
+                              className="rounded-full px-2.5 py-0.5 text-xs font-medium"
+                              style={{
+                                backgroundColor: `${discipline.color}20`,
+                                color: discipline.color,
+                              }}
+                            >
+                              {l}
+                            </span>
+                          ))}
+                        </div>
 
-                <p className="mt-3 text-xs text-[#A0A0A0]">
-                  {discipline.courses} cursos disponíveis
-                </p>
-              </motion.div>
-            ))}
-          </motion.div>
+                        <p className="mt-3 text-xs text-[#A0A0A0]">
+                          {discipline.lessonsCount} aulas disponíveis
+                        </p>
+                      </div>
+                    </Link>
+                  </motion.div>
+                );
+              })}
+            </motion.div>
+          )}
 
-          {filtered.length === 0 && (
+          {!loading && disciplines.length === 0 && (
             <p className="mt-12 text-center text-[#A0A0A0]">
               Nenhuma disciplina encontrada com esses filtros.
             </p>
