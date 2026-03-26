@@ -1,9 +1,12 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/Button";
 
 export function HeroSection() {
+  const { data: session } = useSession();
+
   return (
     <section className="relative flex min-h-screen items-center pt-16">
       <div className="mx-auto grid max-w-7xl gap-12 px-4 lg:grid-cols-2 lg:items-center lg:px-6">
@@ -25,7 +28,11 @@ export function HeroSection() {
             Aulas reais, gamificação e comunidade no Minecraft.
           </p>
           <div className="mt-8 flex flex-col gap-4 sm:flex-row">
-            <Button href="/registro">Iniciar Jornada Grátis</Button>
+            {session?.user ? (
+              <Button href="/perfil">Acessar Perfil</Button>
+            ) : (
+              <Button href="/registro">Iniciar Jornada Grátis</Button>
+            )}
             <Button href="/cronograma" variant="secondary">
               Ver Grade Curricular
             </Button>

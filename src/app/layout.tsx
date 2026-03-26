@@ -4,6 +4,7 @@ import "./globals.css";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { AnimatedBackground } from "@/components/layout/AnimatedBackground";
+import { Providers } from "@/app/providers";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -51,10 +52,12 @@ export default function RootLayout({
       className={`${inter.variable} ${jetbrainsMono.variable} ${pressStart.variable} antialiased`}
     >
       <body className="min-h-screen flex flex-col bg-bg-primary text-white">
-        <AnimatedBackground />
-        <Navbar />
-        <main className="relative z-[1] flex-1">{children}</main>
-        <Footer />
+        <Providers>
+          <AnimatedBackground />
+          <Navbar />
+          <main className="relative z-[1] flex-1">{children}</main>
+          <Footer />
+        </Providers>
       </body>
     </html>
   );

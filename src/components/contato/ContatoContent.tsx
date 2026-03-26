@@ -128,15 +128,39 @@ export function ContatoContent() {
   });
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [formError, setFormError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSending(true);
-    // Simula envio — será conectado ao backend na próxima versão
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setSending(false);
-    setSent(true);
-    setFormState({ nome: "", email: "", assunto: "", mensagem: "" });
+    setFormError("");
+
+    try {
+      const res = await fetch("/api/contato", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formState.nome,
+          email: formState.email,
+          category: formState.assunto,
+          subject: formState.assunto,
+          message: formState.mensagem,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setFormError(data.error || "Erro ao enviar mensagem.");
+        return;
+      }
+
+      setSent(true);
+      setFormState({ nome: "", email: "", assunto: "", mensagem: "" });
+    } catch {
+      setFormError("Erro ao conectar com o servidor. Tente novamente.");
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -224,6 +248,11 @@ export function ContatoContent() {
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+                  {formError && (
+                    <div className="rounded-lg border border-error/20 bg-error/10 px-4 py-3 text-sm text-error">
+                      {formError}
+                    </div>
+                  )}
                   <div>
                     <label htmlFor="nome" className="block text-sm font-medium text-white">
                       Nome *
