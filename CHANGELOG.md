@@ -7,6 +7,140 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.8] — 27/03/2026 — Sistema de email, recuperação de senha e newsletter
+
+### Adicionado
+
+- **Módulo de email** (`src/lib/email.ts`) — Nodemailer v7 com templates HTML responsivos branded CraftSapiens:
+  - `sendPasswordResetEmail()` — Email de recuperação de senha com link de redefinição (expira em 1h)
+  - `sendNewsletterConfirmationEmail()` — Email de double opt-in para newsletter
+  - `sendWelcomeEmail()` — Email de boas-vindas com instruções de acesso ao servidor Minecraft
+  - `sendContactConfirmationEmail()` — Confirmação de recebimento de mensagem do formulário de contato
+  - `baseTemplate()` — Layout HTML com header verde, branding CraftSapiens e footer com copyright
+  - `escapeHtml()` — Sanitização XSS para conteúdo dinâmico nos templates
+  - Configuração via variáveis de ambiente: `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
+
+- **API de Recuperação de Senha** (`src/app/api/auth/recuperar-senha/route.ts`) — `POST /api/auth/recuperar-senha`:
+  - Rate limiting: 3 tentativas por hora por IP (`RATE_LIMITS.passwordReset`)
+  - Resposta genérica anti-enumeração ("Se o email estiver cadastrado…") independente do resultado
+  - Invalida tokens anteriores não usados do mesmo usuário
+  - Gera token de 64 chars hex (32 bytes via `crypto.randomBytes`), armazena hash SHA-256 no banco
+  - Envia email com link de redefinição válido por 1 hora
+  - Busca por email no modelo User com relação nLogin
+
+- **API de Redefinição de Senha** (`src/app/api/auth/redefinir-senha/route.ts`) — `POST /api/auth/redefinir-senha`:
+  - Valida token via hash SHA-256 (token nunca armazenado em texto plano)
+  - Verifica expiração (1h) e uso prévio do token
+  - Validação de senha: mínimo 8 chars, pelo menos 1 letra e 1 número, confirmação de senha
+  - Atualiza hash no nLogin via `hashPassword()` + marca token como usado em transação Prisma `$transaction`
+
+- **API de Newsletter — Inscrição** (`src/app/api/newsletter/route.ts`) — `POST /api/newsletter`:
+  - Rate limiting: 3 tentativas por hora por IP (`RATE_LIMITS.newsletter`)
+  - Double opt-in: gera token de confirmação e envia email
+  - Handles re-inscrição: se email existente cancelou ou não confirmou, regenera token e reenvia confirmação
+  - Resposta amigável se email já confirmado ("já está inscrito")
+  - Validação de formato de email com regex
+
+- **API de Newsletter — Confirmação** (`src/app/api/newsletter/confirmar/route.ts`) — `GET /api/newsletter/confirmar?token=xxx`:
+  - Busca por `confirmToken` no modelo Newsletter
+  - Seta `confirmed: true, unsubscribedAt: null`, mantém token para uso futuro (cancelamento)
+  - Retorno idempotente se já confirmado
+
+- **API de Newsletter — Cancelamento** (`src/app/api/newsletter/cancelar/route.ts`) — `GET /api/newsletter/cancelar?token=xxx`:
+  - Busca por `confirmToken`, seta `confirmed: false, unsubscribedAt: new Date()`
+  - Limpa o token para prevenir reutilização
+  - Soft-delete: registro mantido para auditoria
+
+- **Página Recuperar Senha** (`src/app/recuperar-senha/page.tsx` + `src/components/auth/RecuperarSenhaContent.tsx`):
+  - Formulário de email com validação
+  - Estado de sucesso com feedback visual (ícone CheckCircle, mensagem informativa, dica sobre spam)
+  - Link de volta para login; Framer Motion para animações
+  - SEO: metadata com título e descrição
+
+- **Página Redefinir Senha** (`src/app/redefinir-senha/page.tsx` + `src/components/auth/RedefinirSenhaContent.tsx`):
+  - Lê token da URL via `useSearchParams()` (envolto em `Suspense`)
+  - Indicador de força de senha em 5 níveis (Muito fraca → Muito forte) com barra colorida
+  - Toggles mostrar/ocultar senha para ambos os campos
+  - Estados: erro de token ausente, sucesso com auto-redirect para login em 3s, token inválido
+  - SEO: `robots: { index: false, follow: false }` (rota privada)
+
+- **Página Confirmar Newsletter** (`src/app/newsletter/confirmar/page.tsx` + `src/components/newsletter/NewsletterConfirmarContent.tsx`):
+  - Confirmação automática ao montar via `useEffect` + fetch para API
+  - Estados de loading, sucesso (com ícone e link para home) e erro
+  - `Suspense` wrapper para `useSearchParams()`
+
+- **Script de migração** (`scripts/migrate-v08.mjs`):
+  - `CREATE TABLE IF NOT EXISTS password_reset_tokens` — id, user_id (FK → users), token_hash (UNIQUE), expires_at, used_at, created_at
+  - `ALTER TABLE newsletter ADD COLUMN IF NOT EXISTS unsubscribed_at`
+  - `ALTER TABLE users ADD COLUMN IF NOT EXISTS birth_date, deactivated_at`
+  - Idempotente (IF NOT EXISTS), usa driver `mariadb` nativo
+
+### Modificado
+
+- **Schema Prisma** (`prisma/schema.prisma`):
+  - Novo modelo `PasswordResetToken` mapeado para `password_reset_tokens` com campos id, userId (FK → User), tokenHash (unique), expiresAt, usedAt, createdAt
+  - Relação `passwordResetTokens PasswordResetToken[]` adicionada ao modelo User
+  - Campo `unsubscribedAt DateTime?` adicionado ao modelo Newsletter
+
+- **Footer** (`src/components/layout/Footer.tsx`):
+  - Formulário de newsletter agora funcional: conectado a `POST /api/newsletter`
+  - Estados de loading (spinner), sucesso (mensagem verde) e erro (mensagem vermelha)
+  - Import do ícone `Loader2` do lucide-react
+
+- **Rate Limiter** (`src/lib/rate-limit.ts`):
+  - Adicionados presets `passwordReset` (3 tentativas / 1 hora) e `newsletter` (3 tentativas / 1 hora)
+
+- **Proxy (middleware)** (`src/proxy.ts`):
+  - `/recuperar-senha` e `/redefinir-senha` adicionados ao array `authRoutes` (redireciona para /perfil se logado)
+  - Ambas as rotas adicionadas ao `config.matcher`
+
+- **API de Registro** (`src/app/api/auth/register/route.ts`):
+  - Envio de email de boas-vindas fire-and-forget após registro bem-sucedido via `sendWelcomeEmail()`
+
+- **API de Contato** (`src/app/api/contato/route.ts`):
+  - Envio de email de confirmação fire-and-forget após salvar mensagem via `sendContactConfirmationEmail()`
+
+- **`.env.example`** — Adicionada seção SMTP com as 6 variáveis de configuração do Nodemailer
+
+### Decisões técnicas
+
+- **Token hashing com SHA-256**: O token de recuperação é enviado ao usuário como URL param, mas no banco é armazenado apenas o hash SHA-256. Mesmo com acesso ao banco, não é possível reconstruir o token original.
+- **Resposta genérica anti-enumeração**: `POST /api/auth/recuperar-senha` retorna sempre a mesma mensagem independente do email existir ou não, prevenindo user enumeration attacks.
+- **Double opt-in newsletter**: Inscrição requer confirmação por email para compliance com boas práticas de email marketing e prevenção de spam/abuse com emails de terceiros.
+- **Fire-and-forget para emails não-críticos**: Emails de boas-vindas e confirmação de contato são disparados sem `await`, para não atrasar a response ao usuário. Erros são logados mas não propagados.
+- **Nodemailer v7 (não v8)**: v8 tem peer dependency conflict com next-auth@5.0.0-beta.30 (exige nodemailer v6). v7.0.7 é compatível com ambos.
+- **Token de confirmação mantido após ativação**: O `confirmToken` da newsletter é preservado após confirmação para permitir uso no link de cancelamento (unsubscribe).
+- **Script de migração com mariadb nativo**: Mesmo padrão das versões anteriores — driver direto, sem dependência do Prisma Client, idempotente com IF NOT EXISTS.
+
+### Próximos passos (v0.9+)
+
+- **Integração MercadoPago** — API de pagamentos para planos VIP/Premium e produtos da loja
+- **Rotas dinâmicas de aulas** — `/aulas/[slug]` com conteúdo da aula, vídeo e exercícios
+- **Persistência do carrinho** — Carrinho de compras salvo no banco (atualmente inexistente)
+- **Página /loja/carrinho** — Página dedicada para o carrinho de compras
+- **Migrar rate limiter para Redis** — Substituir store in-memory por Redis para produção multi-instância
+- **Sistema de reports/denúncias** — UI para reportar posts/comentários + painel de moderação
+- **Notificações** — Notificar autores sobre respostas aos seus tópicos/comentários
+- **Admin panel** — Painel administrativo para gestão de conteúdo, usuários e pedidos
+- **Envio de newsletters em massa** — Interface para enviar newsletters programadas aos inscritos confirmados
+
+---
+
+## [v0.7.1] — 26/03/2026 — Correções de deploy do fórum
+
+### Corrigido
+
+- **Schema no banco de dados** — Colunas adicionadas no v0.7 não existiam no banco remoto (`staff_only`, `active` em `forum_categories`; `slug`, `resolved`, `tags`, `last_activity_at` em `posts`). Aplicadas via ALTER TABLE direto pois `prisma db push` falhava com índice corrompido (`plan_ping`) em tabela externa no banco compartilhado.
+- **Script seed-forum.mjs** — Corrigido import ESM (`import mariadb from "mariadb"` → `import * as mariadb from "mariadb"`) compatível com Node.js 20 + .mjs.
+- **IDs do seed** — Substituído `UUID()` (36 chars, incompatível com CUID VARCHAR(25)) por IDs determinísticos curtos (`fcat_slug`), seguindo o padrão do seed-blog.mjs.
+
+### Decisões técnicas
+
+- **ALTER TABLE manual**: `prisma db push` falha quando o banco compartilhado tem índices corrompidos em tabelas fora do schema. Workaround: aplicar ALTER TABLE via driver mariadb direto, com `ADD COLUMN IF NOT EXISTS` para idempotência e backfill de slugs para posts existentes.
+- **Import ESM do mariadb**: O pacote `mariadb` não exporta default em ESM. Usar `import * as mariadb` em vez de `import mariadb from`.
+
+---
+
 ## [v0.7] — 27/03/2026 — CRUD do fórum e comunidade dinâmica
 
 ### Adicionado

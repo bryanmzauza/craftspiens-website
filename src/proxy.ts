@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
 const protectedRoutes = ["/perfil", "/loja/carrinho"];
-const authRoutes = ["/login", "/registro"];
+const authRoutes = ["/login", "/registro", "/recuperar-senha", "/redefinir-senha"];
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
@@ -33,5 +33,7 @@ export const config = {
     "/loja/carrinho",
     "/login",
     "/registro",
+    "/recuperar-senha",
+    "/redefinir-senha",
   ],
 };

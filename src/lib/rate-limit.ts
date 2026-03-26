@@ -54,6 +54,8 @@ export const RATE_LIMITS = {
   contact: { maxAttempts: 3, windowMs: 60 * 60 * 1000 },         // 3 envios / 1 hora
   register: { maxAttempts: 3, windowMs: 60 * 60 * 1000 },        // 3 registros / 1 hora
   passwordChange: { maxAttempts: 5, windowMs: 15 * 60 * 1000 },  // 5 tentativas / 15 min
+  passwordReset: { maxAttempts: 3, windowMs: 60 * 60 * 1000 },   // 3 solicitações / 1 hora
+  newsletter: { maxAttempts: 3, windowMs: 60 * 60 * 1000 },      // 3 inscrições / 1 hora
   forumTopic: { maxAttempts: 5, windowMs: 60 * 60 * 1000 },      // 5 tópicos / 1 hora (RN-FORUM-05)
   forumComment: { maxAttempts: 10, windowMs: 15 * 60 * 1000 },   // 10 comentários / 15 min
 } as const

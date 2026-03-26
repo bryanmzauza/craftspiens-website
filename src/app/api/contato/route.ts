@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { sendContactConfirmationEmail } from "@/lib/email";
 import { headers } from "next/headers";
 
 const VALID_CATEGORIES = [
@@ -79,6 +80,11 @@ export async function POST(request: Request) {
         message,
       },
     });
+
+    // Email de confirmação para o remetente (fire-and-forget)
+    sendContactConfirmationEmail(email, name).catch((err) =>
+      console.error("Erro ao enviar email de confirmação de contato:", err)
+    );
 
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (error) {

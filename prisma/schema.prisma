@@ -46,6 +46,7 @@ model User {
   reactions Reaction[]
   reports  Report[]
   blogPosts BlogPost[]
+  passwordResetTokens PasswordResetToken[]
 
   @@map("users")
 }
@@ -302,11 +303,26 @@ model ContactMessage {
 }
 
 model Newsletter {
-  id          String   @id @default(cuid())
-  email       String   @unique @db.VarChar(255)
-  confirmed   Boolean  @default(false)
-  confirmToken String? @unique @map("confirm_token") @db.VarChar(255)
-  createdAt   DateTime @default(now()) @map("created_at")
+  id             String    @id @default(cuid())
+  email          String    @unique @db.VarChar(255)
+  confirmed      Boolean   @default(false)
+  confirmToken   String?   @unique @map("confirm_token") @db.VarChar(255)
+  unsubscribedAt DateTime? @map("unsubscribed_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
 
   @@map("newsletter")
+}
+
+// Recuperação de senha
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  tokenHash String   @unique @map("token_hash") @db.VarChar(255)
+  expiresAt DateTime @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
 }

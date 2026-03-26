@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Copy, Check, Mail, Phone, MapPin, Monitor } from "lucide-react";
+import { Copy, Check, Mail, Phone, MapPin, Monitor, Loader2 } from "lucide-react";
 import {
   SITE_DESCRIPTION,
   SERVER_IP,
@@ -31,11 +31,44 @@ const SUPPORT_LINKS = [
 
 export function Footer() {
   const [copied, setCopied] = useState(false);
+  const [newsletterEmail, setNewsletterEmail] = useState("");
+  const [newsletterLoading, setNewsletterLoading] = useState(false);
+  const [newsletterMsg, setNewsletterMsg] = useState("");
+  const [newsletterError, setNewsletterError] = useState("");
 
   const copyIp = async () => {
     await navigator.clipboard.writeText(SERVER_IP);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleNewsletterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setNewsletterMsg("");
+    setNewsletterError("");
+    setNewsletterLoading(true);
+
+    try {
+      const res = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: newsletterEmail.trim() }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setNewsletterError(data.error || "Erro ao inscrever.");
+        return;
+      }
+
+      setNewsletterMsg(data.message);
+      setNewsletterEmail("");
+    } catch {
+      setNewsletterError("Erro ao conectar com o servidor.");
+    } finally {
+      setNewsletterLoading(false);
+    }
   };
 
   return (
@@ -46,23 +79,39 @@ export function Footer() {
           <p className="text-lg font-semibold">
             📬 Fique por dentro das novidades
           </p>
-          <form
-            onSubmit={(e) => e.preventDefault()}
-            className="flex w-full max-w-md gap-2"
-          >
-            <input
-              type="email"
-              placeholder="Seu melhor e-mail"
-              className="flex-1 rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/40 focus:border-green-cs focus:outline-none"
-              required
-            />
-            <button
-              type="submit"
-              className="rounded-lg bg-green-cs px-6 py-2.5 text-sm font-bold uppercase text-white transition-colors hover:bg-green-dark"
+          <div className="w-full max-w-md">
+            <form
+              onSubmit={handleNewsletterSubmit}
+              className="flex w-full gap-2"
             >
-              Inscrever
-            </button>
-          </form>
+              <input
+                type="email"
+                value={newsletterEmail}
+                onChange={(e) => setNewsletterEmail(e.target.value)}
+                placeholder="Seu melhor e-mail"
+                className="flex-1 rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/40 focus:border-green-cs focus:outline-none"
+                required
+                disabled={newsletterLoading}
+              />
+              <button
+                type="submit"
+                disabled={newsletterLoading || !newsletterEmail.trim()}
+                className="flex items-center gap-2 rounded-lg bg-green-cs px-6 py-2.5 text-sm font-bold uppercase text-white transition-colors hover:bg-green-dark disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {newsletterLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Inscrever"
+                )}
+              </button>
+            </form>
+            {newsletterMsg && (
+              <p className="mt-2 text-xs text-green-cs">{newsletterMsg}</p>
+            )}
+            {newsletterError && (
+              <p className="mt-2 text-xs text-red-400">{newsletterError}</p>
+            )}
+          </div>
         </div>
       </div>
 
