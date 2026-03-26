@@ -47,6 +47,7 @@ model User {
   reports  Report[]
   blogPosts BlogPost[]
   passwordResetTokens PasswordResetToken[]
+  cartItems CartItem[]
 
   @@map("users")
 }
@@ -85,17 +86,28 @@ model Profile {
 
 // Loja
 model Product {
-  id          String        @id @default(cuid())
-  name        String        @db.VarChar(255)
-  slug        String        @unique @db.VarChar(255)
-  description String        @db.Text
-  price       Decimal       @db.Decimal(10, 2)
-  category    ProductCategory
-  imageUrl    String?       @map("image_url") @db.VarChar(500)
-  active      Boolean       @default(true)
-  createdAt   DateTime      @default(now()) @map("created_at")
+  id               String          @id @default(cuid())
+  name             String          @db.VarChar(255)
+  slug             String          @unique @db.VarChar(255)
+  description      String          @db.Text
+  shortDescription String?         @map("short_description") @db.VarChar(255)
+  price            Decimal         @db.Decimal(10, 2)
+  originalPrice    Decimal?        @map("original_price") @db.Decimal(10, 2)
+  category         ProductCategory
+  imageUrl         String?         @map("image_url") @db.VarChar(500)
+  durationDays     Int?            @map("duration_days")
+  benefits         String?         @db.Text
+  serverCommand    String?         @map("server_command") @db.VarChar(500)
+  stock            Int             @default(-1)
+  featured         Boolean         @default(false)
+  badge            String?         @db.VarChar(50)
+  color            String?         @db.VarChar(20)
+  order            Int             @default(0)
+  active           Boolean         @default(true)
+  createdAt        DateTime        @default(now()) @map("created_at")
 
   orderItems OrderItem[]
+  cartItems  CartItem[]
 
   @@map("products")
 }
@@ -325,4 +337,57 @@ model PasswordResetToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("password_reset_tokens")
+}
+
+// Aulas
+model Discipline {
+  id               String   @id @default(cuid())
+  name             String   @db.VarChar(100)
+  slug             String   @unique @db.VarChar(100)
+  description      String   @db.Text
+  shortDescription String   @map("short_description") @db.VarChar(255)
+  icon             String   @db.VarChar(50)
+  color            String   @db.VarChar(20)
+  banner           String?  @db.VarChar(500)
+  levels           String   @db.VarChar(100)
+  order            Int      @default(0)
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  lessons Lesson[]
+
+  @@map("website_disciplines")
+}
+
+model Lesson {
+  id           String   @id @default(cuid())
+  disciplineId String   @map("discipline_id")
+  title        String   @db.VarChar(200)
+  slug         String   @unique @db.VarChar(200)
+  description  String   @db.Text
+  order        Int      @default(0)
+  duration     Int?     @map("duration_minutes")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  discipline Discipline @relation(fields: [disciplineId], references: [id])
+
+  @@map("website_lessons")
+}
+
+// Carrinho de compras
+model CartItem {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  productId String   @map("product_id")
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([userId, productId])
+  @@map("website_cart_items")
 }

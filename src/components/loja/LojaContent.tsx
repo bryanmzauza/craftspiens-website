@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Crown,
@@ -15,7 +15,11 @@ import {
   Zap,
   Shield,
   HeadphonesIcon,
+  Loader2,
 } from "lucide-react";
+import Link from "next/link";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { PageHero } from "@/components/ui/PageHero";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 
@@ -196,45 +200,54 @@ const CATEGORY_LABELS: Record<ProductCategory, string> = {
 const CATEGORIES: (ProductCategory | "todos")[] = ["todos", "rank", "cosmetico", "moeda", "kit"];
 
 export function LojaContent() {
+  const { data: session } = useSession();
+  const router = useRouter();
   const [categoriaAtiva, setCategoriaAtiva] = useState<ProductCategory | "todos">("todos");
-  const [carrinho, setCarrinho] = useState<Map<number, number>>(new Map());
-  const [showCarrinho, setShowCarrinho] = useState(false);
+  const [cartItemCount, setCartItemCount] = useState(0);
+  const [cartTotal, setCartTotal] = useState(0);
+  const [addingId, setAddingId] = useState<number | null>(null);
 
   const filteredProducts = useMemo(() => {
     if (categoriaAtiva === "todos") return PRODUCTS;
     return PRODUCTS.filter((p) => p.categoria === categoriaAtiva);
   }, [categoriaAtiva]);
 
-  const addToCart = (productId: number) => {
-    setCarrinho((prev) => {
-      const next = new Map(prev);
-      next.set(productId, (next.get(productId) || 0) + 1);
-      return next;
-    });
+  const fetchCartSummary = useCallback(async () => {
+    try {
+      const res = await fetch("/api/carrinho");
+      if (res.ok) {
+        const data = await res.json();
+        setCartItemCount(data.itemCount);
+        setCartTotal(data.subtotal);
+      }
+    } catch {
+      // silently fail
+    }
+  }, []);
+
+  useEffect(() => {
+    if (session) fetchCartSummary();
+  }, [session, fetchCartSummary]);
+
+  const addToCart = async (productId: number) => {
+    if (!session) {
+      router.push("/login?redirect=/loja");
+      return;
+    }
+    setAddingId(productId);
+    try {
+      const res = await fetch("/api/carrinho", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId: String(productId) }),
+      });
+      if (res.ok) await fetchCartSummary();
+    } catch {
+      // silently fail
+    } finally {
+      setAddingId(null);
+    }
   };
-
-  const removeFromCart = (productId: number) => {
-    setCarrinho((prev) => {
-      const next = new Map(prev);
-      next.delete(productId);
-      return next;
-    });
-  };
-
-  const cartTotal = useMemo(() => {
-    let total = 0;
-    carrinho.forEach((qty, id) => {
-      const product = PRODUCTS.find((p) => p.id === id);
-      if (product) total += product.preco * qty;
-    });
-    return total;
-  }, [carrinho]);
-
-  const cartItemCount = useMemo(() => {
-    let count = 0;
-    carrinho.forEach((qty) => (count += qty));
-    return count;
-  }, [carrinho]);
 
   return (
     <>
@@ -399,9 +412,15 @@ export function LojaContent() {
 
                   <button
                     onClick={() => addToCart(product.id)}
-                    className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-green-cs/10 py-2 text-sm font-bold text-green-cs transition-all hover:bg-green-cs hover:text-white"
+                    disabled={addingId === product.id}
+                    className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-green-cs/10 py-2 text-sm font-bold text-green-cs transition-all hover:bg-green-cs hover:text-white disabled:opacity-60"
                   >
-                    <ShoppingCart size={16} /> Adicionar
+                    {addingId === product.id ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <ShoppingCart size={16} />
+                    )}
+                    {addingId === product.id ? "Adicionando..." : "Adicionar"}
                   </button>
                 </motion.div>
               );
@@ -418,8 +437,8 @@ export function LojaContent() {
               exit={{ y: 100, opacity: 0 }}
               className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2"
             >
-              <button
-                onClick={() => setShowCarrinho(true)}
+              <Link
+                href="/loja/carrinho"
                 className="flex items-center gap-4 rounded-2xl border border-green-cs/30 bg-bg-primary/95 px-6 py-3 shadow-2xl backdrop-blur-xl transition-all hover:border-green-cs/60"
               >
                 <div className="relative">
@@ -434,93 +453,7 @@ export function LojaContent() {
                 <span className="rounded-lg bg-green-cs px-4 py-1.5 text-sm font-bold text-white">
                   Ver Carrinho
                 </span>
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Cart Modal */}
-        <AnimatePresence>
-          {showCarrinho && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
-              onClick={() => setShowCarrinho(false)}
-            >
-              <div className="absolute inset-0 bg-black/70" />
-              <motion.div
-                initial={{ y: 50, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                exit={{ y: 50, opacity: 0 }}
-                onClick={(e) => e.stopPropagation()}
-                className="relative w-full max-w-lg rounded-t-2xl border border-white/10 bg-bg-primary p-6 sm:rounded-2xl"
-              >
-                <div className="mb-4 flex items-center justify-between">
-                  <h2 className="font-[family-name:var(--font-press-start)] text-sm text-white">
-                    SEU CARRINHO
-                  </h2>
-                  <button
-                    onClick={() => setShowCarrinho(false)}
-                    className="text-[#A0A0A0] transition-colors hover:text-white"
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
-
-                {cartItemCount === 0 ? (
-                  <p className="py-8 text-center text-sm text-[#A0A0A0]">Carrinho vazio</p>
-                ) : (
-                  <>
-                    <div className="max-h-64 space-y-3 overflow-y-auto">
-                      {Array.from(carrinho.entries()).map(([productId, qty]) => {
-                        const product = PRODUCTS.find((p) => p.id === productId);
-                        if (!product) return null;
-                        return (
-                          <div
-                            key={productId}
-                            className="flex items-center justify-between rounded-lg border border-white/10 p-3"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium text-white">{product.nome}</p>
-                              <p className="text-xs text-[#A0A0A0]">
-                                {qty}x R$ {product.preco.toFixed(2).replace(".", ",")}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <span className="text-sm font-bold text-green-cs">
-                                R$ {(product.preco * qty).toFixed(2).replace(".", ",")}
-                              </span>
-                              <button
-                                onClick={() => removeFromCart(productId)}
-                                className="text-[#A0A0A0] transition-colors hover:text-error"
-                              >
-                                <X size={16} />
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    <div className="mt-4 border-t border-white/10 pt-4">
-                      <div className="flex items-center justify-between text-lg font-bold">
-                        <span className="text-white">Total:</span>
-                        <span className="text-green-cs">
-                          R$ {cartTotal.toFixed(2).replace(".", ",")}
-                        </span>
-                      </div>
-                      <button className="mt-4 w-full rounded-xl bg-green-cs py-3 text-sm font-bold uppercase text-white transition-all hover:bg-green-dark hover:shadow-lg">
-                        Finalizar Compra
-                      </button>
-                      <p className="mt-2 text-center text-xs text-[#A0A0A0]">
-                        Você será redirecionado para o checkout seguro.
-                      </p>
-                    </div>
-                  </>
-                )}
-              </motion.div>
+              </Link>
             </motion.div>
           )}
         </AnimatePresence>

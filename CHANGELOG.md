@@ -7,6 +7,113 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.9] — Rotas dinâmicas de aulas e persistência do carrinho
+
+### Adicionado
+
+- **Modelo Discipline** (`website_disciplines`) — Disciplinas do servidor educacional:
+  - Campos: id, name, slug (unique), description, shortDescription, icon, color, banner, levels (JSON), order, active, createdAt, updatedAt
+  - Relação `lessons Lesson[]` com modelo Lesson
+
+- **Modelo Lesson** (`website_lessons`) — Aulas dentro de cada disciplina:
+  - Campos: id, disciplineId (FK → Discipline), title, slug (unique), description, order, duration, active, createdAt, updatedAt
+  - Índice composto `@@unique([disciplineId, slug])`
+
+- **Modelo CartItem** (`website_cart_items`) — Persistência de carrinho de compras:
+  - Campos: id, userId (FK → User), productId (FK → Product), quantity, createdAt, updatedAt
+  - Constraint `@@unique([userId, productId])` para evitar duplicatas
+  - Relações com User e Product
+
+- **API de Aulas — Listagem** (`GET /api/aulas`):
+  - Query params: `busca` (search em nome/descrição), `nivel` (filtro por nível no campo JSON levels)
+  - Retorna disciplinas ativas com contagem de aulas (`_count.lessons`)
+  - Parse automático do campo `levels` de JSON string para array
+
+- **API de Aulas — Detalhe** (`GET /api/aulas/[slug]`):
+  - Busca disciplina por slug + active:true
+  - Inclui aulas ativas ordenadas por `order`
+  - Retorna 404 se disciplina não encontrada ou inativa
+
+- **API de Carrinho — Listagem e Adição** (`/api/carrinho`):
+  - `GET` — Lista itens do carrinho com detalhes do produto, subtotal e contagem; filtra produtos inativos
+  - `POST` — Adiciona item ao carrinho com validação de productId, verificação de estoque e upsert (incrementa quantidade se já existente)
+  - Ambos endpoints protegidos por autenticação
+
+- **API de Carrinho — Item** (`/api/carrinho/[id]`):
+  - `PUT` — Atualiza quantidade (validação 1-99) com verificação de ownership (userId)
+  - `DELETE` — Remove item do carrinho com verificação de ownership
+  - Ambos endpoints protegidos por autenticação
+
+- **Página dinâmica de disciplina** (`/aulas/[slug]`):
+  - Server component com `generateMetadata` para SEO dinâmico
+  - `await params` (Next.js 16 Promise params)
+
+- **DisciplinaContent** (`src/components/aulas/DisciplinaContent.tsx`):
+  - Fetch da API `/api/aulas/{slug}`, mapeamento dinâmico de ícones (ICON_MAP)
+  - Sidebar com stats (total de aulas, duração, níveis), lista curricular com numeração e duração
+  - CTA auth-aware: logado → cronograma, não logado → registro
+  - Loading/error states com Framer Motion
+
+- **CarrinhoContent** (`src/components/loja/CarrinhoContent.tsx`):
+  - Página dedicada de carrinho com fetch da API `/api/carrinho`
+  - Controles de quantidade (±), remoção de itens, animações com AnimatePresence
+  - Resumo do pedido: subtotal, desconto, total, campo de cupom
+  - Checkbox de aceite dos Termos e botão "FINALIZAR COMPRA"
+  - Estados: loading, carrinho vazio, não autenticado (com redirect para login)
+
+- **Página /loja/carrinho** (`src/app/loja/carrinho/page.tsx`):
+  - Metadata com `robots: { index: false, follow: false }` (rota protegida)
+  - Rota já configurada em `protectedRoutes` no proxy.ts
+
+- **Script de migração v0.9** (`scripts/migrate-v09.mjs`):
+  - CREATE TABLE website_disciplines, website_lessons, website_cart_items
+  - ALTER TABLE products: 10 novos campos (short_description, original_price, duration_days, benefits, server_command, stock, featured, badge, color, `order`)
+  - Idempotente com IF NOT EXISTS / ADD COLUMN IF NOT EXISTS
+
+- **Script de seed de aulas** (`scripts/seed-aulas.mjs`):
+  - 8 disciplinas (Matemática, Ciências, Português, História, Geografia, Inglês, Redação, Programação)
+  - 26 aulas distribuídas entre as disciplinas
+  - IDs determinísticos (e.g., `disc_matematica`, `les_mat_01`), idempotente com ON DUPLICATE KEY UPDATE
+
+### Modificado
+
+- **Schema Prisma** (`prisma/schema.prisma`):
+  - Modelo Product: novos campos `shortDescription`, `originalPrice`, `durationDays`, `benefits`, `serverCommand`, `stock` (default -1), `featured`, `badge`, `color`, `order` e relação `cartItems`
+  - Modelo User: adicionada relação `cartItems CartItem[]`
+  - 3 novos modelos: Discipline, Lesson, CartItem
+
+- **AulasContent** (`src/components/aulas/AulasContent.tsx`):
+  - Removido array estático DISCIPLINES com dados mock
+  - Fetch dinâmico da API `/api/aulas` com debounce de 300ms na busca
+  - Cards de disciplina agora são `<Link>` para `/aulas/{slug}`
+  - Mostram `lessonsCount` vindo da API em vez de valor estático
+  - Estado de loading com spinner Loader2
+
+- **LojaContent** (`src/components/loja/LojaContent.tsx`):
+  - Carrinho agora usa API persistente (`POST /api/carrinho`) para usuários autenticados
+  - Não autenticados são redirecionados para `/login?redirect=/loja` ao clicar "Adicionar"
+  - Fetch de resumo do carrinho (contagem + total) da API no mount
+  - Botão "Adicionar" com estado de loading (spinner)
+  - Floating cart bar agora é `<Link>` para `/loja/carrinho` (removido modal de carrinho inline)
+
+### Decisões técnicas
+
+- **Prefixo `website_` para novas tabelas**: Convenção definida na documentação aplicada a todas as novas tabelas (website_disciplines, website_lessons, website_cart_items). Tabelas existentes mantêm nomes originais — migração de nomenclatura planejada como tech debt futuro.
+- **IDs determinísticos nos seeds**: Seeds usam IDs curtos e descritivos (e.g., `disc_matematica`) em vez de UUIDs para facilitar referência em desenvolvimento e testes.
+- **Upsert no carrinho**: `POST /api/carrinho` faz upsert — se o item já existe no carrinho, incrementa a quantidade em vez de criar duplicata. Constraint `@@unique([userId, productId])` garante integridade.
+- **Stock -1 como "ilimitado"**: Produtos com `stock = -1` não têm limite de estoque. Qualquer valor ≥ 0 representa limite real verificado na adição ao carrinho.
+- **Levels como JSON string**: O campo `levels` da Discipline armazena um JSON array stringificado para flexibilidade (e.g., `["fundamental", "medio"]`). Parse é feito na API antes de retornar ao cliente.
+- **API-first para aulas**: AulasContent consome dados via fetch em vez de import direto do Prisma, mantendo separação client/server e permitindo cache HTTP futuro.
+
+### Próximos passos (v1.0+)
+
+- **Integração MercadoPago** — Checkout com API de pagamentos para planos VIP/Premium e itens da loja
+- **Sistema de cupons** — Modelo de cupons com validação, desconto percentual/fixo e data de expiração
+- **Conteúdo de aulas** — Player de vídeo, exercícios interativos e tracking de progresso por disciplina
+- **Notificações** — Sistema de notificações in-app para novos conteúdos, promoções e atualizações do servidor
+
+---
+
 ## [v0.8] — 27/03/2026 — Sistema de email, recuperação de senha e newsletter
 
 ### Adicionado
