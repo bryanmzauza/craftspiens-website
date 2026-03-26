@@ -1,11 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Gamepad2 } from "lucide-react";
+import { signIn } from "next-auth/react";
 
 export function LoginContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect") || "/perfil";
+
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -17,9 +23,21 @@ export function LoginContent() {
     setLoading(true);
 
     try {
-      // TODO: Integrar com NextAuth signIn("credentials", ...)
-      await new Promise((r) => setTimeout(r, 1000));
-      setError("Integração com o servidor será ativada em breve.");
+      const result = await signIn("credentials", {
+        username: form.username,
+        password: form.password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError("Username/email ou senha incorretos.");
+        return;
+      }
+
+      router.push(redirectTo);
+      router.refresh();
+    } catch {
+      setError("Erro ao conectar com o servidor. Tente novamente.");
     } finally {
       setLoading(false);
     }

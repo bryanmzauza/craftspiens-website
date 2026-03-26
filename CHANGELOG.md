@@ -7,6 +7,180 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.4.1] — 25/03/2026 — Integração nLogin-Web multi-algoritmo e conexão com banco de produção
+
+### Adicionado
+
+- **Módulo de algoritmos nLogin** (`src/lib/nlogin-algorithms.ts`) — Porta completa da biblioteca [nLogin-Web](https://github.com/nickuc-com/nLogin-Web) (PHP) para TypeScript/Node.js:
+  - **BCrypt** (`$2a$`, `$2b$`, `$2y$`) — via `bcryptjs`
+  - **SHA256** (`$SHA256$hash$salt`) — formato antigo e novo do nLogin
+  - **SHA512** (`$SHA512$hash$salt`) — formato antigo e novo do nLogin
+  - **AuthMe** (`$SHA$salt$hash$AUTHME`) — compatível com AuthMeReloaded
+  - **Argon2** (`$argon2i$`, `$argon2id$`, `$argon2d$`) — via pacote `argon2` (carregado dinamicamente)
+  - `detectAlgorithm()` — Detecção automática do algoritmo pelo prefixo do hash (idêntico ao `detect_algorithm()` do PHP)
+  - `nloginVerifyPassword()` — Verificação de senha multi-algoritmo com timing-safe comparison
+  - `nloginHashPassword()` — Geração de hash com algoritmo configurável (padrão: BCrypt)
+
+- **Auto-criação de User no primeiro login** — Jogadores do Minecraft que logam no site pela primeira vez têm `User` + `Profile` criados automaticamente na tabela `users`/`profiles`
+
+- **Script de criação de tabelas** (`scripts/create-tables.mjs`) — Criação direta via SQL das 15 tabelas do site no banco de produção (bypass do `prisma db push` que falhava por índice corrompido na tabela `plan_ping`)
+
+### Modificado
+
+- **Schema Prisma** (`prisma/schema.prisma`) — Model `Nlogin` corrigido para corresponder à estrutura real da tabela no banco:
+  - `id` → mapeado para coluna `ai` (PK real do nLogin)
+  - `ip` → mapeado para coluna `last_ip`
+  - Removido `real_name` (não existe no banco)
+  - `last_login`/`reg_date` (BigInt) → `last_seen`/`creation_date` (DateTime/Timestamp)
+  - Adicionados campos `mojang_id`, `bedrock_id`, `email`, `discord`, `settings`
+  - Índices `last_ip_idx` e `last_name_idx`
+
+- **`src/lib/nlogin.ts`** — Refatorado para usar `nlogin-algorithms.ts`:
+  - `hashPassword()` e `verifyPassword()` delegam para `nloginHashPassword()` e `nloginVerifyPassword()`
+  - `createNloginEntry()` simplificado (banco usa `DEFAULT now()` para timestamps)
+  - `updateNloginLastLogin()` atualiza `last_seen` com `new Date()`
+  - Removida dependência direta do `bcryptjs`
+
+- **`src/lib/auth.ts`** — Fluxo de login atualizado:
+  - Tratamento de `password` nullable (retorna `null` se sem senha)
+  - Auto-criação de `User` + `Profile` para jogadores existentes do Minecraft no primeiro login no site
+  - Email temporário `username@craftsapiens.temp` quando o nLogin não tem email
+
+- **`src/lib/prisma.ts`** — Conversão automática de `mysql://` para `mariadb://` no runtime (CLI do Prisma exige `mysql://`, adapter MariaDB exige `mariadb://`)
+
+- **`.env`** — `DATABASE_URL` configurada para banco de produção em `jogar.craftsapiens.com.br:3307`
+
+### Dependências adicionadas
+
+- `argon2` — Suporte a hashes Argon2I/Argon2ID/Argon2D do nLogin
+
+### Decisões técnicas
+
+- **Multi-algoritmo em vez de só BCrypt**: O plugin nLogin suporta 5 algoritmos de hash diferentes dependendo da configuração do servidor. A detecção automática garante que jogadores com qualquer formato de hash possam logar no site sem migração forçada de senhas
+- **Porta manual do PHP em vez de `nlogin-js`**: A biblioteca `nlogin-js` do npm está desatualizada (2022) e usa callbacks. Reimplementamos os algoritmos diretamente do [nLogin-Web](https://github.com/nickuc-com/nLogin-Web) oficial com suporte a Argon2D e timing-safe comparison
+- **Criação de tabelas via SQL raw**: O `prisma db push` falhava com erro de índice corrompido na tabela `plan_ping` (plugin Plan do Minecraft). Script SQL direto permite criar apenas as tabelas do site sem tocar nas tabelas de plugins
+- **Auto-criação de User**: Jogadores registrados no Minecraft via nLogin não precisam se registrar novamente no site — basta logar com as mesmas credenciais
+
+---
+
+## [v0.4] — 20/03/2026 — Autenticação nLogin completa, APIs de backend e proteção de rotas
+
+### Adicionado
+
+- **Autenticação nLogin completa** (`src/lib/auth.ts`) — Integração real do NextAuth v5 com o banco de dados nLogin do Minecraft:
+  - Provider Credentials busca na tabela `nlogin` por username ou na tabela `users` por email
+  - Verificação de senha via bcrypt (`$2a$`) compatível com nLogin (original e pirata)
+  - Sessão JWT com campos customizados: id, username, email, role, nloginId
+  - Atualização automática de `last_login` na tabela nLogin após login bem-sucedido
+  - Sessão com duração de 30 dias
+
+- **Módulo nLogin** (`src/lib/nlogin.ts`) — Funções utilitárias para integração com o plugin nLogin:
+  - `hashPassword()` / `verifyPassword()` — Hashing bcrypt com salt rounds 10 (compatível com nLogin)
+  - `findNloginByUsername()` / `findUserByEmail()` — Busca de credenciais
+  - `createNloginEntry()` / `createUserWithProfile()` — Criação de registros nLogin + User + Profile em transação
+  - `updateNloginPassword()` / `updateNloginLastLogin()` — Atualização de dados nLogin
+  - Senha compartilhada entre site e servidor Minecraft via mesmo hash bcrypt
+
+- **Tipos NextAuth** (`src/types/next-auth.d.ts`) — Extensão dos tipos de sessão e JWT do NextAuth com campos customizados (username, role, nloginId)
+
+- **API de Registro** (`src/app/api/auth/register/route.ts`) — `POST /api/auth/register`:
+  - Validação server-side: username (3-16 chars, alfanumérico + _), email, senha (8+ chars, letra + número), data de nascimento (13+ anos)
+  - Verificação de unicidade: username na tabela `nlogin`, email na tabela `users`
+  - Criação sequencial: registro nLogin → User → Profile com valores padrão
+  - Hash bcrypt da senha compatível com nLogin
+  - Respostas com códigos HTTP apropriados (201 Created, 400 Bad Request, 409 Conflict)
+
+- **API de Verificação de Username** (`src/app/api/auth/check-username/route.ts`) — `GET /api/auth/check-username?username=`:
+  - Consulta em tempo real se o username já existe na tabela `nlogin`
+  - Validação de formato antes da consulta ao banco
+  - Retorna `{ available: true/false }`
+
+- **API de Contato** (`src/app/api/contato/route.ts`) — `POST /api/contato`:
+  - Validação de todos os campos: nome (2-100 chars), email, categoria, mensagem (10-2000 chars)
+  - Campo honeypot anti-bot (rejeição silenciosa)
+  - Validação de categorias permitidas
+  - Persistência na tabela `contact_messages` via Prisma
+
+- **SessionProvider** (`src/app/providers.tsx`) — Wrapper client component com `SessionProvider` do NextAuth para disponibilizar sessão em toda a aplicação
+
+- **Proteção de Rotas** (`src/proxy.ts`) — Proxy/middleware Next.js 16 com `auth()` do NextAuth:
+  - Rotas protegidas (`/perfil/*`, `/loja/carrinho`) redirecionam para `/login?redirect=` se não autenticado
+  - Rotas de auth (`/login`, `/registro`) redirecionam para `/perfil` se já autenticado
+  - Preserva URL de redirect no query param para redirecionamento pós-login
+
+### Modificado
+
+- **`src/app/layout.tsx`** — Envolvido com `<Providers>` (SessionProvider) para disponibilizar sessão de autenticação em todos os componentes client
+
+- **`src/lib/prisma.ts`** — Atualizado para Prisma 7 com adapter MariaDB (`@prisma/adapter-mariadb`):
+  - `new PrismaClient({ adapter: new PrismaMariaDb(connectionString) })`
+  - Compatível com MySQL/MariaDB existente do servidor Minecraft
+
+- **`src/components/auth/LoginContent.tsx`** — Integração real com NextAuth:
+  - `signIn("credentials", { redirect: false })` com tratamento de erros
+  - Leitura de `?redirect=` via `useSearchParams()` para redirecionamento pós-login
+  - Mensagem genérica de erro ("Username/email ou senha incorretos") por segurança
+  - Redirecionamento automático para `/perfil` ou URL de redirect
+
+- **`src/components/auth/RegistroContent.tsx`** — Integração com API de registro:
+  - `POST /api/auth/register` com dados do formulário
+  - Verificação de disponibilidade de username em tempo real (debounce 500ms via `useEffect`)
+  - Indicador visual: ✅ Disponível / ❌ Em uso / ⏳ Verificando (Loader2 spinner)
+  - Login automático após registro bem-sucedido via `signIn("credentials")`
+  - Mensagem de sucesso antes do redirecionamento
+
+- **`src/components/layout/Navbar.tsx`** — Estado de autenticação dinâmico:
+  - **Não logado**: Botões "Login" e "Criar Conta Grátis" (comportamento original)
+  - **Logado**: Avatar Minecraft (via mc-heads.net), username e dropdown com menu:
+    - Meu Perfil → `/perfil`
+    - Minhas Compras → `/perfil/compras`
+    - Configurações → `/perfil/configuracoes`
+    - Sair (signOut com redirect para `/`)
+  - Dropdown fecha ao clicar fora (click outside listener)
+  - Menu mobile atualizado com mesmo comportamento auth-aware
+
+- **`src/components/home/HeroSection.tsx`** — CTA condicional conforme RN-HOME-01:
+  - Logado: "Acessar Perfil" → `/perfil`
+  - Não logado: "Iniciar Jornada Grátis" → `/registro`
+
+- **`src/components/contato/ContatoContent.tsx`** — Formulário conectado à API real:
+  - `POST /api/contato` em vez de simulação com setTimeout
+  - Exibição de erros do servidor
+  - Mantém campo honeypot anti-bot
+
+- **`src/app/login/page.tsx`** — Adicionado `<Suspense>` boundary para `useSearchParams()` (requisito Next.js 16 para SSG)
+
+### Dependências adicionadas
+
+- `bcryptjs` + `@types/bcryptjs` — Hashing de senha compatível com nLogin ($2a$ bcrypt)
+- `@prisma/adapter-mariadb` + `mariadb` — Adapter Prisma 7 para MySQL/MariaDB
+
+### Decisões técnicas
+
+- **bcryptjs em vez de bcrypt nativo**: Escolhido `bcryptjs` (JavaScript puro) por compatibilidade com Vercel Edge/Serverless sem necessidade de binários nativos. Produz hashes `$2a$` idênticos ao nLogin
+- **Login por username OU email**: O authorize do NextAuth aceita tanto username (busca na tabela nLogin) quanto email (busca na tabela users → join com nLogin). Isso facilita o UX permitindo ambas as formas de login
+- **Proxy.ts para Next.js 16**: Utilizado `proxy.ts` (substitui `middleware.ts` no Next.js 16) com a mesma API de middleware. Matcher restrito apenas às rotas que precisam de proteção
+- **Adapter MariaDB para Prisma 7**: Prisma 7 exige adapter explícito. Utilizado `@prisma/adapter-mariadb` compatível com MySQL do servidor Minecraft existente
+- **Mensagem genérica de erro no login**: Conforme RN-AUTH-02, mensagem de erro não revela se o username ou a senha estão incorretos (prevenção contra enumeração de usuários)
+- **Verificação de username com debounce**: API de check-username é chamada 500ms após o último keystroke, evitando excess de requests sem sacrificar feedback real-time
+
+### Próximos passos (v0.5+)
+
+1. **Rate limiting** — Implementar rate limit por IP + username no login (5 tentativas / 15 min) e no formulário de contato (3/hora) conforme docs/paginas/07-auth.md e 08-contato.md
+2. **Recuperação de senha** — Rota `/recuperar-senha` com geração de token, envio de email e redefinição na tabela nLogin
+3. **Envio de emails** — SMTP para: email de boas-vindas pós-registro, recuperação de senha, confirmação de contato
+4. **Newsletter double opt-in** — API `/api/contato/newsletter` com geração de token de confirmação e email
+5. **Integração MercadoPago** — Checkout da loja com PIX, cartão e boleto conforme docs/paginas/05-loja.md
+6. **APIs de dados reais** — Migrar dados mock do blog, loja, comunidade e cronograma para queries Prisma
+7. **Rotas dinâmicas** — `/blog/[slug]`, `/aulas/[slug]`, `/comunidade/[categoria]/[topico]`
+8. **CRUD do fórum** — Criação de tópicos, comentários, reações e moderação
+9. **Perfil dinâmico** — Integrar dashboard do perfil com dados reais da sessão e banco de dados
+10. **Persistência do carrinho** — localStorage + banco de dados para carrinho da loja
+11. **Fonte Minecrafter** — Self-hosting da fonte customizada (substituir Press Start 2P)
+12. **Admin panel** — CRUD de blog posts, produtos, gestão de usuários
+
+---
+
 ## [v0.3] — 20/03/2026 — Implementação completa de todas as páginas restantes
 
 ### Adicionado

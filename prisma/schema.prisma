@@ -6,19 +6,25 @@ datasource db {
   provider = "mysql"
 }
 
-// Tabela do plugin nLogin (Minecraft) — somente leitura/sincronização
+// Tabela do plugin nLogin (Minecraft) — compartilhada com o servidor
 model Nlogin {
-  id         Int     @id @default(autoincrement())
-  last_name  String  @db.VarChar(255) // username/nick
-  unique_id  String? @db.VarChar(255) // UUID Minecraft
-  real_name  String? @db.VarChar(255)
-  password   String  @db.VarChar(255) // bcrypt hash
-  ip         String? @db.VarChar(255)
-  last_login BigInt?
-  reg_date   BigInt?
+  id            Int      @id @default(autoincrement()) @map("ai")
+  last_name     String
+  unique_id     String?  @unique(map: "unique_id") @db.VarChar(32)
+  mojang_id     String?  @unique(map: "mojang_id") @db.VarChar(32)
+  bedrock_id    String?  @unique(map: "bedrock_id") @db.VarChar(32)
+  password      String?
+  ip            String?  @default("127.0.0.1") @map("last_ip") @db.VarChar(60)
+  last_seen     DateTime @default(now()) @db.Timestamp(0)
+  creation_date DateTime @default(now()) @db.Timestamp(0)
+  email         String?
+  discord       String?
+  settings      String?  @db.MediumText
 
   user User?
 
+  @@index([ip], map: "last_ip_idx")
+  @@index([last_name], map: "last_name_idx")
   @@map("nlogin")
 }
 

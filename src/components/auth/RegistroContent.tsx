@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Eye, EyeOff, Check, X, Pickaxe } from "lucide-react";
+import { Eye, EyeOff, Check, X, Pickaxe, Loader2 } from "lucide-react";
+import { signIn } from "next-auth/react";
 
 function getPasswordStrength(pw: string) {
   let score = 0;
@@ -37,10 +39,13 @@ function isAtLeast13(dateStr: string) {
 }
 
 export function RegistroContent() {
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+  const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
   const [form, setForm] = useState({
     username: "",
     email: "",
@@ -57,6 +62,30 @@ export function RegistroContent() {
     form.confirmPassword.length === 0 || form.password === form.confirmPassword;
   const passwordMinValid = form.password.length === 0 || (form.password.length >= 8 && /[a-zA-Z]/.test(form.password) && /\d/.test(form.password));
   const birthdateValid = form.birthdate.length === 0 || isAtLeast13(form.birthdate);
+
+  const checkUsername = useCallback(async (username: string) => {
+    if (!isValidUsername(username)) {
+      setUsernameStatus("idle");
+      return;
+    }
+    setUsernameStatus("checking");
+    try {
+      const res = await fetch(`/api/auth/check-username?username=${encodeURIComponent(username)}`);
+      const data = await res.json();
+      setUsernameStatus(data.available ? "available" : "taken");
+    } catch {
+      setUsernameStatus("idle");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isValidUsername(form.username)) {
+      setUsernameStatus("idle");
+      return;
+    }
+    const timeout = setTimeout(() => checkUsername(form.username), 500);
+    return () => clearTimeout(timeout);
+  }, [form.username, checkUsername]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,9 +114,40 @@ export function RegistroContent() {
 
     setLoading(true);
     try {
-      // TODO: Integrar com API /api/auth/register
-      await new Promise((r) => setTimeout(r, 1000));
-      setError("Integração com o servidor será ativada em breve.");
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: form.username,
+          email: form.email,
+          password: form.password,
+          birthdate: form.birthdate,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Erro ao criar conta.");
+        return;
+      }
+
+      setSuccess(true);
+
+      const signInResult = await signIn("credentials", {
+        username: form.username,
+        password: form.password,
+        redirect: false,
+      });
+
+      if (signInResult?.error) {
+        router.push("/login");
+      } else {
+        router.push("/perfil");
+        router.refresh();
+      }
+    } catch {
+      setError("Erro ao conectar com o servidor. Tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -120,6 +180,12 @@ export function RegistroContent() {
           </div>
         )}
 
+        {success && (
+          <div className="mt-6 rounded-lg border border-green-cs/20 bg-green-cs/10 px-4 py-3 text-sm text-green-cs">
+            Conta criada com sucesso! Redirecionando...
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
           {/* Username */}
           <div>
@@ -140,7 +206,13 @@ export function RegistroContent() {
               />
               {form.username.length > 0 && (
                 <span className="absolute right-3 top-1/2 mt-0.5 -translate-y-1/2">
-                  {usernameValid ? (
+                  {usernameStatus === "checking" ? (
+                    <Loader2 size={16} className="animate-spin text-white/40" />
+                  ) : usernameStatus === "taken" ? (
+                    <X size={16} className="text-error" />
+                  ) : usernameValid && usernameStatus === "available" ? (
+                    <Check size={16} className="text-green-cs" />
+                  ) : usernameValid ? (
                     <Check size={16} className="text-green-cs" />
                   ) : (
                     <X size={16} className="text-error" />
@@ -150,6 +222,12 @@ export function RegistroContent() {
             </div>
             {form.username.length > 0 && !usernameValid && (
               <p className="mt-1 text-xs text-error">3-16 caracteres: letras, números e _ apenas</p>
+            )}
+            {usernameStatus === "taken" && (
+              <p className="mt-1 text-xs text-error">Este username já está em uso</p>
+            )}
+            {usernameStatus === "available" && (
+              <p className="mt-1 text-xs text-green-cs">Username disponível!</p>
             )}
           </div>
 
