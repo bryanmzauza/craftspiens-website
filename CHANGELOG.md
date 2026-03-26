@@ -7,6 +7,106 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.6] — 26/03/2026 — Blog dinâmico, gerenciamento de conta e .env.example
+
+### Adicionado
+
+- **`.env.example`** — Arquivo de referência documentando todas as variáveis de ambiente necessárias:
+  - `DATABASE_URL` (obrigatória), `AUTH_SECRET`, `AUTH_URL`, `MINECRAFT_SERVER_HOST`, `MINECRAFT_SERVER_PORT`
+  - Evita exposição acidental de credenciais e facilita onboarding de novos devs
+
+- **API do Blog — Listagem** (`src/app/api/blog/route.ts`) — `GET /api/blog`:
+  - Paginação com `page` e `limit` (padrão 9 por página)
+  - Filtragem por categoria via parâmetro `categoria` (slug)
+  - Busca textual via parâmetro `busca` (pesquisa em `title` e `excerpt`)
+  - Inclui dados do autor (username via nlogin, uuid para avatar Minecraft)
+  - Retorna `{ posts, pagination: { page, limit, total, totalPages } }`
+
+- **API do Blog — Post individual** (`src/app/api/blog/[slug]/route.ts`) — `GET /api/blog/[slug]`:
+  - Busca post por slug com dados completos (content, author, category)
+  - Incremento automático de visualizações (fire-and-forget)
+  - Posts relacionados: até 3 posts da mesma categoria
+  - Navegação: retorna `prev` e `next` posts por data de publicação
+  - Retorna `{ post, related, navigation: { prev, next } }`
+
+- **Página dinâmica do blog** (`src/app/blog/[slug]/page.tsx`):
+  - Rota dinâmica com `generateMetadata` para SEO (título dinâmico)
+  - Renderiza o componente `BlogPostContent` com o slug como prop
+
+- **Componente BlogPostContent** (`src/components/blog/BlogPostContent.tsx`):
+  - Visualizador completo de post com estados de loading, erro e post não encontrado
+  - Imagem de capa, badge de categoria, contador de views, tempo de leitura
+  - Avatar do autor via Crafatar (UUID do Minecraft)
+  - Renderizador de Markdown customizado (`renderMarkdown()`) com suporte a: headings, bold/italic, code, blockquotes, listas, links, linhas horizontais
+  - Sanitização HTML contra XSS (escape de `<`, `>`, `&`, `"`, `'`)
+  - Tags do post, botão de copiar link, navegação prev/next, grid de posts relacionados
+  - Framer Motion para animações de entrada
+
+- **API de Desativação de Conta** (`src/app/api/perfil/desativar/route.ts`) — `POST /api/perfil/desativar`:
+  - Define `deactivatedAt = new Date()` no registro do usuário
+  - Protegido por `auth()` — retorna 401 se não autenticado
+  - Permite reativação futura (soft delete)
+
+- **API de Exclusão de Conta** (`src/app/api/perfil/conta/route.ts`) — `DELETE /api/perfil/conta`:
+  - Requer `confirmation` (username + " CONFIRMAR") e `password` atual
+  - Verificação de senha via `nloginVerifyPassword()` (multi-algoritmo)
+  - Exclui Profile + User em transação Prisma (preserva dados nLogin/Minecraft)
+  - Protegido por `auth()` — retorna 401 se não autenticado
+
+- **Script de seed do blog** (`scripts/seed-blog.mjs`):
+  - Popular banco com 6 categorias (novidades, aulas, eventos, midia, tutoriais, comunidade)
+  - 9 posts iniciais com conteúdo Markdown realista
+  - Uso: `node scripts/seed-blog.mjs` (requer `DATABASE_URL` no `.env`)
+  - Idempotente: usa `ON DUPLICATE KEY UPDATE`
+
+### Modificado
+
+- **Schema Prisma** (`prisma/schema.prisma`) — Campos adicionados ao modelo `BlogPost`:
+  - `authorId String?` — FK opcional para User (relação com autor)
+  - `tags String? @db.Text` — Tags do post em formato JSON
+  - `views Int @default(0)` — Contador de visualizações
+  - `readTime Int @default(5)` — Tempo estimado de leitura em minutos
+  - Relação `blogPosts BlogPost[]` adicionada ao modelo `User`
+
+- **BlogContent** (`src/components/blog/BlogContent.tsx`) — Reescrito completamente:
+  - Removidos todos os dados mock hardcoded (arrays de posts e categorias)
+  - Busca dinâmica via `fetch('/api/blog')` com `useCallback` + `useEffect`
+  - Paginação funcional com parâmetros de query
+  - Filtro por categoria via API
+  - Busca textual via parâmetro `busca`
+  - Estados de loading com spinner animado
+  - Mapa de cores de categorias (`CATEGORY_COLORS`) extraído como constante
+
+- **ConfiguracoesContent** (`src/components/perfil/ConfiguracoesContent.tsx`) — Zona de Perigo funcional:
+  - Adicionado import de `signOut` do next-auth/react
+  - Botão "Desativar Conta" agora chama `POST /api/perfil/desativar` e faz `signOut()`
+  - Seção "Excluir Conta" com campo de senha e confirmação textual (username + " CONFIRMAR")
+  - Chama `DELETE /api/perfil/conta` com verificação de senha
+  - Estados de loading, erro e sucesso para ambas as ações
+
+### Decisões técnicas
+
+- **Blog com API-first**: Em vez de SSR/SSG estático, optou-se por Client Components com fetch para permitir filtragem dinâmica e busca sem full page reload. Quando o volume de posts crescer, pode-se adicionar ISR.
+- **Markdown renderer manual**: Implementação leve sem dependência de libs externas (remark/rehype). Suficiente para o conteúdo atual do blog. Pode ser substituído por libs dedicadas se necessário.
+- **Seed script com mariadb nativo**: Usa driver `mariadb` diretamente em vez de Prisma Client para evitar dependência de `prisma generate` no script de seed. Idempotente com `ON DUPLICATE KEY UPDATE`.
+- **Soft delete para desativação**: Conta desativada mantém dados intactos (campo `deactivatedAt`), permitindo reativação futura. Exclusão é hard delete de Profile + User mas preserva nLogin.
+- **Confirmação dupla para exclusão**: Requer tanto senha quanto texto de confirmação (username + " CONFIRMAR") para prevenir exclusões acidentais.
+
+### Próximos passos (v0.7+)
+
+- **Recuperação de senha por email** — Fluxo esqueci-senha com token temporário e envio de email (requer configuração SMTP)
+- **Envio de emails** — Módulo Nodemailer ou Resend para emails transacionais (confirmação, recuperação, newsletter)
+- **Integração MercadoPago** — API de pagamentos para planos VIP/Premium e produtos da loja
+- **CRUD do fórum** — APIs + páginas para criar/editar/deletar tópicos e comentários na comunidade
+- **Rotas dinâmicas de aulas** — `/aulas/[slug]` com conteúdo da aula, vídeo e exercícios
+- **Persistência do carrinho** — Carrinho de compras salvo no banco (atualmente inexistente)
+- **Newsletter double opt-in** — Confirmação de email antes de ativar inscrição
+- **Migrar rate limiter para Redis** — Substituir store in-memory por Redis para produção multi-instância
+- **Página /loja/carrinho** — Página dedicada para o carrinho de compras
+- **Admin panel** — Painel administrativo para gestão de conteúdo, usuários e pedidos
+
+---
+
 ## [v0.5] — 26/03/2026 — Perfil dinâmico, APIs de gerenciamento e rate limiting
 
 ### Adicionado

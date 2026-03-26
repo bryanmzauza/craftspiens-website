@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { motion } from "framer-motion";
 import {
   User,
@@ -80,6 +80,11 @@ export function ConfiguracoesContent() {
 
   // Danger zone
   const [confirmDelete, setConfirmDelete] = useState("");
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deactivating, setDeactivating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [dangerError, setDangerError] = useState("");
+  const [dangerSuccess, setDangerSuccess] = useState("");
 
   useEffect(() => {
     async function fetchProfile() {
@@ -520,6 +525,13 @@ export function ConfiguracoesContent() {
                 <div className="space-y-6">
                   <h2 className="text-lg font-bold text-error">Zona de Perigo</h2>
 
+                  {dangerError && (
+                    <div className="rounded-lg bg-error/10 px-4 py-2 text-sm text-error">{dangerError}</div>
+                  )}
+                  {dangerSuccess && (
+                    <div className="rounded-lg bg-green-cs/10 px-4 py-2 text-sm text-green-cs">{dangerSuccess}</div>
+                  )}
+
                   <div className="rounded-xl border border-warning/30 bg-warning/5 p-4">
                     <div className="flex items-start gap-3">
                       <Power size={20} className="mt-0.5 shrink-0 text-warning" />
@@ -528,7 +540,30 @@ export function ConfiguracoesContent() {
                         <p className="mt-1 text-sm text-[#A0A0A0]">
                           Desativa sua conta no site. Seus dados são preservados e você pode reativar fazendo login novamente.
                         </p>
-                        <button className="mt-3 rounded-lg border border-warning px-4 py-2 text-sm font-bold text-warning transition-colors hover:bg-warning/10">
+                        <button
+                          disabled={deactivating}
+                          onClick={async () => {
+                            setDangerError("");
+                            setDangerSuccess("");
+                            setDeactivating(true);
+                            try {
+                              const res = await fetch("/api/perfil/desativar", { method: "POST" });
+                              if (!res.ok) {
+                                const data = await res.json();
+                                setDangerError(data.error || "Erro ao desativar conta.");
+                                return;
+                              }
+                              setDangerSuccess("Conta desativada. Você será desconectado.");
+                              setTimeout(() => signOut({ redirectTo: "/" }), 2000);
+                            } catch {
+                              setDangerError("Erro de conexão.");
+                            } finally {
+                              setDeactivating(false);
+                            }
+                          }}
+                          className="mt-3 flex items-center gap-1.5 rounded-lg border border-warning px-4 py-2 text-sm font-bold text-warning transition-colors hover:bg-warning/10 disabled:opacity-40"
+                        >
+                          {deactivating && <Loader2 size={14} className="animate-spin" />}
                           Desativar Conta
                         </button>
                       </div>
@@ -544,23 +579,62 @@ export function ConfiguracoesContent() {
                           Remove todos os seus dados do site. Dados do servidor Minecraft são mantidos conforme os Termos e Condições.
                           Esta ação é irreversível.
                         </p>
-                        <div className="mt-3">
-                          <label htmlFor="confirmDelete" className="mb-1 block text-xs text-[#A0A0A0]">
-                            Digite seu username seguido de CONFIRMAR para prosseguir:
-                          </label>
-                          <input
-                            id="confirmDelete"
-                            type="text"
-                            value={confirmDelete}
-                            onChange={(e) => setConfirmDelete(e.target.value)}
-                            placeholder={`${username} CONFIRMAR`}
-                            className="w-full rounded-lg border border-error/30 bg-white/5 px-4 py-2 text-sm text-white placeholder:text-white/20 focus:border-error focus:outline-none"
-                          />
+                        <div className="mt-3 space-y-3">
+                          <div>
+                            <label htmlFor="deletePassword" className="mb-1 block text-xs text-[#A0A0A0]">
+                              Confirme sua senha:
+                            </label>
+                            <input
+                              id="deletePassword"
+                              type="password"
+                              value={deletePassword}
+                              onChange={(e) => setDeletePassword(e.target.value)}
+                              placeholder="Sua senha atual"
+                              className="w-full rounded-lg border border-error/30 bg-white/5 px-4 py-2 text-sm text-white placeholder:text-white/20 focus:border-error focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label htmlFor="confirmDelete" className="mb-1 block text-xs text-[#A0A0A0]">
+                              Digite seu username seguido de CONFIRMAR para prosseguir:
+                            </label>
+                            <input
+                              id="confirmDelete"
+                              type="text"
+                              value={confirmDelete}
+                              onChange={(e) => setConfirmDelete(e.target.value)}
+                              placeholder={`${username} CONFIRMAR`}
+                              className="w-full rounded-lg border border-error/30 bg-white/5 px-4 py-2 text-sm text-white placeholder:text-white/20 focus:border-error focus:outline-none"
+                            />
+                          </div>
                         </div>
                         <button
-                          disabled={confirmDelete !== `${username} CONFIRMAR`}
-                          className="mt-3 rounded-lg bg-error px-4 py-2 text-sm font-bold text-white transition-all hover:bg-red-700 disabled:opacity-30"
+                          disabled={confirmDelete !== `${username} CONFIRMAR` || !deletePassword || deleting}
+                          onClick={async () => {
+                            setDangerError("");
+                            setDangerSuccess("");
+                            setDeleting(true);
+                            try {
+                              const res = await fetch("/api/perfil/conta", {
+                                method: "DELETE",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ confirmation: confirmDelete, password: deletePassword }),
+                              });
+                              if (!res.ok) {
+                                const data = await res.json();
+                                setDangerError(data.error || "Erro ao excluir conta.");
+                                return;
+                              }
+                              setDangerSuccess("Conta excluída. Você será redirecionado.");
+                              setTimeout(() => signOut({ redirectTo: "/" }), 2000);
+                            } catch {
+                              setDangerError("Erro de conexão.");
+                            } finally {
+                              setDeleting(false);
+                            }
+                          }}
+                          className="mt-3 flex items-center gap-1.5 rounded-lg bg-error px-4 py-2 text-sm font-bold text-white transition-all hover:bg-red-700 disabled:opacity-30"
                         >
+                          {deleting && <Loader2 size={14} className="animate-spin" />}
                           Excluir Conta Permanentemente
                         </button>
                       </div>
