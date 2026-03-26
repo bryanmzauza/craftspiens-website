@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
 import {
   ShoppingBag,
@@ -54,16 +55,18 @@ const MOCK_ORDERS: Order[] = [
 ];
 
 export function ComprasContent() {
+  const { data: session } = useSession();
   const [filterStatus, setFilterStatus] = useState<OrderStatus | "todos">("todos");
+  const [orders] = useState<Order[]>(MOCK_ORDERS); // Será substituído por query real com MercadoPago
 
   const filtered = useMemo(() => {
-    if (filterStatus === "todos") return MOCK_ORDERS;
-    return MOCK_ORDERS.filter((o) => o.status === filterStatus);
-  }, [filterStatus]);
+    if (filterStatus === "todos") return orders;
+    return orders.filter((o) => o.status === filterStatus);
+  }, [filterStatus, orders]);
 
   const totalGasto = useMemo(() => {
-    return MOCK_ORDERS.filter((o) => o.status === "aprovado").reduce((a, o) => a + o.valor, 0);
-  }, []);
+    return orders.filter((o) => o.status === "aprovado").reduce((a, o) => a + o.valor, 0);
+  }, [orders]);
 
   return (
     <>
@@ -111,7 +114,7 @@ export function ComprasContent() {
             <span className="font-bold text-green-cs">
               R$ {totalGasto.toFixed(2).replace(".", ",")}
             </span>{" "}
-            · {MOCK_ORDERS.length} pedidos
+            · {orders.length} pedidos
           </p>
           <div className="flex items-center gap-2">
             <Filter size={16} className="text-[#A0A0A0]" />

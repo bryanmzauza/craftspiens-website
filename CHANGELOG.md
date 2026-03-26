@@ -7,6 +7,96 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.5] — 26/03/2026 — Perfil dinâmico, APIs de gerenciamento e rate limiting
+
+### Adicionado
+
+- **Rate limiter in-memory** (`src/lib/rate-limit.ts`) — Módulo de rate limiting por chave (IP/username):
+  - `checkRateLimit(key, config)` retorna `{ success, remaining, resetAt }`
+  - Store Map-based com limpeza automática a cada 5 minutos
+  - Presets pré-configurados: `login` (5/15min), `contact` (3/1h), `register` (3/1h), `passwordChange` (5/15min)
+  - Conforme requisitos de RN-AUTH-02 (docs/paginas/07-auth.md) e RN-CONTATO-05 (docs/paginas/08-contato.md)
+
+- **API de Perfil** (`src/app/api/perfil/route.ts`) — `GET + PUT /api/perfil`:
+  - **GET**: Retorna dados completos do usuário autenticado — email, role, birthDate, nlogin (uuid, lastSeen, creationDate), profile (bio, avatar, coins, xp, playtime, aulas concluídas, ranking, preferências de privacidade e notificação), stats (_count de orders, posts, comments)
+  - **PUT**: Atualização de email (com validação de unicidade e formato) e bio (máx. 500 chars)
+  - Ambos protegidos por `auth()` — retorna 401 se não autenticado
+
+- **API de Troca de Senha** (`src/app/api/perfil/senha/route.ts`) — `POST /api/perfil/senha`:
+  - Verificação da senha atual via `nloginVerifyPassword()` (multi-algoritmo)
+  - Validação da nova senha: mínimo 8 chars, ao menos 1 letra e 1 número
+  - Hash da nova senha via `nloginHashPassword()` e atualização na tabela nLogin (sincronizado com servidor Minecraft)
+  - Rate limiting: 5 tentativas por 15 minutos por userId
+
+- **API de Configurações** (`src/app/api/perfil/configuracoes/route.ts`) — `PUT /api/perfil/configuracoes`:
+  - Atualização de notificações: `notifForumRespostas`, `notifLembretesAulas`, `notifNovidades`, `notifResumoSemanal` (valores: "email", "push", "ambos", "off")
+  - Atualização de privacidade: `perfilPublico`, `mostrarTempoOnline`, `mostrarAtividade` (boolean)
+  - Validação whitelist dos valores aceitos
+
+### Modificado
+
+- **Schema Prisma** (`prisma/schema.prisma`) — Expansão dos models User e Profile:
+  - **User**: Adicionados `birthDate` (DateTime?) e `deactivatedAt` (DateTime?) para data de nascimento e desativação de conta
+  - **Profile**: Adicionados `playtimeMinutes` (Int?), `aulasConcluidas` (Int?), `rankingPosition` (Int?) para estatísticas de jogo; `perfilPublico` (Boolean? default true), `mostrarTempoOnline` (Boolean? default true), `mostrarAtividade` (Boolean? default true) para privacidade; `notifForumRespostas` (String? default "email"), `notifLembretesAulas` (String? default "email"), `notifNovidades` (String? default "email"), `notifResumoSemanal` (String? default "off") para notificações
+
+- **`src/components/perfil/PerfilContent.tsx`** — Reescrito com dados reais:
+  - `useSession()` + `fetch("/api/perfil")` substituem todos os dados mock
+  - Avatar dinâmico via mc-heads.net usando UUID do nLogin
+  - Estatísticas (coins, XP, playtime, ranking) calculadas da resposta da API
+  - Badge de reputação calculado pela contagem de posts + comments
+  - Loading spinner durante carregamento
+  - Seções de progresso e atividade marcadas com comentários para implementação futura
+
+- **`src/components/perfil/ConfiguracoesContent.tsx`** — Reescrito com APIs reais:
+  - Fetch de dados do perfil no mount para preencher formulários
+  - **Tab Dados**: `PUT /api/perfil` para atualizar email e bio
+  - **Tab Senha**: `POST /api/perfil/senha` com verificação de senha atual e confirmação da nova
+  - **Tab Notificações**: `PUT /api/perfil/configuracoes` com seletores para cada tipo de notificação
+  - **Tab Privacidade**: Toggles de perfil público, tempo online e atividade via mesma API
+  - **Tab Perigo**: Nome do usuário dinâmico da sessão, botões de desativar/excluir conta (estrutura preparada)
+  - Indicadores de loading, erro e sucesso em cada formulário
+
+- **`src/components/perfil/ComprasContent.tsx`** — Atualizado com sessão:
+  - `useSession()` para detecção de autenticação
+  - Estado `orders` gerenciado via `useState` (preparado para futura API)
+
+- **`src/lib/nlogin.ts`** — `createUserWithProfile()` agora aceita parâmetro opcional `birthDate?: Date` para salvar data de nascimento no registro
+
+- **`src/app/api/auth/register/route.ts`** — Rate limiting (3 registros/hora por IP) + salvamento de `birthDate` na criação do User
+
+- **`src/app/api/auth/[...nextauth]/route.ts`** — Rate limiting no login:
+  - Wrapper customizado no handler POST que intercepta `/callback/credentials`
+  - 5 tentativas por 15 minutos por IP (conforme RN-AUTH-02)
+  - Retorna 429 com header `Retry-After` quando excedido
+  - Headers `X-RateLimit-Remaining` e `X-RateLimit-Reset` em todas as respostas
+
+- **`src/app/api/contato/route.ts`** — Rate limiting adicionado (3 envios/hora por IP) conforme RN-CONTATO-05
+
+### Decisões técnicas
+
+- **Rate limiter in-memory em vez de Redis**: Para MVP, um Map-based store é suficiente. Em produção com múltiplas instâncias, migrar para Redis será necessário — a interface `checkRateLimit(key, config)` foi desenhada para facilitar essa troca
+- **API separada para senha**: A troca de senha é uma operação sensível que requer verificação da senha atual e atualização na tabela nLogin (não na tabela users), justificando um endpoint dedicado
+- **Profile fields nullable**: Novos campos do Profile (playtime, ranking, etc.) são nullable porque serão populados por jobs/scripts que sincronizam dados do servidor Minecraft — não são input direto do usuário
+- **Notificações como String (VARCHAR)**: Em vez de Boolean, os campos de notificação usam String ("email", "push", "ambos", "off") para suportar múltiplos canais no futuro sem migração de schema
+
+### Próximos passos (v0.6+)
+
+1. **Recuperação de senha** — Rota `/recuperar-senha` com geração de token, envio de email e redefinição na tabela nLogin
+2. **Envio de emails** — SMTP para: email de boas-vindas pós-registro, recuperação de senha, confirmação de contato
+3. **Integração MercadoPago** — Checkout da loja com PIX, cartão e boleto conforme docs/paginas/05-loja.md
+4. **APIs de dados reais** — Migrar dados mock do blog, loja, comunidade e cronograma para queries Prisma
+5. **Rotas dinâmicas** — `/blog/[slug]`, `/aulas/[slug]`, `/comunidade/[categoria]/[topico]`
+6. **CRUD do fórum** — Criação de tópicos, comentários, reações e moderação
+7. **Desativar/Excluir conta** — Implementar endpoints para as ações da aba Perigo nas configurações
+8. **Persistência do carrinho** — localStorage + banco de dados para carrinho da loja
+9. **API de compras** — `GET /api/perfil/compras` com histórico real de pedidos
+10. **Newsletter double opt-in** — API `/api/contato/newsletter` com token de confirmação e email
+11. **Migrar rate limiter para Redis** — Quando deploy multi-instância for necessário
+12. **Fonte Minecrafter** — Self-hosting da fonte customizada (substituir Press Start 2P)
+13. **Admin panel** — CRUD de blog posts, produtos, gestão de usuários
+
+---
+
 ## [v0.4.1] — 25/03/2026 — Integração nLogin-Web multi-algoritmo e conexão com banco de produção
 
 ### Adicionado

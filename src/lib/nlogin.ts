@@ -49,13 +49,15 @@ export async function createNloginEntry(
 
 export async function createUserWithProfile(
   nloginId: number,
-  email: string
+  email: string,
+  birthDate?: Date
 ) {
   return prisma.user.create({
     data: {
       nloginId,
       email,
       role: "ALUNO",
+      birthDate: birthDate ?? null,
       profile: {
         create: {
           sapiensCoins: 0,
