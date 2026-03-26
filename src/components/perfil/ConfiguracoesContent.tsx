@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
 import {
   User,
@@ -15,9 +16,9 @@ import {
   FileText,
   Trash2,
   Power,
+  Loader2,
 } from "lucide-react";
 import { PageHero } from "@/components/ui/PageHero";
-import { Input } from "@/components/ui/Input";
 
 type Tab = "dados" | "senha" | "notificacoes" | "privacidade" | "perigo";
 
@@ -29,35 +30,215 @@ const TABS: { id: Tab; label: string; icon: typeof User }[] = [
   { id: "perigo", label: "Zona de Perigo", icon: AlertTriangle },
 ];
 
+type ProfileData = {
+  username: string;
+  email: string;
+  birthDate: string | null;
+  profile: {
+    bio: string | null;
+    perfilPublico: boolean;
+    mostrarTempoOnline: boolean;
+    mostrarAtividade: boolean;
+    notifForumRespostas: string;
+    notifLembretesAulas: string;
+    notifNovidades: string;
+    notifResumoSemanal: string;
+  } | null;
+};
+
 export function ConfiguracoesContent() {
+  const { data: session } = useSession();
   const [activeTab, setActiveTab] = useState<Tab>("dados");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  };
+  // Profile data
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [bio, setBio] = useState("");
+  const [birthDate, setBirthDate] = useState("");
 
-  // Form states
-  const [email, setEmail] = useState("steve@email.com");
-  const [bio, setBio] = useState("Jogador e estudante da CraftSapiens desde 2025!");
+  // Password
   const [senhaAtual, setSenhaAtual] = useState("");
   const [novaSenha, setNovaSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
+  const [senhaError, setSenhaError] = useState("");
+  const [senhaSaved, setSenhaSaved] = useState(false);
 
-  // Notification states
-  const [notifForum, setNotifForum] = useState<"email" | "site" | "off">("email");
-  const [notifAulas, setNotifAulas] = useState<"email" | "site" | "off">("email");
-  const [notifNovidades, setNotifNovidades] = useState<"email" | "off">("off");
-  const [notifResumo, setNotifResumo] = useState<"email" | "off">("off");
+  // Notifications
+  const [notifForum, setNotifForum] = useState<string>("email");
+  const [notifAulas, setNotifAulas] = useState<string>("email");
+  const [notifNovidades, setNotifNovidades] = useState<string>("off");
+  const [notifResumo, setNotifResumo] = useState<string>("off");
 
-  // Privacy states
+  // Privacy
   const [perfilPublico, setPerfilPublico] = useState(true);
   const [mostrarTempo, setMostrarTempo] = useState(true);
   const [mostrarAtividade, setMostrarAtividade] = useState(true);
 
   // Danger zone
   const [confirmDelete, setConfirmDelete] = useState("");
+
+  useEffect(() => {
+    async function fetchProfile() {
+      try {
+        const res = await fetch("/api/perfil");
+        if (!res.ok) return;
+        const data: ProfileData = await res.json();
+
+        setUsername(data.username);
+        setEmail(data.email);
+        setBio(data.profile?.bio || "");
+        setBirthDate(
+          data.birthDate
+            ? new Date(data.birthDate).toLocaleDateString("pt-BR")
+            : "Não informada"
+        );
+
+        if (data.profile) {
+          setPerfilPublico(data.profile.perfilPublico);
+          setMostrarTempo(data.profile.mostrarTempoOnline);
+          setMostrarAtividade(data.profile.mostrarAtividade);
+          setNotifForum(data.profile.notifForumRespostas);
+          setNotifAulas(data.profile.notifLembretesAulas);
+          setNotifNovidades(data.profile.notifNovidades);
+          setNotifResumo(data.profile.notifResumoSemanal);
+        }
+      } catch {
+        // Will show with defaults
+      } finally {
+        setLoading(false);
+      }
+    }
+    if (session?.user) fetchProfile();
+  }, [session]);
+
+  const showSaved = useCallback(() => {
+    setSaved(true);
+    setError("");
+    setTimeout(() => setSaved(false), 2000);
+  }, []);
+
+  const handleSaveDados = async () => {
+    setSaving(true);
+    setError("");
+    try {
+      const res = await fetch("/api/perfil", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, bio }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Erro ao salvar.");
+        return;
+      }
+      showSaved();
+    } catch {
+      setError("Erro de conexão. Tente novamente.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveSenha = async () => {
+    setSaving(true);
+    setSenhaError("");
+    try {
+      const res = await fetch("/api/perfil/senha", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: senhaAtual, newPassword: novaSenha }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSenhaError(data.error || "Erro ao alterar senha.");
+        return;
+      }
+      setSenhaAtual("");
+      setNovaSenha("");
+      setConfirmarSenha("");
+      setSenhaSaved(true);
+      setTimeout(() => setSenhaSaved(false), 2000);
+    } catch {
+      setSenhaError("Erro de conexão. Tente novamente.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveNotificacoes = async () => {
+    setSaving(true);
+    setError("");
+    try {
+      const res = await fetch("/api/perfil/configuracoes", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          notifForumRespostas: notifForum,
+          notifLembretesAulas: notifAulas,
+          notifNovidades,
+          notifResumoSemanal: notifResumo,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Erro ao salvar.");
+        return;
+      }
+      showSaved();
+    } catch {
+      setError("Erro de conexão. Tente novamente.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSavePrivacidade = async () => {
+    setSaving(true);
+    setError("");
+    try {
+      const res = await fetch("/api/perfil/configuracoes", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          perfilPublico,
+          mostrarTempoOnline: mostrarTempo,
+          mostrarAtividade,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Erro ao salvar.");
+        return;
+      }
+      showSaved();
+    } catch {
+      setError("Erro de conexão. Tente novamente.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <>
+        <PageHero
+          title="CONFIGURAÇÕES"
+          breadcrumbs={[
+            { label: "Home", href: "/" },
+            { label: "Perfil", href: "/perfil" },
+            { label: "Configurações" },
+          ]}
+        />
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-green-cs" />
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -110,10 +291,14 @@ export function ConfiguracoesContent() {
                 <div className="space-y-4">
                   <h2 className="text-lg font-bold text-white">Dados Pessoais</h2>
 
+                  {error && (
+                    <p className="rounded-lg bg-error/10 px-3 py-2 text-sm text-error">{error}</p>
+                  )}
+
                   <div>
                     <label className="mb-1 block text-sm font-medium text-[#E0E0E0]">Username</label>
                     <p className="rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-[#A0A0A0]">
-                      SteveJogador123
+                      {username}
                     </p>
                     <p className="mt-1 text-xs text-[#A0A0A0]">O username não pode ser alterado.</p>
                   </div>
@@ -155,16 +340,17 @@ export function ConfiguracoesContent() {
                       Data de Nascimento
                     </label>
                     <p className="rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-[#A0A0A0]">
-                      15/06/2005
+                      {birthDate}
                     </p>
                     <p className="mt-1 text-xs text-[#A0A0A0]">Não pode ser alterada após o registro.</p>
                   </div>
 
                   <button
-                    onClick={handleSave}
-                    className="flex items-center gap-1.5 rounded-lg bg-green-cs px-6 py-2.5 text-sm font-bold text-white transition-all hover:bg-green-dark"
+                    onClick={handleSaveDados}
+                    disabled={saving}
+                    className="flex items-center gap-1.5 rounded-lg bg-green-cs px-6 py-2.5 text-sm font-bold text-white transition-all hover:bg-green-dark disabled:opacity-40"
                   >
-                    {saved ? <Check size={16} /> : <Save size={16} />}
+                    {saving ? <Loader2 size={16} className="animate-spin" /> : saved ? <Check size={16} /> : <Save size={16} />}
                     {saved ? "Salvo!" : "Salvar Alterações"}
                   </button>
                 </div>
@@ -176,6 +362,10 @@ export function ConfiguracoesContent() {
                   <p className="text-sm text-[#A0A0A0]">
                     Ao alterar sua senha aqui, ela também será atualizada no servidor Minecraft (nLogin).
                   </p>
+
+                  {senhaError && (
+                    <p className="rounded-lg bg-error/10 px-3 py-2 text-sm text-error">{senhaError}</p>
+                  )}
 
                   <div>
                     <label htmlFor="senhaAtual" className="mb-1 block text-sm font-medium text-[#E0E0E0]">
@@ -201,6 +391,9 @@ export function ConfiguracoesContent() {
                       onChange={(e) => setNovaSenha(e.target.value)}
                       className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-sm text-white focus:border-green-cs focus:outline-none"
                     />
+                    {novaSenha && (novaSenha.length < 8 || !/[a-zA-Z]/.test(novaSenha) || !/\d/.test(novaSenha)) && (
+                      <p className="mt-1 text-xs text-warning">Mínimo 8 caracteres, com letra e número.</p>
+                    )}
                   </div>
 
                   <div>
@@ -220,12 +413,20 @@ export function ConfiguracoesContent() {
                   </div>
 
                   <button
-                    onClick={handleSave}
-                    disabled={!senhaAtual || !novaSenha || novaSenha !== confirmarSenha}
+                    onClick={handleSaveSenha}
+                    disabled={
+                      saving ||
+                      !senhaAtual ||
+                      !novaSenha ||
+                      novaSenha !== confirmarSenha ||
+                      novaSenha.length < 8 ||
+                      !/[a-zA-Z]/.test(novaSenha) ||
+                      !/\d/.test(novaSenha)
+                    }
                     className="flex items-center gap-1.5 rounded-lg bg-green-cs px-6 py-2.5 text-sm font-bold text-white transition-all hover:bg-green-dark disabled:opacity-40"
                   >
-                    {saved ? <Check size={16} /> : <Lock size={16} />}
-                    {saved ? "Senha Atualizada!" : "Alterar Senha"}
+                    {saving ? <Loader2 size={16} className="animate-spin" /> : senhaSaved ? <Check size={16} /> : <Lock size={16} />}
+                    {senhaSaved ? "Senha Atualizada!" : "Alterar Senha"}
                   </button>
                 </div>
               )}
@@ -233,6 +434,10 @@ export function ConfiguracoesContent() {
               {activeTab === "notificacoes" && (
                 <div className="space-y-6">
                   <h2 className="text-lg font-bold text-white">Notificações</h2>
+
+                  {error && (
+                    <p className="rounded-lg bg-error/10 px-3 py-2 text-sm text-error">{error}</p>
+                  )}
 
                   {[
                     { label: "Respostas no fórum", value: notifForum, set: setNotifForum, options: ["email", "site", "off"] },
@@ -244,7 +449,7 @@ export function ConfiguracoesContent() {
                       <span className="text-sm text-white">{item.label}</span>
                       <select
                         value={item.value}
-                        onChange={(e) => item.set(e.target.value as never)}
+                        onChange={(e) => item.set(e.target.value)}
                         className="rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-sm text-white focus:border-green-cs focus:outline-none"
                       >
                         {item.options.map((opt) => (
@@ -257,10 +462,11 @@ export function ConfiguracoesContent() {
                   ))}
 
                   <button
-                    onClick={handleSave}
-                    className="flex items-center gap-1.5 rounded-lg bg-green-cs px-6 py-2.5 text-sm font-bold text-white transition-all hover:bg-green-dark"
+                    onClick={handleSaveNotificacoes}
+                    disabled={saving}
+                    className="flex items-center gap-1.5 rounded-lg bg-green-cs px-6 py-2.5 text-sm font-bold text-white transition-all hover:bg-green-dark disabled:opacity-40"
                   >
-                    {saved ? <Check size={16} /> : <Save size={16} />}
+                    {saving ? <Loader2 size={16} className="animate-spin" /> : saved ? <Check size={16} /> : <Save size={16} />}
                     {saved ? "Salvo!" : "Salvar Preferências"}
                   </button>
                 </div>
@@ -269,6 +475,10 @@ export function ConfiguracoesContent() {
               {activeTab === "privacidade" && (
                 <div className="space-y-6">
                   <h2 className="text-lg font-bold text-white">Privacidade</h2>
+
+                  {error && (
+                    <p className="rounded-lg bg-error/10 px-3 py-2 text-sm text-error">{error}</p>
+                  )}
 
                   {[
                     { label: "Perfil público no ranking", desc: "Outros jogadores podem ver seu perfil", value: perfilPublico, set: setPerfilPublico },
@@ -296,10 +506,11 @@ export function ConfiguracoesContent() {
                   ))}
 
                   <button
-                    onClick={handleSave}
-                    className="flex items-center gap-1.5 rounded-lg bg-green-cs px-6 py-2.5 text-sm font-bold text-white transition-all hover:bg-green-dark"
+                    onClick={handleSavePrivacidade}
+                    disabled={saving}
+                    className="flex items-center gap-1.5 rounded-lg bg-green-cs px-6 py-2.5 text-sm font-bold text-white transition-all hover:bg-green-dark disabled:opacity-40"
                   >
-                    {saved ? <Check size={16} /> : <Save size={16} />}
+                    {saving ? <Loader2 size={16} className="animate-spin" /> : saved ? <Check size={16} /> : <Save size={16} />}
                     {saved ? "Salvo!" : "Salvar Preferências"}
                   </button>
                 </div>
@@ -342,12 +553,12 @@ export function ConfiguracoesContent() {
                             type="text"
                             value={confirmDelete}
                             onChange={(e) => setConfirmDelete(e.target.value)}
-                            placeholder="SteveJogador123 CONFIRMAR"
+                            placeholder={`${username} CONFIRMAR`}
                             className="w-full rounded-lg border border-error/30 bg-white/5 px-4 py-2 text-sm text-white placeholder:text-white/20 focus:border-error focus:outline-none"
                           />
                         </div>
                         <button
-                          disabled={confirmDelete !== "SteveJogador123 CONFIRMAR"}
+                          disabled={confirmDelete !== `${username} CONFIRMAR`}
                           className="mt-3 rounded-lg bg-error px-4 py-2 text-sm font-bold text-white transition-all hover:bg-red-700 disabled:opacity-30"
                         >
                           Excluir Conta Permanentemente

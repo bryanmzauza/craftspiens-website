@@ -30,11 +30,13 @@ model Nlogin {
 
 model User {
   id        String   @id @default(cuid())
-  nloginId  Int      @unique @map("nlogin_id")
-  email     String   @unique
-  role      Role     @default(ALUNO)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  nloginId      Int       @unique @map("nlogin_id")
+  email         String    @unique
+  role          Role      @default(ALUNO)
+  birthDate     DateTime? @map("birth_date") @db.Date
+  deactivatedAt DateTime? @map("deactivated_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
   nlogin   Nlogin    @relation(fields: [nloginId], references: [id])
   profile  Profile?
@@ -55,12 +57,24 @@ enum Role {
 }
 
 model Profile {
-  id           String @id @default(cuid())
-  userId       String @unique @map("user_id")
-  avatar       String? @db.VarChar(500)
-  bio          String? @db.Text
-  sapiensCoins Int    @default(0) @map("sapiens_coins")
-  xp           Int    @default(0)
+  id                String  @id @default(cuid())
+  userId            String  @unique @map("user_id")
+  avatar            String? @db.VarChar(500)
+  bio               String? @db.Text
+  sapiensCoins      Int     @default(0) @map("sapiens_coins")
+  xp                Int     @default(0)
+  playtimeMinutes   Int     @default(0) @map("playtime_minutes")
+  aulasConcluidas   Int     @default(0) @map("aulas_concluidas")
+  rankingPosition   Int?    @map("ranking_position")
+  perfilPublico     Boolean @default(true) @map("perfil_publico")
+  mostrarTempoOnline Boolean @default(true) @map("mostrar_tempo_online")
+  mostrarAtividade  Boolean @default(true) @map("mostrar_atividade")
+
+  // Notification preferences
+  notifForumRespostas  String @default("email") @map("notif_forum_respostas") @db.VarChar(10)
+  notifLembretesAulas  String @default("email") @map("notif_lembretes_aulas") @db.VarChar(10)
+  notifNovidades       String @default("off") @map("notif_novidades") @db.VarChar(10)
+  notifResumoSemanal   String @default("off") @map("notif_resumo_semanal") @db.VarChar(10)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

@@ -6,6 +6,8 @@ import {
   createUserWithProfile,
 } from "@/lib/nlogin";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { headers } from "next/headers";
 
 const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,16}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -24,6 +26,18 @@ function isAtLeast13(dateStr: string): boolean {
 
 export async function POST(request: Request) {
   try {
+    const headersList = await headers();
+    const ip = headersList.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rateCheck = checkRateLimit(`register:${ip}`, RATE_LIMITS.register);
+
+    if (!rateCheck.success) {
+      const retryAfter = Math.ceil((rateCheck.resetAt - Date.now()) / 1000);
+      return NextResponse.json(
+        { error: "Muitas tentativas de registro. Tente novamente mais tarde." },
+        { status: 429, headers: { "Retry-After": String(retryAfter) } }
+      );
+    }
+
     const body = await request.json();
     const { username, email, password, birthdate } = body;
 
@@ -80,7 +94,11 @@ export async function POST(request: Request) {
 
     const passwordHash = await hashPassword(password);
     const nloginRecord = await createNloginEntry(username, passwordHash);
-    const user = await createUserWithProfile(nloginRecord.id, email);
+    const user = await createUserWithProfile(
+      nloginRecord.id,
+      email,
+      new Date(birthdate)
+    );
 
     return NextResponse.json(
       {
