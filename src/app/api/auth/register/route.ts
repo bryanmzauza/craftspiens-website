@@ -7,6 +7,7 @@ import {
 } from "@/lib/nlogin";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { sendWelcomeEmail } from "@/lib/email";
 import { headers } from "next/headers";
 
 const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,16}$/;
@@ -98,6 +99,11 @@ export async function POST(request: Request) {
       nloginRecord.id,
       email,
       new Date(birthdate)
+    );
+
+    // Email de boas-vindas (fire-and-forget)
+    sendWelcomeEmail(email, username).catch((err) =>
+      console.error("Erro ao enviar email de boas-vindas:", err)
     );
 
     return NextResponse.json(
