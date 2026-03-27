@@ -92,16 +92,6 @@ function getReputationBadge(posts: number, comments: number): { label: string; i
   return { label: "Novato", icon: "🌱" };
 }
 
-// Dados de progresso ainda são mock (virão de API de aulas futura)
-const MOCK_PROGRESS = [
-  { disciplina: "Matemática", concluidas: 8, total: 12, cor: "#2196F3" },
-  { disciplina: "Português", concluidas: 6, total: 10, cor: "#E91E63" },
-  { disciplina: "História", concluidas: 2, total: 10, cor: "#FF5722" },
-  { disciplina: "Geografia", concluidas: 5, total: 10, cor: "#FF9800" },
-  { disciplina: "Ciências", concluidas: 3, total: 8, cor: "#4CAF50" },
-  { disciplina: "Programação", concluidas: 2, total: 4, cor: "#00BCD4" },
-];
-
 // Atividade recente ainda é mock (virá de API de atividade futura)
 const MOCK_ACTIVITY = [
   { icon: LogIn, text: "Entrou no servidor", tempo: "Hoje 14:30", cor: "#4CAF50" },
@@ -117,6 +107,9 @@ export function PerfilContent() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAllProgress, setShowAllProgress] = useState(false);
+  const [progressData, setProgressData] = useState<
+    { disciplina: string; concluidas: number; total: number; cor: string; slug: string }[]
+  >([]);
 
   useEffect(() => {
     async function fetchProfile() {
@@ -132,6 +125,30 @@ export function PerfilContent() {
       }
     }
     if (session?.user) fetchProfile();
+  }, [session]);
+
+  useEffect(() => {
+    async function fetchProgress() {
+      try {
+        const res = await fetch("/api/aulas/progresso");
+        if (!res.ok) return;
+        const data = await res.json();
+        setProgressData(
+          data.progress
+            .filter((d: { totalLessons: number }) => d.totalLessons > 0)
+            .map((d: { name: string; completedLessons: number; totalLessons: number; color: string; slug: string }) => ({
+              disciplina: d.name,
+              concluidas: d.completedLessons,
+              total: d.totalLessons,
+              cor: d.color,
+              slug: d.slug,
+            }))
+        );
+      } catch {
+        // silently fail — shows empty state
+      }
+    }
+    if (session?.user) fetchProgress();
   }, [session]);
 
   const username = profile?.username || session?.user?.username || "Jogador";
@@ -156,7 +173,7 @@ export function PerfilContent() {
     { icon: Crown, label: "Plano Atual", value: roleInfo.label, cor: roleInfo.color },
   ];
 
-  const visibleProgress = showAllProgress ? MOCK_PROGRESS : MOCK_PROGRESS.slice(0, 4);
+  const visibleProgress = showAllProgress ? progressData : progressData.slice(0, 4);
 
   if (loading) {
     return (
@@ -255,12 +272,17 @@ export function PerfilContent() {
               PROGRESSO DE AULAS
             </h3>
             <div className="space-y-4">
+              {visibleProgress.length === 0 && (
+                <p className="text-sm text-[#A0A0A0]">
+                  Nenhum progresso ainda. <Link href="/aulas" className="text-green-cs hover:underline">Explore as aulas</Link> para começar!
+                </p>
+              )}
               {visibleProgress.map((item) => {
-                const percent = Math.round((item.concluidas / item.total) * 100);
+                const percent = item.total > 0 ? Math.round((item.concluidas / item.total) * 100) : 0;
                 return (
-                  <div key={item.disciplina}>
+                  <Link key={item.disciplina} href={`/aulas/${item.slug}`} className="block group">
                     <div className="mb-1 flex items-center justify-between text-sm">
-                      <span className="text-white">{item.disciplina}</span>
+                      <span className="text-white group-hover:text-green-cs transition-colors">{item.disciplina}</span>
                       <span className="text-xs text-[#A0A0A0]">
                         {item.concluidas}/{item.total} ({percent}%)
                       </span>
@@ -274,11 +296,11 @@ export function PerfilContent() {
                         style={{ backgroundColor: item.cor }}
                       />
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>
-            {MOCK_PROGRESS.length > 4 && (
+            {progressData.length > 4 && (
               <button
                 onClick={() => setShowAllProgress(!showAllProgress)}
                 className="mt-4 text-sm font-medium text-green-cs transition-colors hover:text-green-light"

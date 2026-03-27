@@ -48,6 +48,7 @@ model User {
   blogPosts BlogPost[]
   passwordResetTokens PasswordResetToken[]
   cartItems CartItem[]
+  lessonProgress UserLessonProgress[]
 
   @@map("users")
 }
@@ -366,6 +367,9 @@ model Lesson {
   title        String   @db.VarChar(200)
   slug         String   @unique @db.VarChar(200)
   description  String   @db.Text
+  content      String?  @db.LongText
+  videoUrl     String?  @map("video_url") @db.VarChar(500)
+  objectives   String?  @db.Text
   order        Int      @default(0)
   duration     Int?     @map("duration_minutes")
   active       Boolean  @default(true)
@@ -373,8 +377,22 @@ model Lesson {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   discipline Discipline @relation(fields: [disciplineId], references: [id])
+  progress   UserLessonProgress[]
 
   @@map("website_lessons")
+}
+
+model UserLessonProgress {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  lessonId    String   @map("lesson_id")
+  completedAt DateTime @default(now()) @map("completed_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@map("website_user_lesson_progress")
 }
 
 // Carrinho de compras

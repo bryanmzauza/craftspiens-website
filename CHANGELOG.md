@@ -7,6 +7,145 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.12] — Conteúdo de aulas e tracking de progresso
+
+### Adicionado
+
+- **API de Detalhe de Aula** (`GET /api/aulas/[slug]/[lessonSlug]`):
+  - Retorna dados completos da aula: título, descrição, conteúdo HTML, objetivos, URL de vídeo
+  - Inclui informações da disciplina (nome, slug, cor, ícone)
+  - Navegação prev/next entre aulas da mesma disciplina (ordenadas por `order`)
+  - Total de aulas da disciplina para contexto
+  - Status de conclusão da aula (quando autenticado)
+
+- **API de Progresso** (`GET /api/aulas/progresso`):
+  - Retorna progresso agrupado por disciplina (total de aulas, concluídas) para o usuário autenticado
+  - Inclui slug e cor de cada disciplina
+
+- **API de Toggle de Conclusão** (`POST /api/aulas/progresso`):
+  - Marca/desmarca aula como concluída (toggle)
+  - Atualiza automaticamente `profile.aulasConcluidas` com contagem total
+  - Validação de existência da aula
+
+- **API de Detalhe de Progresso** (`GET /api/aulas/progresso/detalhe`):
+  - Retorna lista de IDs de aulas concluídas para uma disciplina específica
+  - Filtro por `disciplineId` via query param
+
+- **Componente LessonContent** (`src/components/aulas/LessonContent.tsx`):
+  - Player de vídeo (iframe responsivo) com placeholder quando sem URL
+  - Renderização de conteúdo HTML da aula
+  - Lista de objetivos de aprendizagem
+  - Navegação entre aulas (anterior/próxima)
+  - Sidebar com informações da disciplina e duração
+  - Botão de toggle de conclusão (CheckCircle animado)
+  - CTA para login quando não autenticado
+  - Link para cronograma
+
+- **Página de Aula** (`src/app/aulas/[slug]/[lessonSlug]/page.tsx`):
+  - Server component com `generateMetadata` dinâmico (título e descrição da aula)
+  - Renderiza LessonContent com slugs da disciplina e aula
+
+- **Model UserLessonProgress** no Prisma:
+  - Tracks conclusão de aulas por usuário
+  - Constraint unique `[userId, lessonId]`
+  - Relações com User e Lesson
+  - Mapeado para `website_user_lesson_progress`
+
+- **Migration v0.12** (`scripts/migrate-v12.mjs`):
+  - ALTER TABLE `website_lessons`: adiciona colunas `content` (LONGTEXT), `video_url` (VARCHAR 500), `objectives` (TEXT)
+  - CREATE TABLE `website_user_lesson_progress` com foreign keys e índices
+
+### Modificado
+
+- **Schema Prisma** (`prisma/schema.prisma`):
+  - Lesson: adicionados campos `content` (LongText), `videoUrl` (VarChar 500), `objectives` (Text)
+  - Lesson: adicionada relação `progress` com UserLessonProgress
+  - User: adicionada relação `lessonProgress` com UserLessonProgress
+
+- **DisciplinaContent** (`src/components/aulas/DisciplinaContent.tsx`):
+  - Aulas agora são links clicáveis para `/aulas/[slug]/[lessonSlug]`
+  - Indicador visual de aula concluída (ícone CheckCircle verde)
+  - Barra de progresso na sidebar mostrando X/Y aulas concluídas
+  - Fetch de progresso detalhado por disciplina via API
+
+- **PerfilContent** (`src/components/perfil/PerfilContent.tsx`):
+  - Removidos dados mock (`MOCK_PROGRESS`)
+  - Progresso real via `GET /api/aulas/progresso`
+  - Cards de progresso são links para a página da disciplina
+  - Estado vazio com mensagem e CTA para página de aulas
+
+- **Seed de Aulas** (`scripts/seed-aulas.mjs`):
+  - Todas as 26 aulas agora incluem conteúdo HTML, objetivos (JSON array) e campo videoUrl
+  - Query INSERT atualizada com novas colunas
+
+### Decisões técnicas
+
+- **Conteúdo HTML com dangerouslySetInnerHTML**: O conteúdo das aulas é armazenado como HTML no banco e renderizado diretamente. O HTML é gerado internamente (seed/admin), não por input de usuário, eliminando risco de XSS. Uma futura migração para MDX ou editor WYSIWYG pode ser considerada.
+- **Toggle de progresso idempotente**: O POST em `/api/aulas/progresso` verifica existência do registro e faz create/delete conforme necessário, garantindo que múltiplos cliques não criem duplicatas.
+- **Contagem de progresso em Profile**: O campo `aulasConcluidas` em Profile é atualizado a cada toggle, evitando queries de contagem em cada renderização do perfil.
+- **Navegação prev/next por order**: A navegação entre aulas usa o campo `order` da Lesson para determinar anterior/próxima dentro da mesma disciplina, garantindo ordem consistente.
+- **Progresso detalhe separado**: A API `/progresso/detalhe` retorna apenas IDs de aulas concluídas para uma disciplina, otimizando o fetch no DisciplinaContent (evita carregar dados de todas as disciplinas).
+
+### Próximos passos (v0.13+)
+
+- **Player de vídeo real** — Integração com YouTube/Vimeo embed ou player customizado com controles de velocidade
+- **Exercícios interativos** — Quizzes e desafios vinculados às aulas com correção automática
+- **Notificações in-app** — Sistema de notificações para novos conteúdos, promoções, respostas no fórum e atualizações do servidor
+- **Admin panel** — Painel administrativo para gestão de conteúdo, usuários, pedidos e cupons
+- **Migrar rate limiter para Redis** — Substituir store in-memory por Redis para produção multi-instância
+- **Checkout transparente MercadoPago** — SDK JS para checkout sem redirecionamento
+- **Ativação automática de produtos** — Integração com plugins do servidor Minecraft
+- **Perfil público** — Rota `/perfil/[username]` com dados públicos do jogador
+
+---
+
+## [v0.11] — Histórico de compras funcional e detecção de VIP ativo
+
+### Adicionado
+
+- **API de Compras do Perfil** (`GET /api/perfil/compras`):
+  - Listagem paginada de pedidos do usuário autenticado (20 por página)
+  - Filtro por status via query param `status` (PENDING, APPROVED, REJECTED, REFUNDED)
+  - Paginação via query param `page`
+  - Cada pedido inclui: items com dados do produto, método de pagamento, cupom aplicado (código + %), data
+  - Resumo agregado: total gasto (apenas pedidos aprovados), total de pedidos, contagem de aprovados
+  - Detecção de VIP ativo: busca pedido APPROVED com produto categoria VIP e `durationDays` definido, calcula data de expiração e retorna se ainda válido
+  - Protegido por autenticação
+
+### Modificado
+
+- **ComprasContent** (`src/components/perfil/ComprasContent.tsx`):
+  - Removidos dados mock (`MOCK_ORDERS`) — agora consome `GET /api/perfil/compras`
+  - Filtro por status agora usa valores reais da API (`APPROVED`, `PENDING`, `REJECTED`, `REFUNDED`) com re-fetch
+  - Banner VIP condicional: exibido apenas quando API retorna VIP ativo com data de expiração real
+  - Paginação funcional com botões "Anterior" / "Próxima" e indicador de página
+  - Estado de loading com spinner `Loader2` durante fetches
+  - Nomes de produtos concatenados quando pedido tem múltiplos itens (e.g., "VIP+ Mensal, Trail Fire")
+  - Badge de cupom aplicado exibida no card do pedido (código + % off)
+  - Ícone `Package` no card e botões de paginação com `ChevronLeft`/`ChevronRight`
+  - Estado vazio melhorado com contexto do filtro ativo e CTA "Ir para a Loja"
+  - Suporte a métodos de pagamento do MercadoPago (pix, credit_card, debit_card, bolbradesco)
+
+### Decisões técnicas
+
+- **Paginação server-side**: O filtro de status e a paginação são processados na API com `take`/`skip` do Prisma, evitando transferência de todos os pedidos ao frontend. Cada mudança de filtro ou página dispara um novo fetch.
+- **VIP detection por data de criação + durationDays**: A expiração do VIP é calculada como `createdAt + durationDays` do pedido aprovado mais recente com produto VIP. Isso é uma heurística simples; um sistema de subscriptions dedicado poderá substituir essa lógica no futuro.
+- **Resumo com aggregate**: O total gasto e contagem de pedidos aprovados usam `prisma.order.aggregate` separado do `findMany`, para que os totais reflitam todos os pedidos do usuário (não apenas a página atual).
+- **Status mapping**: Os status da API (`APPROVED`, `PENDING`, `REJECTED`, `REFUNDED`) são mapeados para labels em português no frontend, mantendo a consistência com o enum `OrderStatus` do Prisma.
+
+### Próximos passos (v0.12+)
+
+- **Conteúdo de aulas** — Player de vídeo, exercícios interativos e tracking de progresso por disciplina
+- **Notificações in-app** — Sistema de notificações para novos conteúdos, promoções, respostas no fórum e atualizações do servidor
+- **Admin panel** — Painel administrativo para gestão de conteúdo, usuários, pedidos e cupons
+- **Migrar rate limiter para Redis** — Substituir store in-memory por Redis para produção multi-instância
+- **Checkout transparente MercadoPago** — SDK JS do MercadoPago para checkout sem redirecionamento (Checkout Pro)
+- **Ativação automática de produtos** — Integração via API ou banco direto com plugins do servidor Minecraft para ativação de VIP/Ranks/itens
+- **Envio de newsletters em massa** — Interface para enviar newsletters programadas aos inscritos confirmados
+- **Perfil público** — Rota `/perfil/[username]` com dados públicos do jogador (stats, conquistas, atividade)
+
+---
+
 ## [v0.10] — Integração MercadoPago, sistema de cupons e checkout completo
 
 ### Adicionado
