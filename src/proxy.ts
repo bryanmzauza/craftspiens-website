@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
-const protectedRoutes = ["/perfil", "/loja/carrinho"];
+const protectedRoutes = ["/perfil", "/loja/carrinho", "/loja/checkout", "/loja/pedido"];
 const authRoutes = ["/login", "/registro", "/recuperar-senha", "/redefinir-senha"];
 
 export default auth((req) => {
@@ -31,6 +31,8 @@ export const config = {
   matcher: [
     "/perfil/:path*",
     "/loja/carrinho",
+    "/loja/checkout",
+    "/loja/pedido/:path*",
     "/login",
     "/registro",
     "/recuperar-senha",

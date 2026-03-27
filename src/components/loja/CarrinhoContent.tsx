@@ -13,6 +13,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { PageHero } from "@/components/ui/PageHero";
 import { Button } from "@/components/ui/Button";
@@ -47,12 +48,16 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 export function CarrinhoContent() {
   const { data: session } = useSession();
+  const router = useRouter();
   const [items, setItems] = useState<CartItemData[]>([]);
   const [subtotal, setSubtotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const [couponCode, setCouponCode] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState("");
 
   const fetchCart = useCallback(async () => {
     try {
@@ -264,45 +269,91 @@ export function CarrinhoContent() {
                   <label className="text-xs font-medium text-[#A0A0A0]">
                     Cupom de desconto
                   </label>
-                  <div className="mt-1 flex gap-2">
-                    <div className="relative flex-1">
-                      <Tag size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A0A0A0]" />
-                      <input
-                        type="text"
-                        value={couponCode}
-                        onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                        placeholder="CÓDIGO"
-                        maxLength={20}
-                        className="w-full rounded-lg border border-white/20 bg-white/5 py-2 pl-9 pr-3 text-sm uppercase text-white placeholder:text-white/40 focus:border-green-cs focus:outline-none"
-                      />
+                  {appliedCoupon ? (
+                    <div className="mt-1 flex items-center justify-between rounded-lg border border-green-cs/30 bg-green-cs/5 px-3 py-2">
+                      <span className="text-sm font-bold text-green-cs">
+                        {appliedCoupon.code} ({appliedCoupon.discount}% off)
+                      </span>
+                      <button
+                        onClick={() => { setAppliedCoupon(null); setCouponCode(""); setCouponError(""); }}
+                        className="text-xs text-[#A0A0A0] hover:text-white"
+                      >
+                        Remover
+                      </button>
                     </div>
-                    <button
-                      className="rounded-lg bg-white/10 px-4 text-sm font-medium text-white hover:bg-white/20 transition-colors"
-                    >
-                      Aplicar
-                    </button>
-                  </div>
+                  ) : (
+                    <div className="mt-1 flex gap-2">
+                      <div className="relative flex-1">
+                        <Tag size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A0A0A0]" />
+                        <input
+                          type="text"
+                          value={couponCode}
+                          onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                          placeholder="CÓDIGO"
+                          maxLength={50}
+                          className="w-full rounded-lg border border-white/20 bg-white/5 py-2 pl-9 pr-3 text-sm uppercase text-white placeholder:text-white/40 focus:border-green-cs focus:outline-none"
+                        />
+                      </div>
+                      <button
+                        onClick={async () => {
+                          if (!couponCode.trim()) return;
+                          setCouponError("");
+                          setCouponLoading(true);
+                          try {
+                            const res = await fetch("/api/cupons/validar", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ code: couponCode }),
+                            });
+                            const data = await res.json();
+                            if (!res.ok) {
+                              setCouponError(data.error || "Cupom inválido");
+                            } else {
+                              setAppliedCoupon({ code: data.code, discount: data.discount });
+                              setCouponError("");
+                            }
+                          } catch { setCouponError("Erro ao validar"); }
+                          finally { setCouponLoading(false); }
+                        }}
+                        disabled={couponLoading || !couponCode.trim()}
+                        className="rounded-lg bg-white/10 px-4 text-sm font-medium text-white hover:bg-white/20 transition-colors disabled:opacity-40"
+                      >
+                        {couponLoading ? <Loader2 size={14} className="animate-spin" /> : "Aplicar"}
+                      </button>
+                    </div>
+                  )}
+                  {couponError && (
+                    <p className="mt-1 text-xs text-error">{couponError}</p>
+                  )}
                 </div>
 
                 {/* Totals */}
-                <div className="mt-6 space-y-3 border-t border-white/10 pt-4">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[#A0A0A0]">Subtotal</span>
-                    <span className="text-white">
-                      R$ {subtotal.toFixed(2).replace(".", ",")}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[#A0A0A0]">Desconto</span>
-                    <span className="text-white">− R$ 0,00</span>
-                  </div>
-                  <div className="flex justify-between border-t border-white/10 pt-3">
-                    <span className="font-bold text-white">Total</span>
-                    <span className="text-xl font-bold text-green-cs">
-                      R$ {subtotal.toFixed(2).replace(".", ",")}
-                    </span>
-                  </div>
-                </div>
+                {(() => {
+                  const discountValue = appliedCoupon ? subtotal * (appliedCoupon.discount / 100) : 0;
+                  const totalValue = Math.max(subtotal - discountValue, 0);
+                  return (
+                    <div className="mt-6 space-y-3 border-t border-white/10 pt-4">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-[#A0A0A0]">Subtotal</span>
+                        <span className="text-white">
+                          R$ {subtotal.toFixed(2).replace(".", ",")}
+                        </span>
+                      </div>
+                      {discountValue > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-green-cs">Desconto</span>
+                          <span className="text-green-cs">− R$ {discountValue.toFixed(2).replace(".", ",")}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between border-t border-white/10 pt-3">
+                        <span className="font-bold text-white">Total</span>
+                        <span className="text-xl font-bold text-green-cs">
+                          R$ {totalValue.toFixed(2).replace(".", ",")}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Terms */}
                 <label className="mt-6 flex items-start gap-2 cursor-pointer">
@@ -322,6 +373,7 @@ export function CarrinhoContent() {
 
                 {/* Checkout button */}
                 <button
+                  onClick={() => router.push("/loja/checkout")}
                   disabled={!termsAccepted || items.length === 0}
                   className="mt-4 w-full rounded-xl bg-green-cs py-3 text-sm font-bold uppercase text-white transition-all hover:bg-green-dark disabled:opacity-40 disabled:cursor-not-allowed"
                 >

@@ -58,4 +58,6 @@ export const RATE_LIMITS = {
   newsletter: { maxAttempts: 3, windowMs: 60 * 60 * 1000 },      // 3 inscrições / 1 hora
   forumTopic: { maxAttempts: 5, windowMs: 60 * 60 * 1000 },      // 5 tópicos / 1 hora (RN-FORUM-05)
   forumComment: { maxAttempts: 10, windowMs: 15 * 60 * 1000 },   // 10 comentários / 15 min
+  checkout: { maxAttempts: 5, windowMs: 15 * 60 * 1000 },        // 5 checkouts / 15 min
+  coupon: { maxAttempts: 10, windowMs: 15 * 60 * 1000 },         // 10 validações de cupom / 15 min
 } as const
