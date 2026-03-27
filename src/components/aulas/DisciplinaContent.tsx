@@ -16,6 +16,7 @@ import {
   ChevronRight,
   Loader2,
   ArrowLeft,
+  CheckCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
@@ -71,6 +72,7 @@ export function DisciplinaContent({ slug }: { slug: string }) {
   const [discipline, setDiscipline] = useState<Discipline | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     async function fetchDiscipline() {
@@ -94,6 +96,34 @@ export function DisciplinaContent({ slug }: { slug: string }) {
     }
     fetchDiscipline();
   }, [slug]);
+
+  useEffect(() => {
+    async function fetchProgress() {
+      if (!session?.user) return;
+      try {
+        const res = await fetch("/api/aulas/progresso");
+        if (!res.ok) return;
+        const data = await res.json();
+        // Busca as aulas completadas desta disciplina
+        const progressRes = await fetch(`/api/aulas/${slug}`);
+        if (!progressRes.ok) return;
+        const discData = await progressRes.json();
+        const discId = discData.discipline.id;
+
+        // Busca progresso individual: precisamos obter lesson IDs completados
+        // O endpoint de progresso retorna contagens por disciplina.
+        // Vamos buscar diretamente quais aulas foram completadas
+        const progressDetailRes = await fetch("/api/aulas/progresso/detalhe?disciplineId=" + discId);
+        if (progressDetailRes.ok) {
+          const detail = await progressDetailRes.json();
+          setCompletedLessons(new Set(detail.completedLessonIds));
+        }
+      } catch {
+        // silently fail
+      }
+    }
+    if (discipline) fetchProgress();
+  }, [session, discipline, slug]);
 
   if (loading) {
     return (
@@ -211,6 +241,26 @@ export function DisciplinaContent({ slug }: { slug: string }) {
               </div>
             </div>
 
+            {/* Barra de progresso */}
+            {session && completedLessons.size > 0 && (
+              <div className="mt-4 pt-4 border-t border-white/10">
+                <div className="flex items-center justify-between text-sm mb-2">
+                  <span className="text-[#A0A0A0]">Progresso</span>
+                  <span className="font-bold text-green-cs">
+                    {completedLessons.size}/{discipline.lessonsCount}
+                  </span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.round((completedLessons.size / discipline.lessonsCount) * 100)}%` }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                    className="h-full rounded-full bg-green-cs"
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="mt-6">
               {session ? (
                 <Button href="/cronograma" fullWidth>
@@ -245,43 +295,55 @@ export function DisciplinaContent({ slug }: { slug: string }) {
               animate="visible"
               className="space-y-3"
             >
-              {discipline.lessons.map((lesson, index) => (
-                <motion.div
-                  key={lesson.id}
-                  variants={fadeIn}
-                  className="group flex items-center gap-4 rounded-xl border border-white/10 bg-white/5 p-4 transition-all hover:border-white/20 hover:bg-white/[0.08]"
-                >
-                  <div
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-sm font-bold"
-                    style={{
-                      backgroundColor: `${discipline.color}20`,
-                      color: discipline.color,
-                    }}
-                  >
-                    {String(index + 1).padStart(2, "0")}
-                  </div>
+              {discipline.lessons.map((lesson, index) => {
+                const isCompleted = completedLessons.has(lesson.id);
+                return (
+                  <motion.div key={lesson.id} variants={fadeIn}>
+                    <Link
+                      href={`/aulas/${discipline.slug}/${lesson.slug}`}
+                      className={`group flex items-center gap-4 rounded-xl border p-4 transition-all hover:bg-white/[0.08] ${
+                        isCompleted
+                          ? "border-green-cs/30 bg-green-cs/5 hover:border-green-cs/50"
+                          : "border-white/10 bg-white/5 hover:border-white/20"
+                      }`}
+                    >
+                      <div
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-sm font-bold"
+                        style={{
+                          backgroundColor: isCompleted ? "rgba(76,175,80,0.2)" : `${discipline.color}20`,
+                          color: isCompleted ? "#4CAF50" : discipline.color,
+                        }}
+                      >
+                        {isCompleted ? (
+                          <CheckCircle size={20} />
+                        ) : (
+                          String(index + 1).padStart(2, "0")
+                        )}
+                      </div>
 
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-white">{lesson.title}</h4>
-                    <p className="mt-0.5 text-sm text-[#A0A0A0] line-clamp-1">
-                      {lesson.description}
-                    </p>
-                  </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-white">{lesson.title}</h4>
+                        <p className="mt-0.5 text-sm text-[#A0A0A0] line-clamp-1">
+                          {lesson.description}
+                        </p>
+                      </div>
 
-                  {lesson.duration && (
-                    <div className="hidden items-center gap-1 text-xs text-[#A0A0A0] sm:flex">
-                      <Clock size={14} />
-                      {lesson.duration}min
-                    </div>
-                  )}
+                      {lesson.duration && (
+                        <div className="hidden items-center gap-1 text-xs text-[#A0A0A0] sm:flex">
+                          <Clock size={14} />
+                          {lesson.duration}min
+                        </div>
+                      )}
 
-                  <ChevronRight
-                    size={18}
-                    className="shrink-0 text-[#A0A0A0] transition-transform group-hover:translate-x-1"
-                    style={{ color: discipline.color }}
-                  />
-                </motion.div>
-              ))}
+                      <ChevronRight
+                        size={18}
+                        className="shrink-0 text-[#A0A0A0] transition-transform group-hover:translate-x-1"
+                        style={{ color: discipline.color }}
+                      />
+                    </Link>
+                  </motion.div>
+                );
+              })}
             </motion.div>
           )}
         </section>
