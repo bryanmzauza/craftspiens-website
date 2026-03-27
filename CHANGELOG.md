@@ -7,6 +7,119 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.10] — Integração MercadoPago, sistema de cupons e checkout completo
+
+### Adicionado
+
+- **Módulo MercadoPago** (`src/lib/mercadopago.ts`) — Cliente MercadoPago SDK v2:
+  - Instância `Preference` para criação de preferências de pagamento
+  - Instância `Payment` para consulta de status de pagamentos
+  - Configuração `MP_CONFIG` com back URLs (sucesso/falha/pendente), notification URL e statement descriptor
+  - Variável de ambiente `MERCADOPAGO_ACCESS_TOKEN` obrigatória
+
+- **API de Validação de Cupons** (`POST /api/cupons/validar`):
+  - Recebe `code` no body, busca cupom por código único
+  - Verifica: existência, ativo, não expirado, limite de usos não atingido
+  - Retorna `{ valid, code, discount, id }` se válido
+  - Protegido por autenticação
+
+- **API de Checkout** (`POST /api/loja/checkout`):
+  - Rate limiting: 5 tentativas / 15 min por userId (`RATE_LIMITS.checkout`)
+  - Valida carrinho não vazio, estoque disponível e produtos ativos
+  - Calcula subtotal, aplica cupom (percentual) se fornecido
+  - Cria `Order` + `OrderItem[]` + incrementa `uses` do cupom em transação Prisma
+  - Cria preferência MercadoPago com itens, back URLs, webhook URL e external reference
+  - Desconto aplicado proporcionalmente nos preços dos itens (MercadoPago não suporta itens negativos)
+  - Em caso de erro MercadoPago: marca pedido como REJECTED e retorna erro
+  - Retorna `{ orderId, preferenceId, initPoint, total, discount, subtotal }`
+
+- **API de Webhook MercadoPago** (`POST /api/loja/webhook`):
+  - Recebe notificações de pagamento do MercadoPago
+  - Verificação de assinatura HMAC-SHA256 com `x-signature` header (se `MERCADOPAGO_WEBHOOK_SECRET` configurado)
+  - Consulta pagamento via `payment.get()` e mapeia status: approved → APPROVED, rejected/cancelled → REJECTED, refunded/charged_back → REFUNDED
+  - Na aprovação: limpa carrinho do usuário, decrementa estoque de produtos com limite
+  - Envia email de confirmação de compra (fire-and-forget)
+  - Idempotente: ignora se status já é igual ao novo
+
+- **API de Pedido** (`GET /api/loja/pedido/[id]`):
+  - Retorna detalhes do pedido com itens, produtos, cupom aplicado e totais
+  - Verificação de ownership: apenas dono do pedido ou admin pode acessar
+  - Protegido por autenticação
+
+- **Email de Confirmação de Compra** (`sendOrderConfirmationEmail`) — Novo template em `src/lib/email.ts`:
+  - Tabela com ID do pedido, método de pagamento (PIX/Cartão/Boleto/Débito) e total
+  - Lista de itens comprados
+  - Instruções de ativação (VIP/Rank → entrar no servidor, itens → entrega automática)
+  - CTA "Ver Minhas Compras" → `/perfil/compras`
+
+- **Página de Checkout** (`/loja/checkout`) — `CheckoutContent`:
+  - Resumo dos itens do pedido (nome, quantidade, preço unitário, subtotal)
+  - Campo de cupom com validação via API, indicador visual de cupom aplicado com % e botão remover
+  - Seção "Formas de Pagamento" com cards PIX / Cartão / Boleto (informativo — escolha feita no MercadoPago)
+  - Sidebar com subtotal, desconto, total e botão "PAGAR R$ X,XX" que redireciona para MercadoPago
+  - Estado de processamento com spinner durante criação do pedido
+  - Exibição de erros (carrinho vazio, estoque insuficiente, erro MercadoPago)
+  - Protegida por autenticação no proxy; `robots: noindex, nofollow`
+
+- **Páginas de Resultado do Pedido** (`/loja/pedido/sucesso|pendente|falha`):
+  - `PedidoResultContent` com 3 estados visuais (sucesso verde, pendente amarelo, falha vermelho)
+  - Ícone animado (Framer Motion spring), título, mensagem contextual
+  - Fetch automático dos detalhes do pedido via `external_reference` da URL (retornado pelo MercadoPago)
+  - Tabela de itens e total do pedido
+  - Botões de ação: "Ver Minhas Compras" ou "Tentar Novamente" (falha) + "Voltar à Loja"
+  - `Suspense` wrapper para `useSearchParams()`
+
+- **Script de migração v0.10** (`scripts/migrate-v10.mjs`):
+  - Verifica/adiciona colunas `payment_method` e `payment_id` na tabela orders (IF NOT EXISTS)
+  - Seed de 3 cupons de exemplo: BEMVINDO10 (10%), SAPIENS20 (20%, limite 50 usos), PRIME5 (5%, limite 100 usos)
+  - Idempotente com `ON DUPLICATE KEY UPDATE`
+
+### Modificado
+
+- **CarrinhoContent** (`src/components/loja/CarrinhoContent.tsx`):
+  - Cupom agora funcional: campo de código com validação via `POST /api/cupons/validar`
+  - Estado de cupom aplicado com indicador visual (código + % off + botão remover)
+  - Desconto calculado e exibido no resumo (subtotal, desconto, total)
+  - Erros de cupom exibidos em vermelho abaixo do campo
+  - Botão "FINALIZAR COMPRA" agora navega para `/loja/checkout` via `router.push()`
+  - Adicionado `useRouter` do next/navigation
+
+- **Rate Limiter** (`src/lib/rate-limit.ts`):
+  - Adicionados presets `checkout` (5 tentativas / 15 min) e `coupon` (10 validações / 15 min)
+
+- **Proxy (middleware)** (`src/proxy.ts`):
+  - `/loja/checkout` e `/loja/pedido/*` adicionados ao array `protectedRoutes`
+  - Rotas adicionadas ao `config.matcher`
+
+- **`.env.example`** — Adicionada seção MercadoPago com `MERCADOPAGO_ACCESS_TOKEN` e `MERCADOPAGO_WEBHOOK_SECRET` (opcional)
+
+### Dependências adicionadas
+
+- `mercadopago` — SDK oficial MercadoPago v2 para Node.js (criação de preferências, consulta de pagamentos)
+
+### Decisões técnicas
+
+- **Redirect para MercadoPago (init_point)**: Em vez de checkout transparente com SDK JS, optou-se por redirecionamento para a página de pagamento do MercadoPago. Vantagens: PCI compliance automático, suporte completo a PIX/cartão/boleto sem código adicional, UX confiável para o usuário. A integração com Checkout Pro (transparente) pode ser feita em versão futura.
+- **Desconto proporcional nos itens**: MercadoPago não aceita itens com preço negativo. O desconto do cupom é distribuído proporcionalmente entre os itens para que o total MP coincida com o total do pedido.
+- **Webhook com verificação de assinatura**: A assinatura HMAC-SHA256 valida que a notificação veio do MercadoPago. O secret é opcional em dev mas recomendado em produção.
+- **Estoque decrementado no webhook, não no checkout**: O estoque só é decrementado quando o pagamento é aprovado (webhook), não quando o pedido é criado. Isso evita reservas de estoque para pagamentos nunca concretizados.
+- **Carrinho limpo na aprovação**: O carrinho é limpo automaticamente na aprovação do pagamento pelo webhook, garantindo que a limpeza ocorra mesmo se o usuário fechar a aba após o pagamento.
+- **Order com status REJECTED em falha de MercadoPago**: Se a criação da preferência falhar, o pedido é marcado como REJECTED no banco. Isso mantém rastreabilidade sem deixar pedidos "fantasma" pendentes.
+- **Token de acesso via variável de ambiente**: A credencial do MercadoPago é carregada exclusivamente de `MERCADOPAGO_ACCESS_TOKEN` e não é logada nem exposta em responses.
+
+### Próximos passos (v0.11+)
+
+- **Conteúdo de aulas** — Player de vídeo, exercícios interativos e tracking de progresso por disciplina
+- **Notificações in-app** — Sistema de notificações para novos conteúdos, promoções, respostas no fórum e atualizações do servidor
+- **Admin panel** — Painel administrativo para gestão de conteúdo, usuários, pedidos e cupons
+- **Migrar rate limiter para Redis** — Substituir store in-memory por Redis para produção multi-instância
+- **Checkout transparente MercadoPago** — SDK JS do MercadoPago para checkout sem redirecionamento (Checkout Pro)
+- **Ativação automática de produtos** — Integração via API ou banco direto com plugins do servidor Minecraft para ativação de VIP/Ranks/itens
+- **Envio de newsletters em massa** — Interface para enviar newsletters programadas aos inscritos confirmados
+- **Histórico de compras funcional** — `GET /api/perfil/compras` conectando ComprasContent a dados reais do banco
+
+---
+
 ## [v0.9] — Rotas dinâmicas de aulas e persistência do carrinho
 
 ### Adicionado
