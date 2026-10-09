@@ -1,4 +1,4 @@
-# 👤 Página 09 — Perfil do Jogador
+# Página 09 — Perfil do Jogador
 
 > **Rotas**: `/perfil`, `/perfil/compras`, `/perfil/configuracoes`
 > **Acesso**: Logado (protegida)
@@ -55,7 +55,7 @@ Exibir 4-6 cards com métricas principais:
   - Produto (nome + imagem miniatura)
   - Valor pago
   - Método de pagamento (PIX, cartão, boleto)
-  - Status: ✅ Aprovado | ⏳ Pendente | ❌ Cancelado | 🔄 Reembolsado
+  - Status: Aprovado | Pendente | Cancelado | Reembolsado
   - Botão "Ver detalhes" → modal com informações completas
 - Filtros: por status, período, tipo de produto
 - Se o plano VIP está ativo: exibir data de expiração e botão "Renovar"
@@ -71,20 +71,20 @@ Exibir 4-6 cards com métricas principais:
 - Senha atual (obrigatória para validação)
 - Nova senha + confirmar nova senha
 - Validação: mesmas regras do registro
-- Ao alterar: atualiza hash na tabela nLogin (afeta site E servidor)
+- Ao alterar: atualiza o hash na tabela nLogin (afeta o site e o servidor)
 
 #### Notificações
 | Notificação | Padrão | Opções |
 |-------------|--------|--------|
-| Respostas no fórum | ✅ | Email / Apenas no site / Desligado |
-| Lembretes de aulas | ✅ | Email / Apenas no site / Desligado |
-| Novidades e promoções | ❌ | Email / Desligado |
-| Resumo semanal | ❌ | Email / Desligado |
+| Respostas no fórum | Ligado | Email / Apenas no site / Desligado |
+| Lembretes de aulas | Ligado | Email / Apenas no site / Desligado |
+| Novidades e promoções | Desligado | Email / Desligado |
+| Resumo semanal | Desligado | Email / Desligado |
 
 #### Privacidade
-- Perfil público no ranking: ✅/❌ (toggle)
-- Exibir tempo online: ✅/❌ (toggle)
-- Exibir atividade recente: ✅/❌ (toggle)
+- Perfil público no ranking: liga/desliga (toggle)
+- Exibir tempo online: liga/desliga (toggle)
+- Exibir atividade recente: liga/desliga (toggle)
 
 #### Zona de Perigo
 - **Desativar Conta**: Desativa conta no site (não deleta dados). Pode reativar fazendo login
@@ -110,55 +110,55 @@ Exibir 4-6 cards com métricas principais:
 ### Dashboard (`/perfil`)
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│ [NAVBAR — logado, com avatar no menu]                             │
-├──────────────────────────────────────────────────────────────────┤
+┌────────────────────────────────────────────────────────────────────┐
+│ [NAVBAR — logado, com avatar no menu]                              │
+├────────────────────────────────────────────────────────────────────┤
 │                                                                    │
-│  ┌───────────────────────────────────────────────────────┐        │
-│  │  ┌──────┐                                             │        │
-│  │  │ SKIN │  SteveJogador123         ⭐ VIP+            │        │
-│  │  │ 3D   │  Membro desde Mar 2025   🏆 Veterano       │        │
-│  │  │      │  Último acesso: Hoje 14:30                  │        │
-│  │  └──────┘                         [Editar Perfil]     │        │
-│  └───────────────────────────────────────────────────────┘        │
+│  ┌───────────────────────────────────────────────────────┐         │
+│  │  ┌──────┐                                             │         │
+│  │  │ SKIN │  SteveJogador123         [VIP+]             │         │
+│  │  │ 3D   │  Membro desde Mar 2025   [Veterano]         │         │
+│  │  │      │  Último acesso: Hoje 14:30                  │         │
+│  │  └──────┘                         [Editar Perfil]     │         │
+│  └───────────────────────────────────────────────────────┘         │
 │                                                                    │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐            │
-│  │ 💰 1.250 │ │ ⭐ 8.430 │ │ 🕐 127h  │ │ 📚 26    │            │
-│  │ Moedas   │ │ XP Total │ │ Online   │ │ Aulas    │            │
-│  │ SAPIENS  │ │          │ │          │ │ Concl.   │            │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘            │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐               │
+│  │ 1.250    │ │ 8.430    │ │ 127h     │ │ 26       │               │
+│  │ Moedas   │ │ XP Total │ │ Online   │ │ Aulas    │               │
+│  │ SAPIENS  │ │          │ │          │ │ Concl.   │               │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘               │
 │                                                                    │
-│  ┌──────────┐ ┌──────────┐                                       │
-│  │ 🏅 #42   │ │ 👑 VIP+  │                                       │
-│  │ Ranking  │ │ Expira   │                                       │
-│  │ Geral    │ │ 15/04/26 │                                       │
-│  └──────────┘ └──────────┘                                       │
+│  ┌──────────┐ ┌──────────┐                                         │
+│  │ #42      │ │ VIP+     │                                         │
+│  │ Ranking  │ │ Expira   │                                         │
+│  │ Geral    │ │ 15/04/26 │                                         │
+│  └──────────┘ └──────────┘                                         │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │  PROGRESSO DE AULAS                                                │
 │                                                                    │
-│  Matemática    ████████░░░░  8/12 (67%)                           │
-│  Português     ██████░░░░░░  6/10 (60%)                           │
-│  História      ██░░░░░░░░░░  2/10 (20%)                           │
-│  Geografia     █████░░░░░░░  5/10 (50%)                           │
+│  Matemática    ████████░░░░  8/12 (67%)                            │
+│  Português     ██████░░░░░░  6/10 (60%)                            │
+│  História      ██░░░░░░░░░░  2/10 (20%)                            │
+│  Geografia     █████░░░░░░░  5/10 (50%)                            │
 │  [Ver todas →]                                                     │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │  ATIVIDADE RECENTE                                                 │
 │                                                                    │
-│  🕐 Hoje 14:30  — Entrou no servidor                              │
-│  📚 Hoje 10:00  — Concluiu aula de Matemática (#8)                │
-│  💬 Ontem       — Postou no fórum: "Melhor aula!"                 │
-│  🛒 18/03       — Comprou VIP+ Mensal (R$ 29,90)                  │
-│  ⭐ 17/03       — Atingiu 8.000 XP                                │
+│  Hoje 14:30  — Entrou no servidor                                  │
+│  Hoje 10:00  — Concluiu aula de Matemática (#8)                    │
+│  Ontem       — Postou no fórum: "Melhor aula!"                     │
+│  18/03       — Comprou VIP+ Mensal (R$ 29,90)                      │
+│  17/03       — Atingiu 8.000 XP                                    │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │                                                                    │
-│  [📋 Minhas Compras]  [⚙️ Configurações]  [📊 Meu Ranking]       │
+│  [Minhas Compras]  [Configurações]  [Meu Ranking]                  │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │ [FOOTER]                                                           │
-└──────────────────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -169,42 +169,42 @@ Exibir 4-6 cards com métricas principais:
 
 | Campo | Tipo | Obrigatório |
 |-------|------|:-----------:|
-| `id` | INT (PK) | ✅ |
-| `user_id` | INT (FK, UNIQUE) | ✅ |
-| `bio` | VARCHAR(500) | ❌ |
-| `avatar_url` | VARCHAR(255) | ❌ |
-| `minecraft_uuid` | VARCHAR(36) | ❌ |
-| `sapiens_coins` | INT | ✅ |
-| `xp_total` | INT | ✅ |
-| `playtime_minutes` | INT | ✅ |
-| `aulas_concluidas` | INT | ✅ |
-| `ranking_position` | INT | ❌ |
-| `perfil_publico` | BOOLEAN | ✅ |
-| `mostrar_tempo_online` | BOOLEAN | ✅ |
-| `mostrar_atividade` | BOOLEAN | ✅ |
-| `updated_at` | DATETIME | ✅ |
+| `id` | INT (PK) | Sim |
+| `user_id` | INT (FK, UNIQUE) | Sim |
+| `bio` | VARCHAR(500) | Não |
+| `avatar_url` | VARCHAR(255) | Não |
+| `minecraft_uuid` | VARCHAR(36) | Não |
+| `sapiens_coins` | INT | Sim |
+| `xp_total` | INT | Sim |
+| `playtime_minutes` | INT | Sim |
+| `aulas_concluidas` | INT | Sim |
+| `ranking_position` | INT | Não |
+| `perfil_publico` | BOOLEAN | Sim |
+| `mostrar_tempo_online` | BOOLEAN | Sim |
+| `mostrar_atividade` | BOOLEAN | Sim |
+| `updated_at` | DATETIME | Sim |
 
 ### Preferências de Notificação
 
 | Campo | Tipo | Obrigatório |
 |-------|------|:-----------:|
-| `id` | INT (PK) | ✅ |
-| `user_id` | INT (FK, UNIQUE) | ✅ |
-| `forum_respostas` | ENUM (email, site, off) | ✅ |
-| `lembretes_aulas` | ENUM (email, site, off) | ✅ |
-| `novidades` | ENUM (email, off) | ✅ |
-| `resumo_semanal` | ENUM (email, off) | ✅ |
+| `id` | INT (PK) | Sim |
+| `user_id` | INT (FK, UNIQUE) | Sim |
+| `forum_respostas` | ENUM (email, site, off) | Sim |
+| `lembretes_aulas` | ENUM (email, site, off) | Sim |
+| `novidades` | ENUM (email, off) | Sim |
+| `resumo_semanal` | ENUM (email, off) | Sim |
 
 ### Atividade
 
 | Campo | Tipo | Obrigatório |
 |-------|------|:-----------:|
-| `id` | INT (PK) | ✅ |
-| `user_id` | INT (FK) | ✅ |
-| `tipo` | ENUM (login_server, aula_concluida, post_forum, compra, conquista, xp_milestone) | ✅ |
-| `descricao` | VARCHAR(255) | ✅ |
-| `metadata` | JSON | ❌ |
-| `created_at` | DATETIME | ✅ |
+| `id` | INT (PK) | Sim |
+| `user_id` | INT (FK) | Sim |
+| `tipo` | ENUM (login_server, aula_concluida, post_forum, compra, conquista, xp_milestone) | Sim |
+| `descricao` | VARCHAR(255) | Sim |
+| `metadata` | JSON | Não |
+| `created_at` | DATETIME | Sim |
 
 ---
 

@@ -359,7 +359,7 @@ export function LessonContent({
                   ) : (
                     <Circle size={20} />
                   )}
-                  {completed ? "Aula concluída ✓" : "Marcar como concluída"}
+                  {completed ? "Aula concluída" : "Marcar como concluída"}
                 </button>
               </motion.div>
             )}

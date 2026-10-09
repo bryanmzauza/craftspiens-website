@@ -1,4 +1,4 @@
-# 📰 Página 11 — Blog
+# Página 11 — Blog
 
 > **Rota**: `/blog`, `/blog/[slug]`
 > **Acesso**: Público
@@ -9,7 +9,7 @@
 ## Regras de Negócio
 
 ### RN-BLOG-01: Hero da Página
-- Título: **"BLOG"** em fonte Minecraft
+- Título: "BLOG" em fonte Minecraft
 - Subtítulo: "Novidades, atualizações e muito conteúdo."
 - Breadcrumb: Home > Blog
 
@@ -19,7 +19,7 @@
   - Imagem de capa (thumbnail)
   - Categoria (badge colorido)
   - Título do post
-  - Resumo (primeiras 150 caracteres)
+  - Resumo (primeiros 150 caracteres)
   - Data de publicação
   - Autor (avatar + nome)
   - Tempo de leitura estimado
@@ -61,7 +61,7 @@
 ### RN-BLOG-06: Sidebar (Desktop)
 - Posts populares (mais lidos)
 - Categorias com contagem de posts
-- Tags cloud
+- Nuvem de tags
 - Widget do servidor (jogadores online)
 - CTA de newsletter
 
@@ -82,68 +82,68 @@
 ### Lista (`/blog`)
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│ [NAVBAR]                                                          │
-├──────────────────────────────────────────────────────────────────┤
+┌────────────────────────────────────────────────────────────────────┐
+│ [NAVBAR]                                                           │
+├────────────────────────────────────────────────────────────────────┤
 │  Home > Blog                                                       │
 │                                                                    │
 │  ██████████                                                        │
 │  █  BLOG  █                                                        │
 │  ██████████                                                        │
 │                                                                    │
-│  🔍 [Buscar no blog...                              ]             │
+│  [Buscar no blog...                              ]                 │
 │                                                                    │
-│  Categorias: [Todos] [Novidades] [Aulas] [Eventos] [Mídia]        │
+│  Categorias: [Todos] [Novidades] [Aulas] [Eventos] [Mídia]         │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │                                                                    │
-│  ┌─────────────────────────────────────────────────────────┐      │
-│  │ [                  IMAGEM DE CAPA                      ]│      │
-│  │                                                         │      │
-│  │  📰 NOVIDADES                                           │      │
-│  │  Título do Post em Destaque                             │      │
-│  │  Resumo do post mais recente que aparece maior...       │      │
-│  │  📅 19/03/2026  |  👤 Prof. Helton  |  ⏱️ 5 min        │      │
-│  └─────────────────────────────────────────────────────────┘      │
+│  ┌─────────────────────────────────────────────────────────┐       │
+│  │ [                  IMAGEM DE CAPA                      ]│       │
+│  │                                                         │       │
+│  │  NOVIDADES                                              │       │
+│  │  Título do Post em Destaque                             │       │
+│  │  Resumo do post mais recente que aparece maior...       │       │
+│  │  19/03/2026  |  Prof. Helton  |  5 min                  │       │
+│  └─────────────────────────────────────────────────────────┘       │
 │                                                                    │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐            │
-│  │ [Imagem]     │  │ [Imagem]     │  │ [Imagem]     │            │
-│  │ 🎮 EVENTOS   │  │ 📰 NOVIDADES │  │ 🎓 AULAS     │            │
-│  │ Título do    │  │ Título do    │  │ Título do    │            │
-│  │ Post 2       │  │ Post 3       │  │ Post 4       │            │
-│  │ Resumo...    │  │ Resumo...    │  │ Resumo...    │            │
-│  │ 📅 18/03     │  │ 📅 15/03     │  │ 📅 12/03     │            │
-│  └──────────────┘  └──────────────┘  └──────────────┘            │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐              │
+│  │ [Imagem]     │  │ [Imagem]     │  │ [Imagem]     │              │
+│  │ EVENTOS      │  │ NOVIDADES    │  │ AULAS        │              │
+│  │ Título do    │  │ Título do    │  │ Título do    │              │
+│  │ Post 2       │  │ Post 3       │  │ Post 4       │              │
+│  │ Resumo...    │  │ Resumo...    │  │ Resumo...    │              │
+│  │ 18/03        │  │ 15/03        │  │ 12/03        │              │
+│  └──────────────┘  └──────────────┘  └──────────────┘              │
 │                                                                    │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐            │
-│  │ [Imagem]     │  │ [Imagem]     │  │ [Imagem]     │            │
-│  │ Post 5       │  │ Post 6       │  │ Post 7       │            │
-│  └──────────────┘  └──────────────┘  └──────────────┘            │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐              │
+│  │ [Imagem]     │  │ [Imagem]     │  │ [Imagem]     │              │
+│  │ Post 5       │  │ Post 6       │  │ Post 7       │              │
+│  └──────────────┘  └──────────────┘  └──────────────┘              │
 │                                                                    │
 │  Página: [1] [2] [3]                                               │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │ [FOOTER]                                                           │
-└──────────────────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Post (`/blog/[slug]`)
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│ [NAVBAR]                                                          │
-├──────────────────────────────────────────────────────────────────┤
+┌────────────────────────────────────────────────────────────────────┐
+│ [NAVBAR]                                                           │
+├────────────────────────────────────────────────────────────────────┤
 │  Home > Blog > Título do Post                                      │
 │                                                                    │
-│  ┌─────────────────────────────────────────────────────────┐      │
-│  │ [           IMAGEM DE CAPA DO POST                     ]│      │
-│  └─────────────────────────────────────────────────────────┘      │
+│  ┌─────────────────────────────────────────────────────────┐       │
+│  │ [           IMAGEM DE CAPA DO POST                     ]│       │
+│  └─────────────────────────────────────────────────────────┘       │
 │                                                                    │
-│  📰 NOVIDADES                                                      │
+│  NOVIDADES                                                         │
 │                                                                    │
 │  # Título Completo do Post                                         │
 │                                                                    │
-│  ┌────┐ Prof. Helton  |  📅 19/03/2026  |  ⏱️ 5 min leitura     │
+│  ┌────┐ Prof. Helton  |  19/03/2026  |  5 min de leitura           │
 │  │foto│                                                            │
 │  └────┘                                                            │
 │                                                                    │
@@ -154,20 +154,20 @@
 │                                                                    │
 │  Tags: [minecraft] [aulas] [novidade]                              │
 │                                                                    │
-│  Compartilhar: [Twitter] [Facebook] [WhatsApp] [📋 Copiar]        │
+│  Compartilhar: [Twitter] [Facebook] [WhatsApp] [Copiar link]       │
 │                                                                    │
 │  ← Post anterior  |  Próximo post →                                │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │  POSTS RELACIONADOS                                                │
 │                                                                    │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐            │
-│  │ Post Relac.1 │  │ Post Relac.2 │  │ Post Relac.3 │            │
-│  └──────────────┘  └──────────────┘  └──────────────┘            │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐              │
+│  │ Post Relac.1 │  │ Post Relac.2 │  │ Post Relac.3 │              │
+│  └──────────────┘  └──────────────┘  └──────────────┘              │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │ [FOOTER]                                                           │
-└──────────────────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -178,31 +178,31 @@
 
 | Campo | Tipo | Obrigatório |
 |-------|------|:-----------:|
-| `id` | INT (PK) | ✅ |
-| `titulo` | VARCHAR(200) | ✅ |
-| `slug` | VARCHAR(250) UNIQUE | ✅ |
-| `resumo` | VARCHAR(300) | ✅ |
-| `conteudo` | TEXT (Markdown) | ✅ |
-| `imagem_capa` | VARCHAR(255) | ❌ |
-| `autor_id` | INT (FK) | ✅ |
-| `categoria_id` | INT (FK) | ✅ |
-| `tags` | JSON | ❌ |
-| `status` | ENUM (rascunho, publicado, agendado) | ✅ |
-| `publicado_em` | DATETIME | ❌ |
-| `views` | INT | ✅ |
-| `tempo_leitura` | INT (minutos) | ✅ |
-| `created_at` | DATETIME | ✅ |
-| `updated_at` | DATETIME | ✅ |
+| `id` | INT (PK) | Sim |
+| `titulo` | VARCHAR(200) | Sim |
+| `slug` | VARCHAR(250) UNIQUE | Sim |
+| `resumo` | VARCHAR(300) | Sim |
+| `conteudo` | TEXT (Markdown) | Sim |
+| `imagem_capa` | VARCHAR(255) | Não |
+| `autor_id` | INT (FK) | Sim |
+| `categoria_id` | INT (FK) | Sim |
+| `tags` | JSON | Não |
+| `status` | ENUM (rascunho, publicado, agendado) | Sim |
+| `publicado_em` | DATETIME | Não |
+| `views` | INT | Sim |
+| `tempo_leitura` | INT (minutos) | Sim |
+| `created_at` | DATETIME | Sim |
+| `updated_at` | DATETIME | Sim |
 
 ### Categoria do Blog
 
 | Campo | Tipo | Obrigatório |
 |-------|------|:-----------:|
-| `id` | INT (PK) | ✅ |
-| `nome` | VARCHAR(100) | ✅ |
-| `slug` | VARCHAR(100) UNIQUE | ✅ |
-| `cor` | VARCHAR(7) | ✅ |
-| `ordem` | INT | ✅ |
+| `id` | INT (PK) | Sim |
+| `nome` | VARCHAR(100) | Sim |
+| `slug` | VARCHAR(100) UNIQUE | Sim |
+| `cor` | VARCHAR(7) | Sim |
+| `ordem` | INT | Sim |
 
 ---
 

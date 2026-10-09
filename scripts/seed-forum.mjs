@@ -11,7 +11,7 @@ const CATEGORIES = [
     name: "Anúncios",
     slug: "anuncios",
     description: "Novidades oficiais da CraftSapiens",
-    icon: "📢",
+    icon: "Megaphone",
     order: 1,
     staff_only: true,
   },
@@ -19,7 +19,7 @@ const CATEGORIES = [
     name: "Geral",
     slug: "geral",
     description: "Discussões livres sobre a CraftSapiens",
-    icon: "💬",
+    icon: "MessageCircle",
     order: 2,
     staff_only: false,
   },
@@ -27,7 +27,7 @@ const CATEGORIES = [
     name: "Dúvidas de Aulas",
     slug: "duvidas",
     description: "Perguntas sobre disciplinas e conteúdos",
-    icon: "❓",
+    icon: "CircleHelp",
     order: 3,
     staff_only: false,
   },
@@ -35,7 +35,7 @@ const CATEGORIES = [
     name: "Sugestões",
     slug: "sugestoes",
     description: "Ideias para melhorar o servidor e a plataforma",
-    icon: "💡",
+    icon: "Lightbulb",
     order: 4,
     staff_only: false,
   },
@@ -43,7 +43,7 @@ const CATEGORIES = [
     name: "Bugs & Problemas",
     slug: "bugs",
     description: "Reportar problemas do servidor ou site",
-    icon: "🐛",
+    icon: "Bug",
     order: 5,
     staff_only: false,
   },
@@ -51,7 +51,7 @@ const CATEGORIES = [
     name: "Showroom",
     slug: "showroom",
     description: "Compartilhe construções e conquistas",
-    icon: "🏗️",
+    icon: "Hammer",
     order: 6,
     staff_only: false,
   },
@@ -59,7 +59,7 @@ const CATEGORIES = [
     name: "Off-Topic",
     slug: "off-topic",
     description: "Assuntos gerais fora do tema",
-    icon: "🎮",
+    icon: "Gamepad2",
     order: 7,
     staff_only: false,
   },
@@ -80,10 +80,10 @@ async function seed() {
         update: data,
         create: { id: `fcat_${cat.slug.replace(/-/g, "_")}`, slug: cat.slug, active: true, ...data },
       });
-      console.log(`✓ Categoria: ${cat.name}`);
+      console.log(`Categoria: ${cat.name}`);
     }
 
-    console.log(`\n✅ ${CATEGORIES.length} categorias do fórum inseridas/atualizadas com sucesso!`);
+    console.log(`\n${CATEGORIES.length} categorias do fórum inseridas/atualizadas com sucesso!`);
   } catch (err) {
     console.error("Erro ao popular categorias:", err);
     process.exitCode = 1;

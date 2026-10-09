@@ -81,12 +81,12 @@ function getRoleLabel(role: string): { label: string; color: string } {
   return roles[role] || roles.ALUNO;
 }
 
-function getReputationBadge(posts: number, comments: number): { label: string; icon: string } {
+function getReputationBadge(posts: number, comments: number): { label: string } {
   const total = posts * 2 + comments;
-  if (total >= 200) return { label: "Lenda", icon: "💎" };
-  if (total >= 50) return { label: "Veterano", icon: "🏆" };
-  if (total >= 10) return { label: "Membro", icon: "⭐" };
-  return { label: "Novato", icon: "🌱" };
+  if (total >= 200) return { label: "Lenda" };
+  if (total >= 50) return { label: "Veterano" };
+  if (total >= 10) return { label: "Membro" };
+  return { label: "Novato" };
 }
 
 type ActivityType = "compra" | "topico" | "comentario" | "aula";
@@ -241,7 +241,7 @@ export function PerfilContent() {
                 {roleInfo.label}
               </span>
               <span className="rounded bg-white/10 px-2 py-0.5 text-xs text-[#A0A0A0]">
-                {reputation.icon} {reputation.label}
+                {reputation.label}
               </span>
             </div>
             <p className="mt-1 text-sm text-[#A0A0A0]">

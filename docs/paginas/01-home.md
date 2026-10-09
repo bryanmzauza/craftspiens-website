@@ -1,51 +1,51 @@
-# 🏠 Página 01 — Home (Landing Page)
+# Página 01 — Home (Landing Page)
 
 > **Rota**: `/`
 > **Acesso**: Público (não requer autenticação)
-> **Propósito**: Primeira impressão. Converter visitantes em usuários registrados.
+> **Propósito**: Página de entrada do site. Apresentar a plataforma e levar o visitante ao cadastro.
 
 ---
 
 ## Regras de Negócio
 
 ### RN-HOME-01: Hero Section
-- A seção hero é o elemento principal acima da dobra (above the fold)
-- Deve conter:
-  - Título principal em fonte Minecraft (Minecrafter): **"CONSTRUA SEU FUTURO JOGANDO."**
-  - Subtítulo: **"O Maior Metaverso Educacional do Mundo."**
-  - Descrição: **"Aulas reais, gamificação e comunidade no Minecraft."**
+- A seção hero fica no topo da página, acima da dobra (above the fold)
+- Conteúdo:
+  - Título principal em fonte Minecraft (Minecrafter): "CONSTRUA SEU FUTURO JOGANDO."
+  - Subtítulo: "O Maior Metaverso Educacional do Mundo."
+  - Descrição: "Aulas reais, gamificação e comunidade no Minecraft."
   - Dois botões CTA:
-    - **"INICIAR JORNADA GRÁTIS"** (verde, primário) → Direciona para `/registro`
-    - **"VER GRADE CURRICULAR"** (outlined, secundário) → Direciona para `/cronograma`
-- O background deve ser uma composição visual do servidor com partículas animadas
+    - "INICIAR JORNADA GRÁTIS" (verde, primário) → direciona para `/registro`
+    - "VER GRADE CURRICULAR" (outlined, secundário) → direciona para `/cronograma`
+- Background: composição visual do servidor com partículas animadas
 - Se o usuário já estiver logado, o botão "INICIAR JORNADA GRÁTIS" deve mudar para "ACESSAR PERFIL" e direcionar para `/perfil`
 
 ### RN-HOME-02: Cards de Features
-- Exibir 3 cards de features principais abaixo do hero:
-  1. **Aulas Gamificadas** — Ícone de sala de aula Minecraft + descrição breve
-  2. **Moeda SAPIENS** — Ícone da moeda + descrição do sistema de recompensa
-  3. **Enem & Reforço** — Ícone de prova/teste + descrição de preparação para exames
-- Cada card deve ser clicável, direcionando para a página `/aulas`
-- Cards devem ter efeito de hover (scale + glow na borda)
+- Exibir 3 cards de features abaixo do hero:
+  1. Aulas Gamificadas — ícone de sala de aula Minecraft + descrição breve
+  2. Moeda SAPIENS — ícone da moeda + descrição do sistema de recompensa
+  3. Enem & Reforço — ícone de prova/teste + descrição de preparação para exames
+- Cada card é clicável e direciona para a página `/aulas`
+- Cards com efeito de hover (scale + glow na borda)
 
 ### RN-HOME-03: Seção "Como Funciona"
-- Exibir um fluxo visual de 3-4 steps explicando como a plataforma funciona:
-  1. **Crie sua conta** → Ícone de registro
-  2. **Entre no servidor** → Ícone do Minecraft + IP (`jogar.craftsapiens.com.br`)
-  3. **Assista aulas jogando** → Ícone de aula gamificada
-  4. **Conquiste recompensas** → Ícone de Moeda SAPIENS / XP
-- Animação de fade-in ao scrollar (Framer Motion)
+- Exibir um fluxo visual de 3-4 etapas explicando como a plataforma funciona:
+  1. Crie sua conta → ícone de registro
+  2. Entre no servidor → ícone do Minecraft + IP (`jogar.craftsapiens.com.br`)
+  3. Assista aulas jogando → ícone de aula gamificada
+  4. Conquiste recompensas → ícone de Moeda SAPIENS / XP
+- Animação de fade-in ao rolar a página (Framer Motion)
 
 ### RN-HOME-04: Status do Servidor (Mini Widget)
-- Exibir em destaque na home:
-  - **Jogadores online agora**: número em tempo real (atualiza a cada 30s)
-  - **Total de alunos**: número com animação de contagem
-  - **Aulas disponíveis**: quantidade
+- Exibir na home:
+  - Jogadores online agora: número em tempo real (atualiza a cada 30s)
+  - Total de alunos: número com animação de contagem
+  - Aulas disponíveis: quantidade
 - Dados do servidor obtidos via API `/api/server-status`
 - Se o servidor estiver offline, exibir "Servidor em manutenção" com ícone de alerta
 
 ### RN-HOME-05: Seção de Depoimentos / Social Proof
-> **Status:** removida na v0.14 até existirem depoimentos reais e autorizados. Não publicar depoimentos fictícios.
+> Status: removida na v0.14 até existirem depoimentos reais e autorizados. Não publicar depoimentos fictícios.
 
 - Exibir 3-4 depoimentos de alunos e pais
 - Cada depoimento: foto (skin do Minecraft), nome, texto, cargo (aluno/pai)
@@ -54,8 +54,8 @@
 
 ### RN-HOME-06: CTA Final
 - Seção de call-to-action antes do footer
-- Título: **"Pronto para construir seu futuro?"**
-- Botão: **"CRIAR CONTA GRÁTIS"** → `/registro`
+- Título: "Pronto para construir seu futuro?"
+- Botão: "CRIAR CONTA GRÁTIS" → `/registro`
 - Background diferenciado (gradiente verde escuro)
 
 ---
@@ -63,61 +63,61 @@
 ## Wireframe Textual
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────────────────────────┐
 │ [NAVBAR — ver docs/componentes/navbar.md]                            │
-├─────────────────────────────────────────────────────────────────────┤
+├──────────────────────────────────────────────────────────────────────┤
 │                                                                      │
 │  ██████████████████████████████                                      │
-│  █ CONSTRUA SEU              █     ┌──────────────────────────┐     │
-│  █ FUTURO JOGANDO.           █     │                          │     │
+│  █ CONSTRUA SEU               █     ┌──────────────────────────┐     │
+│  █ FUTURO JOGANDO.            █     │                          │     │
 │  ██████████████████████████████     │   [Imagem do servidor    │     │
 │                                     │    com personagens       │     │
-│  O Maior Metaverso Educacional     │    Minecraft usando      │     │
+│  O Maior Metaverso Educacional      │    Minecraft usando      │     │
 │  do Mundo.                          │    becas de formatura]   │     │
-│  Aulas reais, gamificação e        │                          │     │
+│  Aulas reais, gamificação e         │                          │     │
 │  comunidade no Minecraft.           └──────────────────────────┘     │
 │                                                                      │
-│  ┌─────────────────────┐  ┌─────────────────────────┐               │
-│  │ INICIAR JORNADA     │  │ VER GRADE CURRICULAR    │               │
-│  │ GRÁTIS              │  │                         │               │
-│  └─────────────────────┘  └─────────────────────────┘               │
+│  ┌─────────────────────┐  ┌─────────────────────────┐                │
+│  │ INICIAR JORNADA     │  │ VER GRADE CURRICULAR    │                │
+│  │ GRÁTIS              │  │                         │                │
+│  └─────────────────────┘  └─────────────────────────┘                │
 │                                                                      │
-│  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐        │
-│  │  [Ícone Aula]  │  │  [Ícone Moeda] │  │  [Ícone Test]  │        │
-│  │                │  │                │  │                │        │
-│  │    Aulas       │  │    Moeda       │  │   Enem &       │        │
-│  │  Gamificadas   │  │   SAPIENS      │  │   Reforço      │        │
-│  └────────────────┘  └────────────────┘  └────────────────┘        │
+│  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐          │
+│  │  [Ícone Aula]  │  │  [Ícone Moeda] │  │  [Ícone Test]  │          │
+│  │                │  │                │  │                │          │
+│  │    Aulas       │  │    Moeda       │  │   Enem &       │          │
+│  │  Gamificadas   │  │   SAPIENS      │  │   Reforço      │          │
+│  └────────────────┘  └────────────────┘  └────────────────┘          │
 │                                                                      │
-├─────────────────────────────────────────────────────────────────────┤
+├──────────────────────────────────────────────────────────────────────┤
 │                        COMO FUNCIONA                                 │
 │                                                                      │
-│  ① Crie sua    ② Entre no    ③ Assista aulas   ④ Conquiste         │
-│     conta         servidor      jogando           recompensas       │
+│  1. Crie sua   2. Entre no   3. Assista aulas  4. Conquiste          │
+│     conta         servidor      jogando           recompensas        │
 │                                                                      │
-├─────────────────────────────────────────────────────────────────────┤
+├──────────────────────────────────────────────────────────────────────┤
 │                                                                      │
-│  🟢 127 jogadores online   |   📚 500+ alunos   |   📖 30 aulas    │
+│  [online] 127 jogadores online  |  500+ alunos  |  30 aulas          │
 │                                                                      │
-├─────────────────────────────────────────────────────────────────────┤
+├──────────────────────────────────────────────────────────────────────┤
 │                       DEPOIMENTOS                                    │
 │                                                                      │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐                          │
-│  │ "Texto   │  │ "Texto   │  │ "Texto   │                          │
-│  │  depoi-  │  │  depoi-  │  │  depoi-  │                          │
-│  │  mento"  │  │  mento"  │  │  mento"  │                          │
-│  │ — Nome   │  │ — Nome   │  │ — Nome   │                          │
-│  └──────────┘  └──────────┘  └──────────┘                          │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐                            │
+│  │ "Texto   │  │ "Texto   │  │ "Texto   │                            │
+│  │  depoi-  │  │  depoi-  │  │  depoi-  │                            │
+│  │  mento"  │  │  mento"  │  │  mento"  │                            │
+│  │ — Nome   │  │ — Nome   │  │ — Nome   │                            │
+│  └──────────┘  └──────────┘  └──────────┘                            │
 │                                                                      │
-├─────────────────────────────────────────────────────────────────────┤
+├──────────────────────────────────────────────────────────────────────┤
 │                  PRONTO PARA CONSTRUIR SEU FUTURO?                   │
 │              ┌───────────────────────────┐                           │
 │              │    CRIAR CONTA GRÁTIS     │                           │
 │              └───────────────────────────┘                           │
 │                                                                      │
-├─────────────────────────────────────────────────────────────────────┤
+├──────────────────────────────────────────────────────────────────────┤
 │ [FOOTER — ver docs/componentes/footer.md]                            │
-└─────────────────────────────────────────────────────────────────────┘
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ---

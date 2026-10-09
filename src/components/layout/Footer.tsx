@@ -78,7 +78,7 @@ export function Footer() {
       <div className="border-b border-white/10 bg-bg-card/50">
         <div className="mx-auto flex max-w-7xl flex-col items-center gap-4 px-4 py-8 sm:flex-row sm:justify-between lg:px-6">
           <p className="text-lg font-semibold">
-            📬 Fique por dentro das novidades
+            Fique por dentro das novidades
           </p>
           <div className="w-full max-w-md">
             <form

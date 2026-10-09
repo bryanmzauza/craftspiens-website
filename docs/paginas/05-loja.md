@@ -1,4 +1,4 @@
-# 🛒 Página 05 — Loja
+# Página 05 — Loja
 
 > **Rota**: `/loja`, `/loja/[id]`, `/loja/carrinho`
 > **Acesso**: Público (vitrine) / Logado (comprar)
@@ -9,17 +9,17 @@
 ## Regras de Negócio
 
 ### RN-LOJA-01: Hero da Página
-- Título: **"LOJA"** em fonte Minecraft
+- Título: "LOJA" em fonte Minecraft
 - Subtítulo: "Itens exclusivos e planos Premium para turbinar sua experiência."
 - Breadcrumb: Home > Loja
 
 ### RN-LOJA-02: Categorias de Produtos
-- A loja deve ter categorias bem definidas:
-  1. **Planos VIP / Premium** — Assinaturas mensais/trimestrais/anuais
-  2. **Ranks** — Títulos e ranks especiais no servidor
-  3. **Cosméticos** — Itens visuais (partículas, efeitos, trails)
-  4. **Moedas SAPIENS** — Pacotes de moedas para usar no servidor
-  5. **Kits** — Pacotes de itens in-game
+- Categorias da loja:
+  1. Planos VIP / Premium — assinaturas mensais/trimestrais/anuais
+  2. Ranks — títulos e ranks especiais no servidor
+  3. Cosméticos — itens visuais (partículas, efeitos, trails)
+  4. Moedas SAPIENS — pacotes de moedas para usar no servidor
+  5. Kits — pacotes de itens in-game
 - Navegação por abas ou sidebar de categorias
 
 ### RN-LOJA-03: Card de Produto
@@ -47,21 +47,21 @@
 - Botão "ADICIONAR AO CARRINHO"
 - Se não logado, botões redirecionam para `/login?redirect=/loja/[id]`
 
-### RN-LOJA-05: Planos VIP / Premium (Destaque Especial)
+### RN-LOJA-05: Planos VIP / Premium (seção em destaque)
 
-> **Implementação atual (v0.14):** os planos são produtos da categoria `VIP` cadastrados no banco (`/api/loja/produtos`), vendidos como **compra única com duração** (`duration_days`, ex.: 30 dias) — o MercadoPago Checkout Pro não renova automaticamente. Assinatura recorrente fica para uma versão futura.
-- Seção destacada na loja com comparativo de planos:
+> **Implementação atual (v0.14):** os planos são produtos da categoria `VIP` cadastrados no banco (`/api/loja/produtos`), vendidos como compra única com duração (`duration_days`, ex.: 30 dias) — o MercadoPago Checkout Pro não renova automaticamente. Assinatura recorrente fica para uma versão futura.
+- Seção em destaque na loja com comparativo de planos:
 
 | Feature | Gratuito | VIP | VIP+ | Premium |
 |---------|:--------:|:---:|:----:|:-------:|
-| Acesso ao servidor | ✅ | ✅ | ✅ | ✅ |
-| Aulas básicas | ✅ | ✅ | ✅ | ✅ |
-| Aulas avançadas | ❌ | ✅ | ✅ | ✅ |
-| Aulas ENEM | ❌ | ❌ | ✅ | ✅ |
-| Moedas SAPIENS bônus | ❌ | 100/mês | 300/mês | 500/mês |
-| Rank exclusivo | ❌ | VIP | VIP+ | Premium |
-| Cosméticos exclusivos | ❌ | ❌ | ✅ | ✅ |
-| Suporte prioritário | ❌ | ❌ | ❌ | ✅ |
+| Acesso ao servidor | Sim | Sim | Sim | Sim |
+| Aulas básicas | Sim | Sim | Sim | Sim |
+| Aulas avançadas | Não | Sim | Sim | Sim |
+| Aulas ENEM | Não | Não | Sim | Sim |
+| Moedas SAPIENS bônus | Não | 100/mês | 300/mês | 500/mês |
+| Rank exclusivo | Não | VIP | VIP+ | Premium |
+| Cosméticos exclusivos | Não | Não | Sim | Sim |
+| Suporte prioritário | Não | Não | Não | Sim |
 | Preço | Grátis | R$ X/mês | R$ Y/mês | R$ Z/mês |
 
 - Card do plano recomendado deve ter badge "MAIS POPULAR" e borda destacada
@@ -86,10 +86,10 @@
 ### RN-LOJA-07: Checkout / Pagamento
 - Resumo final do pedido
 - Escolha de forma de pagamento:
-  - **PIX** (preferencial — desconto de X%)
-  - **Cartão de crédito** (parcela em até 3x sem juros)
-  - **Boleto bancário** (prazo de 3 dias úteis)
-- Integração com **MercadoPago** (API de pagamentos)
+  - PIX (preferencial — desconto de X%)
+  - Cartão de crédito (parcela em até 3x sem juros)
+  - Boleto bancário (prazo de 3 dias úteis)
+- Integração com MercadoPago (API de pagamentos)
 - Fluxo:
   1. Usuário clica "Pagar"
   2. Site cria preferência de pagamento via MercadoPago API
@@ -133,66 +133,66 @@
 ### Vitrine (`/loja`)
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│ [NAVBAR]                                                          │
-├──────────────────────────────────────────────────────────────────┤
+┌────────────────────────────────────────────────────────────────────┐
+│ [NAVBAR]                                                           │
+├────────────────────────────────────────────────────────────────────┤
 │  Home > Loja                                                       │
 │                                                                    │
 │  ██████████                                                        │
 │  █  LOJA  █                                                        │
 │  ██████████                                                        │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
-│                    ⭐ PLANOS VIP / PREMIUM                         │
+├────────────────────────────────────────────────────────────────────┤
+│                    PLANOS VIP / PREMIUM                            │
 │                                                                    │
-│  ┌──────────┐  ┌──────────────┐  ┌──────────┐                    │
-│  │   VIP    │  │  ★ VIP+  ★   │  │ PREMIUM  │                    │
-│  │          │  │  MAIS POPULAR │  │          │                    │
-│  │ R$X/mês  │  │  R$Y/mês     │  │ R$Z/mês  │                    │
-│  │          │  │              │  │          │                    │
-│  │ • Feat 1 │  │ • Feat 1     │  │ • Feat 1 │                    │
-│  │ • Feat 2 │  │ • Feat 2     │  │ • Feat 2 │                    │
-│  │          │  │ • Feat 3     │  │ • Feat 3 │                    │
-│  │          │  │              │  │ • Feat 4 │                    │
-│  │[ASSINAR] │  │ [ASSINAR]    │  │[ASSINAR] │                    │
-│  └──────────┘  └──────────────┘  └──────────┘                    │
+│  ┌──────────┐  ┌──────────────┐  ┌──────────┐                      │
+│  │   VIP    │  │     VIP+     │  │ PREMIUM  │                      │
+│  │          │  │ MAIS POPULAR │  │          │                      │
+│  │ R$X/mês  │  │  R$Y/mês     │  │ R$Z/mês  │                      │
+│  │          │  │              │  │          │                      │
+│  │ • Feat 1 │  │ • Feat 1     │  │ • Feat 1 │                      │
+│  │ • Feat 2 │  │ • Feat 2     │  │ • Feat 2 │                      │
+│  │          │  │ • Feat 3     │  │ • Feat 3 │                      │
+│  │          │  │              │  │ • Feat 4 │                      │
+│  │[ASSINAR] │  │ [ASSINAR]    │  │[ASSINAR] │                      │
+│  └──────────┘  └──────────────┘  └──────────┘                      │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │                                                                    │
-│  Categorias: [Todos] [Ranks] [Cosméticos] [Moedas] [Kits]        │
+│  Categorias: [Todos] [Ranks] [Cosméticos] [Moedas] [Kits]          │
 │                                                                    │
-│  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐ │
-│  │ [Imagem]   │  │ [Imagem]   │  │ [Imagem]   │  │ [Imagem]   │ │
-│  │ Rank Gold  │  │ Trail Fire │  │ 500 Moedas │  │ Kit Início │ │
-│  │ R$ 19,90   │  │ R$ 9,90    │  │ R$ 14,90   │  │ R$ 24,90   │ │
-│  │[+ CARRINHO]│  │[+ CARRINHO]│  │[+ CARRINHO]│  │[+ CARRINHO]│ │
-│  └────────────┘  └────────────┘  └────────────┘  └────────────┘ │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐    │
+│  │ [Imagem]   │  │ [Imagem]   │  │ [Imagem]   │  │ [Imagem]   │    │
+│  │ Rank Gold  │  │ Trail Fire │  │ 500 Moedas │  │ Kit Início │    │
+│  │ R$ 19,90   │  │ R$ 9,90    │  │ R$ 14,90   │  │ R$ 24,90   │    │
+│  │[+ CARRINHO]│  │[+ CARRINHO]│  │[+ CARRINHO]│  │[+ CARRINHO]│    │
+│  └────────────┘  └────────────┘  └────────────┘  └────────────┘    │
 │                                                                    │
-│  🛒 Carrinho (3 itens) — R$ 44,70            [VER CARRINHO →]    │
+│  Carrinho (3 itens) — R$ 44,70               [VER CARRINHO →]      │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │ [FOOTER]                                                           │
-└──────────────────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Carrinho (`/loja/carrinho`)
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
+┌───────────────────────────────────────────────────────────────────┐
 │ [NAVBAR]                                                          │
-├──────────────────────────────────────────────────────────────────┤
-│  Home > Loja > Carrinho                                            │
-│                                                                    │
-│  SEU CARRINHO (3 itens)                                            │
-│                                                                    │
+├───────────────────────────────────────────────────────────────────┤
+│  Home > Loja > Carrinho                                           │
+│                                                                   │
+│  SEU CARRINHO (3 itens)                                           │
+│                                                                   │
 │  ┌────────────────────────────────────────────────────────┐       │
-│  │ [img] VIP+ Mensal          1x    R$ 29,90    [🗑️]     │       │
-│  │ [img] Trail Fire           1x    R$  9,90    [🗑️]     │       │
-│  │ [img] 500 Moedas SAPIENS   1x    R$ 14,90    [🗑️]     │       │
+│  │ [img] VIP+ Mensal          1x    R$ 29,90    [remover] │       │
+│  │ [img] Trail Fire           1x    R$  9,90    [remover] │       │
+│  │ [img] 500 Moedas SAPIENS   1x    R$ 14,90    [remover] │       │
 │  └────────────────────────────────────────────────────────┘       │
-│                                                                    │
-│  Cupom: [____________] [APLICAR]                                   │
-│                                                                    │
+│                                                                   │
+│  Cupom: [____________] [APLICAR]                                  │
+│                                                                   │
 │  ┌─────────────────────────┐                                      │
 │  │ Subtotal:    R$ 54,70   │                                      │
 │  │ Desconto:   -R$  0,00   │                                      │
@@ -201,12 +201,12 @@
 │  │                         │                                      │
 │  │ [FINALIZAR COMPRA]      │                                      │
 │  └─────────────────────────┘                                      │
-│                                                                    │
-│  ☐ Li e concordo com os Termos e Condições                        │
-│                                                                    │
-├──────────────────────────────────────────────────────────────────┤
-│ [FOOTER]                                                           │
-└──────────────────────────────────────────────────────────────────┘
+│                                                                   │
+│  [ ] Li e concordo com os Termos e Condições                      │
+│                                                                   │
+├───────────────────────────────────────────────────────────────────┤
+│ [FOOTER]                                                          │
+└───────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -217,65 +217,65 @@
 
 | Campo | Tipo | Obrigatório |
 |-------|------|:-----------:|
-| `id` | INT (PK) | ✅ |
-| `nome` | VARCHAR(200) | ✅ |
-| `slug` | VARCHAR(200) UNIQUE | ✅ |
-| `descricao` | TEXT | ✅ |
-| `descricao_curta` | VARCHAR(255) | ✅ |
-| `preco` | DECIMAL(10,2) | ✅ |
-| `preco_original` | DECIMAL(10,2) | ❌ |
-| `categoria` | ENUM (vip, rank, cosmetico, moeda, kit) | ✅ |
-| `imagem` | VARCHAR(255) | ✅ |
-| `duracao_dias` | INT | ❌ |
-| `beneficios` | JSON | ✅ |
-| `comando_servidor` | VARCHAR(500) | ❌ |
-| `estoque` | INT (-1 = infinito) | ✅ |
-| `ativo` | BOOLEAN | ✅ |
-| `destaque` | BOOLEAN | ✅ |
-| `ordem` | INT | ✅ |
-| `created_at` | DATETIME | ✅ |
+| `id` | INT (PK) | Sim |
+| `nome` | VARCHAR(200) | Sim |
+| `slug` | VARCHAR(200) UNIQUE | Sim |
+| `descricao` | TEXT | Sim |
+| `descricao_curta` | VARCHAR(255) | Sim |
+| `preco` | DECIMAL(10,2) | Sim |
+| `preco_original` | DECIMAL(10,2) | Não |
+| `categoria` | ENUM (vip, rank, cosmetico, moeda, kit) | Sim |
+| `imagem` | VARCHAR(255) | Sim |
+| `duracao_dias` | INT | Não |
+| `beneficios` | JSON | Sim |
+| `comando_servidor` | VARCHAR(500) | Não |
+| `estoque` | INT (-1 = infinito) | Sim |
+| `ativo` | BOOLEAN | Sim |
+| `destaque` | BOOLEAN | Sim |
+| `ordem` | INT | Sim |
+| `created_at` | DATETIME | Sim |
 
 ### Pedido (Order)
 
 | Campo | Tipo | Obrigatório |
 |-------|------|:-----------:|
-| `id` | INT (PK) | ✅ |
-| `user_id` | INT (FK) | ✅ |
-| `status` | ENUM (pendente, aprovado, cancelado, reembolsado) | ✅ |
-| `subtotal` | DECIMAL(10,2) | ✅ |
-| `desconto` | DECIMAL(10,2) | ✅ |
-| `total` | DECIMAL(10,2) | ✅ |
-| `cupom_id` | INT (FK) | ❌ |
-| `metodo_pagamento` | ENUM (pix, cartao, boleto) | ✅ |
-| `payment_id` | VARCHAR(255) | ❌ |
-| `payment_status` | VARCHAR(100) | ❌ |
-| `created_at` | DATETIME | ✅ |
-| `paid_at` | DATETIME | ❌ |
+| `id` | INT (PK) | Sim |
+| `user_id` | INT (FK) | Sim |
+| `status` | ENUM (pendente, aprovado, cancelado, reembolsado) | Sim |
+| `subtotal` | DECIMAL(10,2) | Sim |
+| `desconto` | DECIMAL(10,2) | Sim |
+| `total` | DECIMAL(10,2) | Sim |
+| `cupom_id` | INT (FK) | Não |
+| `metodo_pagamento` | ENUM (pix, cartao, boleto) | Sim |
+| `payment_id` | VARCHAR(255) | Não |
+| `payment_status` | VARCHAR(100) | Não |
+| `created_at` | DATETIME | Sim |
+| `paid_at` | DATETIME | Não |
 
 ### Item do Pedido
 
 | Campo | Tipo | Obrigatório |
 |-------|------|:-----------:|
-| `id` | INT (PK) | ✅ |
-| `order_id` | INT (FK) | ✅ |
-| `produto_id` | INT (FK) | ✅ |
-| `quantidade` | INT | ✅ |
-| `preco_unitario` | DECIMAL(10,2) | ✅ |
-| `entregue` | BOOLEAN | ✅ |
-| `entregue_at` | DATETIME | ❌ |
+| `id` | INT (PK) | Sim |
+| `order_id` | INT (FK) | Sim |
+| `produto_id` | INT (FK) | Sim |
+| `quantidade` | INT | Sim |
+| `preco_unitario` | DECIMAL(10,2) | Sim |
+| `entregue` | BOOLEAN | Sim |
+| `entregue_at` | DATETIME | Não |
 
 ### Cupom de Desconto
 
 | Campo | Tipo | Obrigatório |
 |-------|------|:-----------:|
-| `id` | INT (PK) | ✅ |
-| `codigo` | VARCHAR(50) UNIQUE | ✅ |
-| `desconto_percentual` | DECIMAL(5,2) | ❌ |
-| `desconto_fixo` | DECIMAL(10,2) | ❌ |
-| `usos_max` | INT | ✅ |
-| `usos_atual` | INT | ✅ |
-| `valido_ate` | DATETIME | ✅ |
-| `ativo` | BOOLEAN | ✅ |
+| `id` | INT (PK) | Sim |
+| `codigo` | VARCHAR(50) UNIQUE | Sim |
+| `desconto_percentual` | DECIMAL(5,2) | Não |
+| `desconto_fixo` | DECIMAL(10,2) | Não |
+| `usos_max` | INT | Sim |
+| `usos_atual` | INT | Sim |
+| `valido_ate` | DATETIME | Sim |
+| `ativo` | BOOLEAN | Sim |
 
 ---
 

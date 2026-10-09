@@ -1,4 +1,4 @@
-# 🛠️ Stack Técnica & Arquitetura
+# Stack Técnica & Arquitetura
 
 ---
 
@@ -21,7 +21,7 @@
 | **Next.js API Routes** | Endpoints do backend (REST API) |
 | **Prisma ORM** | Acesso aos dois bancos, com um Prisma Client para cada |
 | **PostgreSQL** | Banco principal do site: usuários, perfis, loja, fórum, blog, aulas, rate limiting |
-| **MariaDB** | Banco do servidor Minecraft — o site usa **apenas** a tabela `nlogin` |
+| **MariaDB** | Banco do servidor Minecraft — o site usa apenas a tabela `nlogin` |
 
 O vínculo entre os bancos é o campo `users.nlogin_id` (PostgreSQL), que guarda o `id` da tabela `nlogin` (MariaDB). Não há chave estrangeira entre bancos: as consultas que precisam dos dois lados usam os helpers de `src/lib/nlogin.ts`.
 
@@ -50,7 +50,7 @@ O vínculo entre os bancos é o campo `users.nlogin_id` (PostgreSQL), que guarda
 
 ## Autenticação — Integração nLogin
 
-O plugin **nLogin** é usado no servidor Minecraft para autenticação de jogadores. O novo site compartilha o mesmo banco de credenciais.
+O plugin nLogin é usado no servidor Minecraft para autenticação de jogadores. O novo site compartilha o mesmo banco de credenciais.
 
 ### Fluxo de Registro (Site → Servidor)
 
@@ -96,7 +96,7 @@ O plugin **nLogin** é usado no servidor Minecraft para autenticação de jogado
 ### Rate limiting
 
 - Contadores na tabela `rate_limits` do PostgreSQL (`src/lib/rate-limit.ts`): valem para todas as instâncias e sobrevivem a reinícios.
-- O IP do cliente vem **somente** do header `X-Real-IP` definido pelo nginx (`src/lib/client-ip.ts`). O `X-Forwarded-For` é ignorado porque pode ser forjado pelo cliente.
+- O IP do cliente vem somente do header `X-Real-IP` definido pelo nginx (`src/lib/client-ip.ts`). O `X-Forwarded-For` é ignorado porque pode ser forjado pelo cliente.
 - Login: limite por IP e por conta.
 
 ### Tabela nLogin (Referência)
@@ -112,7 +112,7 @@ O plugin **nLogin** é usado no servidor Minecraft para autenticação de jogado
 | `last_login` | BIGINT | Timestamp do último login |
 | `reg_date` | BIGINT | Timestamp do registro |
 
-> **Importante**: O campo `password` usa hash bcrypt. O site deve usar a mesma lib/algoritmo para gerar e validar hashes.
+> Importante: o campo `password` usa hash bcrypt. O site deve usar a mesma lib/algoritmo para gerar e validar hashes.
 
 ---
 
@@ -132,7 +132,7 @@ O plugin **nLogin** é usado no servidor Minecraft para autenticação de jogado
 | Opção | Detalhes |
 |-------|----------|
 | **MercadoPago** (recomendado) | API brasileira, PIX, cartão, boleto |
-| **Stripe** (alternativa) | Cartão internacional, experiência premium |
+| **Stripe** (alternativa) | Cartão internacional |
 
 ### Fluxo de Compra
 
@@ -165,7 +165,7 @@ O plugin **nLogin** é usado no servidor Minecraft para autenticação de jogado
 
 ## Status do Servidor — Minecraft Query Protocol
 
-O site consulta o status do servidor Minecraft pela API pública **mcsrvstat.us** (`/api/server-status`). A consulta direta via **Minecraft Server List Ping** (TCP na porta 25565) fica para uma versão futura.
+O site consulta o status do servidor Minecraft pela API pública mcsrvstat.us (`/api/server-status`). A consulta direta via Minecraft Server List Ping (TCP na porta 25565) fica para uma versão futura.
 
 ### Dados Disponíveis
 
@@ -204,11 +204,11 @@ Só entram no ranking contas ativas com perfil público.
 
 | Role | Criar Tópico | Comentar | Editar Próprio | Moderar | Fixar/Fechar |
 |------|:------------:|:--------:|:--------------:|:-------:|:------------:|
-| Visitante | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Aluno | ✅ | ✅ | ✅ | ❌ | ❌ |
-| Professor | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Moderador | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Admin | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Visitante | Não | Não | Não | Não | Não |
+| Aluno | Sim | Sim | Sim | Não | Não |
+| Professor | Sim | Sim | Sim | Sim | Sim |
+| Moderador | Sim | Sim | Sim | Sim | Sim |
+| Admin | Sim | Sim | Sim | Sim | Sim |
 
 ---
 
@@ -216,26 +216,15 @@ Só entram no ranking contas ativas com perfil público.
 
 | Serviço | Uso |
 |---------|-----|
-| **VPS (Node.js + nginx)** | Next.js (`next start` em 127.0.0.1) atrás do nginx com TLS |
-| **PostgreSQL** | Dados do site, na mesma VPS, escutando só em 127.0.0.1 |
-| **Servidor Minecraft** | MariaDB (nLogin) + servidor Minecraft |
+| **Cloudflare** | DNS, TLS público e proteção DDoS do domínio do site |
+| **VPS do site** | nginx + Next.js (`next start` em 127.0.0.1) |
+| **Servidor físico** | PostgreSQL (Docker) com os dados do site, MariaDB do Pterodactyl (nLogin) e servidores Minecraft |
+| **WireGuard `wg-site`** | Túnel exclusivo entre a VPS do site e o servidor físico, usado para o acesso aos bancos |
 | **Docker Compose** | PostgreSQL local para desenvolvimento (porta 5454) |
 
-### nginx
+Arquitetura completa, instalação, backup e operação: [Arquitetura de Produção](./arquitetura-producao.md).
 
-O rate limiting depende do IP real do cliente no header `X-Real-IP`:
-
-```nginx
-location / {
-    proxy_pass http://127.0.0.1:3000;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $remote_addr;
-    proxy_set_header X-Forwarded-Proto $scheme;
-}
-```
-
-Os headers de segurança (CSP, HSTS, X-Frame-Options etc.) são enviados pelo Next.js (`next.config.ts`). Se o nginx também enviar HSTS, mantenha só um dos dois.
+O rate limiting depende do IP real do visitante no header `X-Real-IP`, montado pelo nginx a partir do `CF-Connecting-IP` da Cloudflare. Os headers de segurança (CSP, HSTS, X-Frame-Options etc.) são enviados pelo Next.js (`next.config.ts`).
 
 ### Variáveis de Ambiente
 

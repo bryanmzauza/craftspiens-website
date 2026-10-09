@@ -1,6 +1,6 @@
-# 🎨 Design System — CraftSapiens
+# Design System — CraftSapiens
 
-> Baseado na identidade visual do Minecraft com toque educacional moderno.
+> Baseado na identidade visual do Minecraft, adaptada para um site educacional.
 
 ---
 
@@ -187,7 +187,7 @@ Base de 4px (sistema de 4-point grid).
 
 ```
 ┌──────────┐
-│  VIP ⭐  │
+│   VIP    │
 └──────────┘
 - Variantes: verde (padrão), dourado (premium), roxo (XP), vermelho (urgente)
 - Border-radius: full (pill shape)

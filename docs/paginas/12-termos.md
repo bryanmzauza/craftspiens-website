@@ -1,4 +1,4 @@
-# 📜 Página 12 — Termos e Condições / Política de Privacidade
+# Página 12 — Termos e Condições / Política de Privacidade
 
 > **Rotas**: `/termos`, `/privacidade`
 > **Acesso**: Público
@@ -11,7 +11,7 @@
 ### RN-TERMOS-01: Página de Termos e Condições (`/termos`)
 
 #### Hero
-- Título: **"TERMOS E CONDIÇÕES"** em fonte Minecraft
+- Título: "TERMOS E CONDIÇÕES" em fonte Minecraft
 - Breadcrumb: Home > Termos e Condições
 - Data da última atualização em destaque
 
@@ -34,7 +34,7 @@ O conteúdo deve ser organizado em seções com navegação lateral (table of co
    - Decisão da administração é soberana
    - Apelação via email: contato@craftsapiens.com.br
    - Se apelação negada: não cabe mais recurso
-   - Tentativa de burlar banimento = violação dos termos
+   - Tentativa de burlar um banimento é considerada violação dos termos
 
 4. **Premium / VIP**
    - Premium é uma distinção por contribuição financeira
@@ -48,9 +48,9 @@ O conteúdo deve ser organizado em seções com navegação lateral (table of co
 
 6. **Estorno / Reembolso**
    - Se já usufruiu dos benefícios: não haverá reembolso
-   - Chargeback = banimento permanente
+   - Chargeback resulta em banimento permanente
    - Contato prévio obrigatório antes de estorno
-   - Estorno unilateral pela administração: valor devolvido + conta banida
+   - Estorno unilateral pela administração: valor devolvido e conta banida
 
 7. **Distinções de Tratamento**
    - VIP não isenta de punições
@@ -61,7 +61,7 @@ O conteúdo deve ser organizado em seções com navegação lateral (table of co
    - Jogador anui com coleta e visualização pela administração
 
 9. **Da Moeda SAPIENS**
-   - Moeda virtual SEM valor real fora do servidor
+   - Moeda virtual sem valor real fora do servidor
    - Não pode ser trocada por moeda real ou produtos reais
 
 10. **Manutenção do Servidor**
@@ -86,7 +86,7 @@ O conteúdo deve ser organizado em seções com navegação lateral (table of co
 
 #### Funcionalidades da Página
 - **Table of Contents**: Navegação lateral fixa (desktop) / dropdown (mobile)
-- **Busca no documento**: Ctrl+F estilizado para buscar seções
+- **Busca no documento**: campo de busca para localizar seções (alternativa ao Ctrl+F do navegador)
 - **Scroll spy**: Highlight na seção ativa no ToC
 - **Versão para impressão**: Botão para versão printer-friendly
 - **Aceite**: Checkbox nos formulários de registro/checkout referenciando esta página
@@ -143,43 +143,43 @@ O conteúdo deve ser organizado em seções com navegação lateral (table of co
 ## Wireframe Textual
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│ [NAVBAR]                                                          │
-├──────────────────────────────────────────────────────────────────┤
+┌────────────────────────────────────────────────────────────────────┐
+│ [NAVBAR]                                                           │
+├────────────────────────────────────────────────────────────────────┤
 │  Home > Termos e Condições                                         │
 │                                                                    │
 │  ████████████████████████████████                                  │
-│  █  TERMOS E CONDIÇÕES         █                                  │
+│  █  TERMOS E CONDIÇÕES         █                                   │
 │  ████████████████████████████████                                  │
 │  Última atualização: 19/03/2026                                    │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │                                                                    │
-│  ┌────────────────┐  ┌─────────────────────────────────────┐      │
-│  │ Table of       │  │                                     │      │
-│  │ Contents       │  │  1. DA ADESÃO                       │      │
-│  │                │  │                                     │      │
-│  │ ● Da Adesão   │  │  A adesão ao presente termo         │      │
-│  │ ○ Regras      │  │  far-se-á no momento do registro    │      │
-│  │ ○ Punições    │  │  em nosso servidor...               │      │
-│  │ ○ Premium     │  │                                     │      │
-│  │ ○ Contribuição│  │  2. REGRAS DE CONDUTA               │      │
-│  │ ○ Estorno     │  │                                     │      │
-│  │ ○ Dados       │  │  O jogador se compromete a seguir   │      │
-│  │ ○ Moeda       │  │  as regras de conduta do servidor,  │      │
-│  │ ○ Manutenção  │  │  evitando comportamentos...         │      │
-│  │ ○ Equipe      │  │                                     │      │
-│  │ ○ Ouvidoria   │  │  ...                                │      │
-│  │ ○ Encerramento│  │                                     │      │
-│  │                │  │                                     │      │
-│  │ [🖨️ Imprimir] │  │                                     │      │
-│  └────────────────┘  └─────────────────────────────────────┘      │
+│  ┌────────────────┐  ┌─────────────────────────────────────┐       │
+│  │ Table of       │  │                                     │       │
+│  │ Contents       │  │  1. DA ADESÃO                       │       │
+│  │                │  │                                     │       │
+│  │ ● Da Adesão    │  │  A adesão ao presente termo         │       │
+│  │ ○ Regras       │  │  far-se-á no momento do registro    │       │
+│  │ ○ Punições     │  │  em nosso servidor...               │       │
+│  │ ○ Premium      │  │                                     │       │
+│  │ ○ Contribuição │  │  2. REGRAS DE CONDUTA               │       │
+│  │ ○ Estorno      │  │                                     │       │
+│  │ ○ Dados        │  │  O jogador se compromete a seguir   │       │
+│  │ ○ Moeda        │  │  as regras de conduta do servidor,  │       │
+│  │ ○ Manutenção   │  │  evitando comportamentos...         │       │
+│  │ ○ Equipe       │  │                                     │       │
+│  │ ○ Ouvidoria    │  │  ...                                │       │
+│  │ ○ Encerramento │  │                                     │       │
+│  │                │  │                                     │       │
+│  │ [Imprimir]     │  │                                     │       │
+│  └────────────────┘  └─────────────────────────────────────┘       │
 │                                                                    │
-│  [Termos e Condições ✓] [Política de Privacidade →]               │
+│  [Termos e Condições (atual)] [Política de Privacidade →]          │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │ [FOOTER]                                                           │
-└──────────────────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 ---

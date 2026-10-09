@@ -1,4 +1,4 @@
-# 📚 CraftSapiens — Documentação do Projeto
+# CraftSapiens — Documentação do Projeto
 
 > **O Maior Metaverso Educacional do Mundo.**
 > Aulas reais, gamificação e comunidade no Minecraft.
@@ -7,15 +7,15 @@
 
 ## Visão Geral
 
-Este repositório contém o código-fonte do novo site da **CraftSapiens** — a maior plataforma de ensino gamificado via Minecraft do mundo. O site serve como portal principal para alunos, pais e a comunidade, oferecendo:
+Este repositório contém o código-fonte do novo site da CraftSapiens, plataforma de ensino gamificado no Minecraft. O site é o portal para alunos, pais e a comunidade e reúne:
 
-- **Sistema de autenticação** integrado com o servidor Minecraft (nLogin)
-- **Loja própria** para planos VIP/Premium e itens in-game
-- **Fórum da comunidade** com categorias, posts e reputação
-- **Grade curricular** e cronograma de aulas interativo
-- **Status do servidor** em tempo real com rankings
-- **Blog** com notícias e atualizações
-- **Background animado** com partículas estilo Minecraft
+- Sistema de autenticação integrado com o servidor Minecraft (nLogin)
+- Loja própria para planos VIP/Premium e itens in-game
+- Fórum da comunidade com categorias, posts e reputação
+- Grade curricular e cronograma de aulas interativo
+- Status do servidor em tempo real, com rankings
+- Blog com notícias e atualizações
+- Fundo animado com partículas no estilo Minecraft
 
 ---
 
@@ -41,6 +41,7 @@ Este repositório contém o código-fonte do novo site da **CraftSapiens** — a
 | [Stack Técnica](./stack-tecnica.md) | Tecnologias, arquitetura e integrações |
 | [Design System](./design-system.md) | Paleta de cores, tipografia, componentes base |
 | [Padrão de Commits](./padrao-de-commits.md) | Formato das mensagens, versionamento e checklist |
+| [Arquitetura de Produção](./arquitetura-producao.md) | Infraestrutura, deploy, backup e operação |
 
 ### Páginas do Site
 

@@ -1,21 +1,21 @@
-# ℹ️ Página 02 — Sobre
+# Página 02 — Sobre
 
 > **Rota**: `/sobre`
 > **Acesso**: Público
-> **Propósito**: Contar a história da CraftSapiens, gerar confiança e credibilidade.
+> **Propósito**: Apresentar a história, a equipe e a proposta da CraftSapiens.
 
 ---
 
 ## Regras de Negócio
 
 ### RN-SOBRE-01: Hero da Página
-- Banner com título **"SOBRE NÓS"** em fonte Minecraft
+- Banner com título "SOBRE NÓS" em fonte Minecraft
 - Breadcrumb: Home > Sobre
 - Background com leve overlay escuro sobre imagem do servidor
 
 ### RN-SOBRE-02: Nossa História
 - Seção com timeline visual contando a trajetória da CraftSapiens
-- Citação em destaque do fundador:
+- Citação do fundador:
   > "Aqui os alunos realmente querem aprender, pois é prazeroso estudar jogando."
   > — Helton Alvares Gonçalves, Fundador
 - Marcos importantes (fundação, primeiras aulas, reconhecimento na mídia, expansão)
@@ -23,11 +23,11 @@
 
 ### RN-SOBRE-03: Quem Somos
 - Texto descritivo explicando:
-  - A CraftSapiens é a melhor maneira gamificada de se estudar do mundo
-  - Pioneiros no uso de Minecraft nativo (sem mods) para ensino
-  - Programação em Java avançada para criar quadro funcional dentro do jogo
+  - O que é a CraftSapiens: uma plataforma de estudo gamificado dentro do Minecraft
+  - Uso de Minecraft nativo (sem mods) para ensino, área em que a CraftSapiens foi pioneira
+  - Programação em Java para criar um quadro funcional dentro do jogo
   - Minigames temáticos e aulas de campo com construções temáticas
-  - É um trabalho 10x mais difícil que aulas convencionais
+  - Preparar essas aulas exige bem mais trabalho que aulas convencionais (o texto original fala em "10x mais difícil")
 - Vídeo embed do Prof. Helton explicando como funcionam as aulas
 
 ### RN-SOBRE-04: Missão, Visão e Valores
@@ -80,63 +80,63 @@
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│ [NAVBAR]                                                          │
+│ [NAVBAR]                                                         │
 ├──────────────────────────────────────────────────────────────────┤
-│                                                                    │
-│  Home > Sobre                                                      │
-│                                                                    │
-│  ███████████████████                                               │
-│  █   SOBRE NÓS    █                                               │
-│  ███████████████████                                               │
-│                                                                    │
+│                                                                  │
+│  Home > Sobre                                                    │
+│                                                                  │
+│  ███████████████████                                             │
+│  █   SOBRE NÓS     █                                             │
+│  ███████████████████                                             │
+│                                                                  │
 ├──────────────────────────────────────────────────────────────────┤
-│                      NOSSA HISTÓRIA                                │
-│                                                                    │
-│  ┌─────┐     ┌─────┐     ┌─────┐     ┌─────┐                    │
-│  │2020 │────▶│2021 │────▶│2022 │────▶│2026 │  ← Timeline       │
-│  │Fund.│     │Mídia│     │Expan│     │Novo  │                    │
-│  └─────┘     └─────┘     └─────┘     │Site  │                    │
-│                                       └─────┘                    │
-│                                                                    │
-│  💬 "Aqui os alunos realmente querem aprender, pois é             │
-│      prazeroso estudar jogando."                                   │
-│      — Helton Alvares Gonçalves, Fundador                         │
-│                                                                    │
+│                      NOSSA HISTÓRIA                              │
+│                                                                  │
+│  ┌─────┐     ┌─────┐     ┌─────┐     ┌─────┐                     │
+│  │2020 │────→│2021 │────→│2022 │────→│2026 │  ← Timeline         │
+│  │Fund.│     │Mídia│     │Expan│     │Novo │                     │
+│  └─────┘     └─────┘     └─────┘     │Site │                     │
+│                                      └─────┘                     │
+│                                                                  │
+│  "Aqui os alunos realmente querem aprender, pois é               │
+│      prazeroso estudar jogando."                                 │
+│      — Helton Alvares Gonçalves, Fundador                        │
+│                                                                  │
 ├──────────────────────────────────────────────────────────────────┤
-│                      QUEM SOMOS NÓS?                               │
-│                                                                    │
-│  [Texto descritivo]              [▶ Vídeo do Prof. Helton]        │
-│  A CraftSapiens é a melhor                                         │
-│  maneira gamificada de                                             │
-│  estudar do mundo...                                               │
-│                                                                    │
+│                      QUEM SOMOS NÓS?                             │
+│                                                                  │
+│  [Texto descritivo]              [Vídeo do Prof. Helton]         │
+│  A CraftSapiens oferece                                          │
+│  aulas gamificadas dentro                                        │
+│  do Minecraft...                                                 │
+│                                                                  │
 ├──────────────────────────────────────────────────────────────────┤
-│                  MISSÃO, VISÃO E VALORES                           │
-│                                                                    │
+│                  MISSÃO, VISÃO E VALORES                         │
+│                                                                  │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐                        │
 │  │  Missão  │  │  Visão   │  │ Valores  │                        │
 │  │  ...     │  │  ...     │  │  ...     │                        │
 │  └──────────┘  └──────────┘  └──────────┘                        │
-│                                                                    │
+│                                                                  │
 ├──────────────────────────────────────────────────────────────────┤
-│                  RECONHECIMENTO NA MÍDIA                            │
-│                                                                    │
-│  [Logo Jornal] [Thumb Willzy] [Logo Podcast] [Thumb TV]           │
-│                                                                    │
+│                  RECONHECIMENTO NA MÍDIA                         │
+│                                                                  │
+│  [Logo Jornal] [Thumb Willzy] [Logo Podcast] [Thumb TV]          │
+│                                                                  │
 ├──────────────────────────────────────────────────────────────────┤
-│                     NOSSA EQUIPE                                    │
-│                                                                    │
-│  ┌────┐  ┌────┐  ┌────┐  ┌────┐  ┌────┐  ┌────┐  ┌────┐       │
-│  │Hel.│  │Jon.│  │Tha.│  │Mar.│  │Eri.│  │Wil.│  │Art.│       │
-│  │Dir.│  │MC  │  │Prof│  │Prof│  │Red.│  │Prof│  │Prof│       │
-│  └────┘  └────┘  └────┘  └────┘  └────┘  └────┘  └────┘       │
-│                                                                    │
-│              ┌──────────────────────┐                              │
-│              │  JUNTE-SE À EQUIPE   │                              │
-│              └──────────────────────┘                              │
-│                                                                    │
+│                     NOSSA EQUIPE                                 │
+│                                                                  │
+│  ┌────┐  ┌────┐  ┌────┐  ┌────┐  ┌────┐  ┌────┐  ┌────┐          │
+│  │Hel.│  │Jon.│  │Tha.│  │Mar.│  │Eri.│  │Wil.│  │Art.│          │
+│  │Dir.│  │MC  │  │Prof│  │Prof│  │Red.│  │Prof│  │Prof│          │
+│  └────┘  └────┘  └────┘  └────┘  └────┘  └────┘  └────┘          │
+│                                                                  │
+│              ┌──────────────────────┐                            │
+│              │  JUNTE-SE À EQUIPE   │                            │
+│              └──────────────────────┘                            │
+│                                                                  │
 ├──────────────────────────────────────────────────────────────────┤
-│ [FOOTER]                                                           │
+│ [FOOTER]                                                         │
 └──────────────────────────────────────────────────────────────────┘
 ```
 

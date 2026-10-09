@@ -1,4 +1,4 @@
-# ⛏️ CraftSapiens — Website
+# CraftSapiens — Website
 
 > **"Construa Seu Futuro Jogando"**
 >
@@ -8,15 +8,15 @@
 
 ## Sobre o Projeto
 
-Site oficial da **CraftSapiens** — a maior plataforma de ensino gamificado via Minecraft do mundo. Serve como portal principal para alunos, pais e a comunidade, oferecendo:
+Site oficial da CraftSapiens, plataforma de ensino gamificado no Minecraft. É o portal para alunos, pais e a comunidade e reúne:
 
-- 🔐 **Autenticação integrada** com o servidor Minecraft (nLogin + NextAuth.js)
-- 🛒 **Loja própria** para planos VIP/Premium e itens in-game
-- 💬 **Fórum da comunidade** com categorias, posts e reputação
-- 📚 **Grade curricular** e cronograma de aulas interativo
-- 📡 **Status do servidor** em tempo real
-- 📝 **Blog** com notícias e atualizações
-- ✨ **Background animado** com partículas estilo Minecraft
+- Autenticação integrada com o servidor Minecraft (nLogin + NextAuth.js)
+- Loja própria para planos VIP/Premium e itens in-game
+- Fórum da comunidade com categorias, posts e reputação
+- Grade curricular e cronograma de aulas interativo
+- Status do servidor em tempo real
+- Blog com notícias e atualizações
+- Fundo animado com partículas no estilo Minecraft
 
 ---
 
@@ -42,9 +42,9 @@ Site oficial da **CraftSapiens** — a maior plataforma de ensino gamificado via
 
 ### Pré-requisitos
 
-- **Node.js** 20.9+
-- **Docker** (para o PostgreSQL local)
-- Acesso a um **MariaDB** com a tabela `nlogin` do plugin nLogin
+- Node.js 20.9+
+- Docker (para o PostgreSQL local)
+- Acesso a um MariaDB com a tabela `nlogin` do plugin nLogin
 
 ### Instalação
 
@@ -70,7 +70,7 @@ npm run db:push:pg
 npm run db:seed
 ```
 
-> ⚠️ Nunca rode `prisma db push` com o `prisma.config.ts` (MariaDB): ele aponta para o banco do servidor Minecraft, que é gerenciado pelo plugin nLogin.
+> Atenção: nunca rode `prisma db push` com o `prisma.config.ts` (MariaDB): ele aponta para o banco do servidor Minecraft, que é gerenciado pelo plugin nLogin.
 
 ### Executar
 
@@ -102,23 +102,13 @@ O site estará disponível em [http://localhost:3000](http://localhost:3000).
 
 ## Produção
 
-O site roda em uma VPS com Node.js atrás do nginx. Pontos obrigatórios:
+O site roda em uma VPS dedicada, atrás da Cloudflare. Os bancos de dados (PostgreSQL do site e MariaDB do nLogin) ficam no servidor físico, acessados por um túnel WireGuard.
 
-- **Variáveis de ambiente:** o servidor não inicia se alguma variável obrigatória faltar (`src/lib/env.ts`).
-- **nginx:** precisa repassar o IP real do cliente, usado no rate limiting:
+```
+Visitante → Cloudflare → VPS do site (nginx → Next.js) ──WireGuard──▶ servidor físico (PostgreSQL + MariaDB)
+```
 
-  ```nginx
-  location / {
-      proxy_pass http://127.0.0.1:3000;
-      proxy_set_header Host $host;
-      proxy_set_header X-Real-IP $remote_addr;
-      proxy_set_header X-Forwarded-For $remote_addr;
-      proxy_set_header X-Forwarded-Proto $scheme;
-  }
-  ```
-
-- **Next.js** deve escutar só em `127.0.0.1` (`npm run start -- -H 127.0.0.1`), para que ninguém acesse a porta 3000 sem passar pelo nginx.
-- **MercadoPago:** configurar a URL `https://<domínio>/api/loja/webhook` no painel e copiar a assinatura secreta para `MERCADOPAGO_WEBHOOK_SECRET`.
+Instalação, configuração de rede, Cloudflare, backup e operação estão em [docs/arquitetura-producao.md](./docs/arquitetura-producao.md).
 
 ---
 
@@ -154,7 +144,7 @@ prisma/
 └── schema.pg.prisma      # PostgreSQL — dados do site
 
 scripts/                  # Seeds e migração única MariaDB → PostgreSQL
-docs/                     # Documentação completa do projeto
+docs/                     # Documentação do projeto
 ```
 
 ---
@@ -166,6 +156,7 @@ A documentação detalhada do projeto está em [`docs/`](./docs/README.md), incl
 - [Stack Técnica](./docs/stack-tecnica.md) — Arquitetura e integrações
 - [Design System](./docs/design-system.md) — Paleta de cores, tipografia e componentes
 - [Padrão de Commits](./docs/padrao-de-commits.md) — Formato das mensagens, versionamento e checklist
+- [Arquitetura de Produção](./docs/arquitetura-producao.md) — Infraestrutura, deploy, backup e operação
 - Especificações de cada página e componente
 
 ---

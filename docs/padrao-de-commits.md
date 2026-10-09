@@ -1,4 +1,4 @@
-# 📝 Padrão de Commits
+# Padrão de Commits
 
 Padrão usado no histórico do projeto desde a v0.1. Cada commit corresponde a uma versão registrada no [CHANGELOG](../CHANGELOG.md).
 
@@ -19,7 +19,7 @@ Padrão usado no histórico do projeto desde a v0.1. Cada commit corresponde a u
 |-------|---------|
 | Começa com a versão entre colchetes | `[v0.14]`, `[v0.4.1]` |
 | Resumo em português, com a primeira letra maiúscula | `[v0.8] Sistema de email, recuperação de senha e newsletter` |
-| Descreve **o que** a versão entrega, não como foi feito | ✅ `Checkout com MercadoPago` · ❌ `Ajustes no route.ts` |
+| Descreve o que a versão entrega, não como foi feito | Bom: `Checkout com MercadoPago`; ruim: `Ajustes no route.ts` |
 | Até 72 caracteres, sem ponto final | |
 | Mesmo resumo do título da versão no CHANGELOG | `## [v0.14] — … — Higienização pré-produção e segurança` |
 

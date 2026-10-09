@@ -1,8 +1,8 @@
-# ✨ Componente Global — Fundo Animado (Animated Background)
+# Componente Global — Fundo Animado (Animated Background)
 
 > **Componente**: `components/layout/AnimatedBackground.tsx`
 > **Presente em**: Todas as páginas (layer atrás do conteúdo)
-> **Propósito**: Background animado com partículas estilo Minecraft para dar vida e identidade visual ao site.
+> **Propósito**: Fundo animado com partículas no estilo Minecraft, que faz parte da identidade visual do site.
 
 ---
 
@@ -10,9 +10,9 @@
 
 ### RN-BG-01: Conceito Visual
 - Background escuro (`#1A1A2E`) com partículas flutuantes temáticas do Minecraft
-- As partículas devem criar uma atmosfera imersiva sem distrair do conteúdo
+- As partículas compõem o ambiente visual sem distrair do conteúdo
 - Opacidade baixa para não competir com o conteúdo (20-40% de opacidade)
-- Movimentação suave e contínua (não caótico)
+- Movimentação suave e contínua, sem mudanças bruscas
 
 ### RN-BG-02: Tipos de Partículas
 
@@ -27,7 +27,7 @@
 
 #### Movimento
 - **Direção principal**: De baixo para cima (gravidade invertida, como no Minecraft quando itens são droppados)
-- **Velocidade**: Variável por partícula (0.2px - 1px por frame) — lento e relaxante
+- **Velocidade**: Variável por partícula (0.2px - 1px por frame), movimento lento
 - **Oscilação**: Movimento senoidal horizontal sutil (amplitude: 20-50px)
 - **Rotação**: Blocos rotacionam lentamente (0.5-2 graus por frame)
 
@@ -147,7 +147,7 @@ VIEWPORT (posição fixa, atrás de tudo)
 │              ·                ■          │
 │    ·     ■        ·       ·         ●    │
 │                                          │
-│  [Conteúdo do site fica ACIMA disto]     │ ← z-index: 1+
+│  [Conteúdo do site fica acima disto]     │ ← z-index: 1+
 └──────────────────────────────────────────┘
 ```
 

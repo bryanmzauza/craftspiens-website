@@ -42,7 +42,7 @@ function baseTemplate(content: string): string {
     <tr><td align="center">
       <table width="600" cellpadding="0" cellspacing="0" style="background:#16213E;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.1)">
         <tr><td style="background:#4CAF50;padding:24px 32px;text-align:center">
-          <span style="font-family:'Courier New',monospace;font-size:20px;font-weight:bold;color:#fff;letter-spacing:2px">⛏ CRAFTSAPIENS</span>
+          <span style="font-family:'Courier New',monospace;font-size:20px;font-weight:bold;color:#fff;letter-spacing:2px">CRAFTSAPIENS</span>
         </td></tr>
         <tr><td style="padding:32px">${content}</td></tr>
         <tr><td style="padding:16px 32px;border-top:1px solid rgba(255,255,255,0.1);text-align:center">
@@ -111,7 +111,7 @@ export async function sendWelcomeEmail(
   username: string
 ): Promise<void> {
   const content = `
-    <h2 style="color:#fff;margin:0 0 16px;font-size:22px">Bem-vindo ao CraftSapiens! 🎮</h2>
+    <h2 style="color:#fff;margin:0 0 16px;font-size:22px">Bem-vindo ao CraftSapiens</h2>
     <p style="color:#E0E0E0;font-size:15px;line-height:1.6;margin:0 0 16px">
       Olá <strong style="color:#4CAF50">${escapeHtml(username)}</strong>,
     </p>
@@ -133,7 +133,7 @@ export async function sendWelcomeEmail(
       </a>
     </td></tr></table>`;
 
-  await send(to, "Bem-vindo ao CraftSapiens! 🎮", content);
+  await send(to, "Bem-vindo ao CraftSapiens", content);
 }
 
 export async function sendContactConfirmationEmail(
@@ -141,7 +141,7 @@ export async function sendContactConfirmationEmail(
   name: string
 ): Promise<void> {
   const content = `
-    <h2 style="color:#fff;margin:0 0 16px;font-size:22px">Mensagem Recebida ✉️</h2>
+    <h2 style="color:#fff;margin:0 0 16px;font-size:22px">Mensagem recebida</h2>
     <p style="color:#E0E0E0;font-size:15px;line-height:1.6;margin:0 0 16px">
       Olá <strong style="color:#4CAF50">${escapeHtml(name)}</strong>,
     </p>
@@ -183,7 +183,7 @@ export async function sendOrderConfirmationEmail(
     .join("");
 
   const content = `
-    <h2 style="color:#fff;margin:0 0 16px;font-size:22px">Compra Confirmada! 🎉</h2>
+    <h2 style="color:#fff;margin:0 0 16px;font-size:22px">Compra confirmada</h2>
     <p style="color:#E0E0E0;font-size:15px;line-height:1.6;margin:0 0 16px">
       Olá <strong style="color:#4CAF50">${escapeHtml(username)}</strong>,
     </p>

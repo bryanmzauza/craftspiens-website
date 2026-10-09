@@ -1,4 +1,4 @@
-# 🧭 Componente Global — Navbar
+# Componente Global — Navbar
 
 > **Componente**: `components/layout/Navbar.tsx`
 > **Presente em**: Todas as páginas
@@ -11,9 +11,9 @@
 ### RN-NAV-01: Estrutura da Navbar
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ [🏗️ Logo]  SOBRE  AULAS  CRONOGRAMA  LOJA  COMUNIDADE   [Login] [CRIAR CONTA GRÁTIS] │
-└──────────────────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────────────────┐
+│ [Logo]  SOBRE  AULAS  CRONOGRAMA  LOJA  COMUNIDADE   [Login] [CRIAR CONTA GRÁTIS] │
+└───────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 #### Elementos (esquerda para direita):
@@ -47,7 +47,7 @@ Se o usuário for Staff/Admin, adicionar:
 - Detecção via `usePathname()` do Next.js
 
 ### RN-NAV-04: Notificações (Logado)
-- Ícone de sino (🔔) ao lado do avatar
+- Ícone de sino ao lado do avatar
 - Badge numérico com quantidade de notificações não lidas
 - Ao clicar: dropdown com lista de notificações recentes (últimas 5)
 - Link "Ver todas" → página de notificações ou modal completo
@@ -55,14 +55,14 @@ Se o usuário for Staff/Admin, adicionar:
 
 ### RN-NAV-05: Status do Servidor (Mini)
 - Indicador pequeno (opcional) na navbar:
-  - 🟢 `42 online` (verde, jogadores online)
-  - 🔴 `Offline` (vermelho)
+  - Indicador verde com `42 online` (jogadores online)
+  - Indicador vermelho com `Offline`
 - Clicável → vai para `/status`
 - Atualiza a cada 60 segundos
 
 ### RN-NAV-06: Scroll Behavior
 - **Posição fixa** (sticky) no topo da página
-- **Background**: Transparente no topo da página (hero visible)
+- **Background**: Transparente no topo da página (hero visível)
 - **Ao scrollar**: Background escurece com `backdrop-blur` (glassmorphism)
   - `background: rgba(26, 26, 46, 0.9)`
   - `backdrop-filter: blur(10px)`
@@ -71,7 +71,7 @@ Se o usuário for Staff/Admin, adicionar:
 
 ### RN-NAV-07: Mobile (Hambúrguer Menu)
 - Em telas < 1024px (lg):
-  - Links de navegação colapsam em ícone hambúrguer (☰)
+  - Links de navegação colapsam em um ícone de menu hambúrguer
   - Logo permanece visível
   - Botão CTA "CRIAR CONTA" pode virar ícone ou sumir
 - Ao clicar no hambúrguer:
@@ -90,10 +90,10 @@ Se o usuário for Staff/Admin, adicionar:
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│  ┌─────────────┐                                                              │
-│  │ CRAFTSAPIENS │  SOBRE  AULAS  CRONOGRAMA  LOJA  COMUNIDADE               │
-│  │ [Logo+Texto] │                                        [Login] [CRIAR CONTA]│
-│  └─────────────┘                                                              │
+│  ┌──────────────┐                                                            │
+│  │ CRAFTSAPIENS │  SOBRE  AULAS  CRONOGRAMA  LOJA  COMUNIDADE                │
+│  │ [Logo+Texto] │                                      [Login] [CRIAR CONTA] │
+│  └──────────────┘                                                            │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -101,41 +101,41 @@ Se o usuário for Staff/Admin, adicionar:
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│  ┌─────────────┐                                                              │
-│  │ CRAFTSAPIENS │  SOBRE  AULAS  CRONOGRAMA  LOJA  COMUNIDADE               │
-│  │ [Logo+Texto] │                              🟢 42   🔔(3)  [👤 Steve ▼] │
-│  └─────────────┘                                                              │
+│  ┌──────────────┐                                                            │
+│  │ CRAFTSAPIENS │  SOBRE  AULAS  CRONOGRAMA  LOJA  COMUNIDADE                │
+│  │ [Logo+Texto] │                        ● 42   [sino](3)   [avatar Steve ▼] │
+│  └──────────────┘                                                            │
 └──────────────────────────────────────────────────────────────────────────────┘
-                                                         ┌─────────────────┐
-                                                         │ 👤 Meu Perfil   │
-                                                         │ 🛒 Minhas Compras│
-                                                         │ ⚙️ Configurações │
-                                                         │ ─────────────── │
-                                                         │ 🚪 Sair         │
-                                                         └─────────────────┘
+                                                             ┌─────────────────┐
+                                                             │ Meu Perfil      │
+                                                             │ Minhas Compras  │
+                                                             │ Configurações   │
+                                                             │ ─────────────── │
+                                                             │ Sair            │
+                                                             └─────────────────┘
 ```
 
 ### Mobile
 
 ```
 ┌──────────────────────────────┐
-│  [Logo]              [☰]    │
+│  [Logo]              [≡]     │
 └──────────────────────────────┘
 
            (ao abrir menu)
 
 ┌──────────────────────────────┐    ┌─────────────────┐
-│  [Logo]              [X]    │    │                 │
-└──────────────────────────────┘    │  SOBRE          │
-│░░░░░░░░░░░░░░░░░░░░░░│    │  AULAS          │
-│░░░░░░ overlay  ░░░░░░│    │  CRONOGRAMA     │
-│░░░░░░░░░░░░░░░░░░░░░░│    │  LOJA           │
-│░░░░░░░░░░░░░░░░░░░░░░│    │  COMUNIDADE     │
-│░░░░░░░░░░░░░░░░░░░░░░│    │  ─────────────  │
-│░░░░░░░░░░░░░░░░░░░░░░│    │  🟢 42 online   │
-│░░░░░░░░░░░░░░░░░░░░░░│    │  ─────────────  │
-│░░░░░░░░░░░░░░░░░░░░░░│    │  [Login]        │
-│░░░░░░░░░░░░░░░░░░░░░░│    │  [CRIAR CONTA]  │
+│  [Logo]              [X]     │    │                 │
+├──────────────────────────────┤    │  SOBRE          │
+│░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│    │  AULAS          │
+│░░░░░░░░░░░ overlay ░░░░░░░░░░│    │  CRONOGRAMA     │
+│░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│    │  LOJA           │
+│░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│    │  COMUNIDADE     │
+│░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│    │  ─────────────  │
+│░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│    │  ● 42 online    │
+│░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│    │  ─────────────  │
+│░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│    │  [Login]        │
+│░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│    │  [CRIAR CONTA]  │
 └──────────────────────────────┘    └─────────────────┘
 ```
 

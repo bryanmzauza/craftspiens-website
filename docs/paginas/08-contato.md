@@ -1,4 +1,4 @@
-# 📞 Página 08 — Contato
+# Página 08 — Contato
 
 > **Rota**: `/contato`
 > **Acesso**: Público
@@ -9,7 +9,7 @@
 ## Regras de Negócio
 
 ### RN-CONTATO-01: Hero da Página
-- Título: **"CONTATO"** em fonte Minecraft
+- Título: "CONTATO" em fonte Minecraft
 - Subtítulo: "Fale conosco! Estamos prontos para ajudar."
 - Breadcrumb: Home > Contato
 
@@ -36,10 +36,10 @@
 - Campos:
   | Campo | Tipo | Validação | Obrigatório |
   |-------|------|-----------|:-----------:|
-  | Nome | Texto | 2-100 caracteres | ✅ |
-  | Email | Email | Formato válido | ✅ |
-  | Assunto | Select | Opções pré-definidas | ✅ |
-  | Mensagem | Textarea | 10-2000 caracteres | ✅ |
+  | Nome | Texto | 2-100 caracteres | Sim |
+  | Email | Email | Formato válido | Sim |
+  | Assunto | Select | Opções pré-definidas | Sim |
+  | Mensagem | Textarea | 10-2000 caracteres | Sim |
 
 - Opções de Assunto:
   - Dúvida sobre aulas
@@ -56,8 +56,8 @@
   4. Exibe mensagem de sucesso: "Mensagem enviada! Responderemos em até 10 dias úteis."
   5. Envia email de confirmação para o remetente
 
-- Rate limit: máx 3 mensagens por hora por IP / email
-- Honeypot field para anti-bot (campo invisível que bots preenchem)
+- Rate limit: máximo de 3 mensagens por hora por IP / email
+- Campo honeypot contra bots (campo invisível que apenas bots preenchem)
 
 ### RN-CONTATO-05: FAQ Rápido
 - Seção de perguntas frequentes em formato accordion:
@@ -67,7 +67,7 @@
   - "Funciona no celular?" → Minecraft Java Edition (computador) recomendado
   - "Como funciona a Moeda SAPIENS?" → Explicação breve + link para /sobre
   - "Como ser Premium/VIP?" → Link para /loja
-- Cada FAQ expansível (click to expand)
+- Cada pergunta é expansível (clique para abrir a resposta)
 
 ### RN-CONTATO-07: Newsletter
 - Campo de inscrição para novidades:
@@ -81,45 +81,45 @@
 ## Wireframe Textual
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│ [NAVBAR]                                                          │
-├──────────────────────────────────────────────────────────────────┤
+┌────────────────────────────────────────────────────────────────────┐
+│ [NAVBAR]                                                           │
+├────────────────────────────────────────────────────────────────────┤
 │  Home > Contato                                                    │
 │                                                                    │
 │  ████████████████                                                  │
-│  █   CONTATO   █                                                  │
+│  █   CONTATO   █                                                   │
 │  ████████████████                                                  │
 │  Fale conosco! Estamos prontos para ajudar.                        │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │                                                                    │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐            │
-│  │ 📱 WhatsApp  │  │ 📧 Email     │  │ 💬 Discord   │            │
-│  │ (41) 9 9587  │  │ contato@     │  │ Comunidade   │            │
-│  │ -1942        │  │ craftsapiens │  │ online       │            │
-│  │              │  │ .com.br      │  │              │            │
-│  │ [CHAMAR]     │  │ [ENVIAR]     │  │ [ENTRAR]     │            │
-│  └──────────────┘  └──────────────┘  └──────────────┘            │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐              │
+│  │ WhatsApp     │  │ Email        │  │ Discord      │              │
+│  │ (41) 9 9587  │  │ contato@     │  │ Comunidade   │              │
+│  │ -1942        │  │ craftsapiens │  │ online       │              │
+│  │              │  │ .com.br      │  │              │              │
+│  │ [CHAMAR]     │  │ [ENVIAR]     │  │ [ENTRAR]     │              │
+│  └──────────────┘  └──────────────┘  └──────────────┘              │
 │                                                                    │
-│  ⚡ Respondemos via WhatsApp mais rapidamente                      │
+│  Respondemos via WhatsApp mais rapidamente                         │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │                                                                    │
 │  REDES SOCIAIS                                                     │
 │                                                                    │
 │  [Discord] [Instagram] [YouTube] [Telegram]                        │
 │  [TikTok]  [Twitter]   [Facebook]                                  │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │                                                                    │
 │  ENVIE UMA MENSAGEM                    FAQ RÁPIDO                  │
 │                                                                    │
 │  Nome *                                ▸ Como acesso o servidor?   │
 │  [________________]                    ▸ Quanto custa?             │
-│                                        ▸ Qual a idade mínima?     │
-│  Email *                               ▸ Funciona no celular?     │
+│                                        ▸ Qual a idade mínima?      │
+│  Email *                               ▸ Funciona no celular?      │
 │  [________________]                    ▸ Como funciona a Moeda?    │
-│                                        ▸ Como ser Premium?        │
+│                                        ▸ Como ser Premium?         │
 │  Assunto *                                                         │
 │  [Selecione... ▼]                                                  │
 │                                                                    │
@@ -130,15 +130,15 @@
 │                                                                    │
 │  [ENVIAR MENSAGEM]                                                 │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │                                                                    │
-│  📬 FIQUE POR DENTRO DAS NOVIDADES                                 │
+│  FIQUE POR DENTRO DAS NOVIDADES                                    │
 │  [email________________] [INSCREVER]                               │
-│  ☐ Aceito receber emails sobre novidades                           │
+│  [ ] Aceito receber emails sobre novidades                         │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │ [FOOTER]                                                           │
-└──────────────────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -149,25 +149,25 @@
 
 | Campo | Tipo | Obrigatório |
 |-------|------|:-----------:|
-| `id` | INT (PK) | ✅ |
-| `nome` | VARCHAR(100) | ✅ |
-| `email` | VARCHAR(255) | ✅ |
-| `assunto` | VARCHAR(100) | ✅ |
-| `mensagem` | TEXT | ✅ |
-| `status` | ENUM (nova, lida, respondida, arquivada) | ✅ |
-| `ip` | VARCHAR(45) | ✅ |
-| `created_at` | DATETIME | ✅ |
+| `id` | INT (PK) | Sim |
+| `nome` | VARCHAR(100) | Sim |
+| `email` | VARCHAR(255) | Sim |
+| `assunto` | VARCHAR(100) | Sim |
+| `mensagem` | TEXT | Sim |
+| `status` | ENUM (nova, lida, respondida, arquivada) | Sim |
+| `ip` | VARCHAR(45) | Sim |
+| `created_at` | DATETIME | Sim |
 
 ### Newsletter
 
 | Campo | Tipo | Obrigatório |
 |-------|------|:-----------:|
-| `id` | INT (PK) | ✅ |
-| `email` | VARCHAR(255) UNIQUE | ✅ |
-| `confirmado` | BOOLEAN | ✅ |
-| `token` | VARCHAR(100) | ✅ |
-| `created_at` | DATETIME | ✅ |
-| `unsubscribed_at` | DATETIME | ❌ |
+| `id` | INT (PK) | Sim |
+| `email` | VARCHAR(255) UNIQUE | Sim |
+| `confirmado` | BOOLEAN | Sim |
+| `token` | VARCHAR(100) | Sim |
+| `created_at` | DATETIME | Sim |
+| `unsubscribed_at` | DATETIME | Não |
 
 ---
 
@@ -176,4 +176,4 @@
 | Meta | Valor |
 |------|-------|
 | **Title** | Contato — CraftSapiens \| Fale Conosco |
-| **Description** | Entre em contato com a CraftSapiens. WhatsApp, email, Discord e formulário de contato. Respondemos em até 10 dias úteis.. |
+| **Description** | Entre em contato com a CraftSapiens. WhatsApp, email, Discord e formulário de contato. Respondemos em até 10 dias úteis. |

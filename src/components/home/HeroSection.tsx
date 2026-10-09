@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useSession } from "next-auth/react";
+import { Pickaxe } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 export function HeroSection() {
@@ -48,7 +49,7 @@ export function HeroSection() {
         >
           <div className="relative h-80 w-full overflow-hidden rounded-2xl border border-white/10 bg-bg-card/50 backdrop-blur">
             <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
-              <div className="text-6xl">🏗️</div>
+              <Pickaxe size={64} className="text-green-cs" aria-hidden="true" />
               <p className="font-[family-name:var(--font-press-start)] text-sm text-green-cs">
                 CRAFTSAPIENS
               </p>

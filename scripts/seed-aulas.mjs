@@ -292,7 +292,7 @@ const LESSONS = [
 
 async function main() {
   try {
-    console.log("🌱 Seed de Aulas — Disciplinas + Aulas\n");
+    console.log("Seed de Aulas — Disciplinas + Aulas\n");
 
     // 1. Inserir disciplinas
     console.log(`1/2 — Inserindo ${DISCIPLINES.length} disciplinas...`);
@@ -315,7 +315,7 @@ async function main() {
       // Se a disciplina já existia com outro id, as aulas apontam para o id real
       disciplineIds.set(d.id, saved.id);
     }
-    console.log("   ✅ Disciplinas OK");
+    console.log("   Disciplinas OK");
 
     // 2. Inserir aulas
     console.log(`2/2 — Inserindo ${LESSONS.length} aulas...`);
@@ -341,11 +341,11 @@ async function main() {
         create: { id: l.id, slug: l.slug, active: true, ...data },
       });
     }
-    console.log("   ✅ Aulas OK");
+    console.log("   Aulas OK");
 
-    console.log("\n✅ Seed concluído com sucesso!");
+    console.log("\nSeed concluído com sucesso!");
   } catch (error) {
-    console.error("❌ Erro no seed:", error);
+    console.error("Erro no seed:", error);
     process.exitCode = 1;
   } finally {
     await disconnect();

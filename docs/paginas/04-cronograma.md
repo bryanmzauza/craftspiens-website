@@ -1,4 +1,4 @@
-# 📅 Página 04 — Cronograma / Grade Curricular
+# Página 04 — Cronograma / Grade Curricular
 
 > **Rota**: `/cronograma`
 > **Acesso**: Público
@@ -9,7 +9,7 @@
 ## Regras de Negócio
 
 ### RN-CRONO-01: Hero da Página
-- Título: **"CRONOGRAMA"** em fonte Minecraft
+- Título: "CRONOGRAMA" em fonte Minecraft
 - Subtítulo: "Confira os horários das aulas e organize seus estudos."
 - Breadcrumb: Home > Cronograma
 
@@ -22,7 +22,7 @@
   - Cor da disciplina (badge colorido)
   - Status: "Ao vivo agora" (se a aula estiver acontecendo), "Próxima", ou horário passado
 - Layout tipo tabela/grid com colunas por dia da semana
-- Highlight no dia atual
+- Dia atual destacado visualmente
 - Aula ao vivo deve ter indicador pulsante (badge verde animado)
 
 ### RN-CRONO-03: Visão Mensal
@@ -73,42 +73,42 @@
 ## Wireframe Textual
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│ [NAVBAR]                                                          │
-├──────────────────────────────────────────────────────────────────┤
+┌────────────────────────────────────────────────────────────────────┐
+│ [NAVBAR]                                                           │
+├────────────────────────────────────────────────────────────────────┤
 │  Home > Cronograma                                                 │
 │                                                                    │
 │  ████████████████████                                              │
-│  █   CRONOGRAMA    █                                              │
+│  █   CRONOGRAMA     █                                              │
 │  ████████████████████                                              │
 │  Confira os horários das aulas e organize seus estudos.            │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │                                                                    │
-│  Filtrar: [Disciplina ▼] [Nível ▼] [Professor ▼] [Turno ▼]      │
+│  Filtrar: [Disciplina ▼] [Nível ▼] [Professor ▼] [Turno ▼]         │
 │                                                                    │
-│  Visão: [📅 Semanal ✓] [📆 Mensal]     [📥 Exportar Calendário]  │
+│  Visão: [Semanal (ativa)] [Mensal]     [Exportar Calendário]       │
 │                                                                    │
-│  ← Semana anterior  |  19 - 25 Mar 2026  |  Próxima semana →     │
+│  ← Semana anterior  |  19 - 25 Mar 2026  |  Próxima semana →       │
 │                                                                    │
-│  ┌──────┬──────┬──────┬──────┬──────┬──────┬──────┐              │
-│  │ SEG  │ TER  │ QUA  │ QUI  │ SEX  │ SAB  │ DOM  │              │
-│  ├──────┼──────┼──────┼──────┼──────┼──────┼──────┤              │
-│  │14:00 │      │14:00 │      │14:00 │10:00 │      │              │
-│  │Matem.│      │Portu.│      │Histó.│Ciênc.│      │              │
-│  │Prof. │      │Prof. │      │Prof. │Prof. │      │              │
-│  │Camil.│      │Thaw. │      │Art.  │Wilt. │      │              │
-│  │      │      │      │      │      │      │      │              │
-│  │16:00 │15:00 │16:00 │15:00 │      │      │      │              │
-│  │Físic.│Geog. │Quím. │ENEM  │      │      │      │              │
-│  │Prof. │Prof. │Prof. │Prof. │      │      │      │              │
-│  │Wilt. │Art.  │Camil.│Hel.  │      │      │      │              │
-│  └──────┴──────┴──────┴──────┴──────┴──────┴──────┘              │
+│  ┌──────┬──────┬──────┬──────┬──────┬──────┬──────┐                │
+│  │ SEG  │ TER  │ QUA  │ QUI  │ SEX  │ SAB  │ DOM  │                │
+│  ├──────┼──────┼──────┼──────┼──────┼──────┼──────┤                │
+│  │14:00 │      │14:00 │      │14:00 │10:00 │      │                │
+│  │Matem.│      │Portu.│      │Histó.│Ciênc.│      │                │
+│  │Prof. │      │Prof. │      │Prof. │Prof. │      │                │
+│  │Camil.│      │Thaw. │      │Art.  │Wilt. │      │                │
+│  │      │      │      │      │      │      │      │                │
+│  │16:00 │15:00 │16:00 │15:00 │      │      │      │                │
+│  │Físic.│Geog. │Quím. │ENEM  │      │      │      │                │
+│  │Prof. │Prof. │Prof. │Prof. │      │      │      │                │
+│  │Wilt. │Art.  │Camil.│Hel.  │      │      │      │                │
+│  └──────┴──────┴──────┴──────┴──────┴──────┴──────┘                │
 │                                                                    │
 │  ┌──────────────────────────────────┐                              │
 │  │  PRÓXIMAS AULAS                 │                              │
 │  │                                  │                              │
-│  │  🔴 Matemática — em 2h 30min    │                              │
+│  │  ● Matemática — em 2h 30min      │                              │
 │  │     Prof. Camilli | 14:00-15:30  │                              │
 │  │                                  │                              │
 │  │  ○ Português — Amanhã 14:00     │                              │
@@ -118,9 +118,9 @@
 │  │     Prof. Arthur                 │                              │
 │  └──────────────────────────────────┘                              │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │ [FOOTER]                                                           │
-└──────────────────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -131,29 +131,29 @@
 
 | Campo | Tipo | Obrigatório |
 |-------|------|:-----------:|
-| `id` | INT (PK) | ✅ |
-| `disciplina_id` | INT (FK) | ✅ |
-| `professor_id` | INT (FK) | ✅ |
-| `titulo` | VARCHAR(200) | ❌ |
-| `descricao` | TEXT | ❌ |
-| `dia_semana` | ENUM (seg, ter, qua, qui, sex, sab, dom) | ✅ |
-| `hora_inicio` | TIME | ✅ |
-| `hora_fim` | TIME | ✅ |
-| `nivel` | VARCHAR(50) | ✅ |
-| `recorrente` | BOOLEAN | ✅ |
-| `data_especifica` | DATE | ❌ |
-| `ativo` | BOOLEAN | ✅ |
-| `created_at` | DATETIME | ✅ |
+| `id` | INT (PK) | Sim |
+| `disciplina_id` | INT (FK) | Sim |
+| `professor_id` | INT (FK) | Sim |
+| `titulo` | VARCHAR(200) | Não |
+| `descricao` | TEXT | Não |
+| `dia_semana` | ENUM (seg, ter, qua, qui, sex, sab, dom) | Sim |
+| `hora_inicio` | TIME | Sim |
+| `hora_fim` | TIME | Sim |
+| `nivel` | VARCHAR(50) | Sim |
+| `recorrente` | BOOLEAN | Sim |
+| `data_especifica` | DATE | Não |
+| `ativo` | BOOLEAN | Sim |
+| `created_at` | DATETIME | Sim |
 
 ### Lembrete
 
 | Campo | Tipo | Obrigatório |
 |-------|------|:-----------:|
-| `id` | INT (PK) | ✅ |
-| `user_id` | INT (FK) | ✅ |
-| `schedule_id` | INT (FK) | ✅ |
-| `notificar_minutos_antes` | INT | ✅ |
-| `email_enviado` | BOOLEAN | ✅ |
+| `id` | INT (PK) | Sim |
+| `user_id` | INT (FK) | Sim |
+| `schedule_id` | INT (FK) | Sim |
+| `notificar_minutos_antes` | INT | Sim |
+| `email_enviado` | BOOLEAN | Sim |
 
 ---
 

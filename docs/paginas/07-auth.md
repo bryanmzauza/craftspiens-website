@@ -1,4 +1,4 @@
-# 🔐 Página 07 — Autenticação (Login / Registro)
+# Página 07 — Autenticação (Login / Registro)
 
 > **Rotas**: `/login`, `/registro`, `/recuperar-senha`
 > **Acesso**: Público (não autenticado)
@@ -13,12 +13,12 @@
 #### Campos do Formulário
 | Campo | Tipo | Validação | Obrigatório |
 |-------|------|-----------|:-----------:|
-| **Username** | Texto | 3-16 caracteres, apenas letras, números e `_`. Deve ser um nick válido de Minecraft. | ✅ |
-| **Email** | Email | Formato válido, único no banco | ✅ |
-| **Senha** | Password | Mínimo 8 caracteres, pelo menos 1 letra e 1 número | ✅ |
-| **Confirmar Senha** | Password | Deve coincidir com o campo Senha | ✅ |
-| **Data de Nascimento** | Date | Deve ter pelo menos 13 anos | ✅ |
-| **Aceitar Termos** | Checkbox | Deve ser marcado | ✅ |
+| **Username** | Texto | 3-16 caracteres, apenas letras, números e `_`. Deve ser um nick válido de Minecraft. | Sim |
+| **Email** | Email | Formato válido, único no banco | Sim |
+| **Senha** | Password | Mínimo 8 caracteres, pelo menos 1 letra e 1 número | Sim |
+| **Confirmar Senha** | Password | Deve coincidir com o campo Senha | Sim |
+| **Data de Nascimento** | Date | Deve ter pelo menos 13 anos | Sim |
+| **Aceitar Termos** | Checkbox | Deve ser marcado | Sim |
 
 #### Fluxo de Registro
 1. Usuário preenche o formulário
@@ -28,7 +28,7 @@
    - Email não existe na tabela `users`
    - Todos os campos são válidos
 4. Se válido:
-   a. Hash da senha com **bcrypt** (salt rounds: 10) — mesmo algoritmo do nLogin
+   a. Hash da senha com bcrypt (salt rounds: 10), o mesmo algoritmo usado pelo nLogin
    b. Cria registro na tabela `nlogin` (username, password_hash, reg_date)
    c. Cria registro na tabela `users` (email, nlogin_id, role: "aluno", created_at)
    d. Cria registro na tabela `profiles` (user_id, avatar default)
@@ -38,7 +38,7 @@
 
 #### Verificação de Disponibilidade (Live)
 - Ao digitar o username, verificar em tempo real se já existe (debounce 500ms)
-- Exibir ✅ "Disponível" ou ❌ "Username já em uso"
+- Exibir "Disponível" ou "Username já em uso"
 - Mesma verificação para email
 
 ### RN-AUTH-02: Login (`/login`)
@@ -46,9 +46,9 @@
 #### Campos do Formulário
 | Campo | Tipo | Obrigatório |
 |-------|------|:-----------:|
-| **Username ou Email** | Texto | ✅ |
-| **Senha** | Password | ✅ |
-| **Lembrar de mim** | Checkbox | ❌ |
+| **Username ou Email** | Texto | Sim |
+| **Senha** | Password | Sim |
+| **Lembrar de mim** | Checkbox | Não |
 
 #### Fluxo de Login
 1. Usuário preenche username/email + senha
@@ -72,17 +72,17 @@
    a. Gera token de recuperação (aleatório, 64 caracteres, expira em 1h)
    b. Salva token hasheado no banco
    c. Envia email com link: `https://craftsapiens.com.br/redefinir-senha?token=xxx`
-4. Se não existe: **mesma resposta** ("Se o email existir, enviaremos instruções") — evita enumeração
+4. Se não existe: a resposta é a mesma ("Se o email existir, enviaremos instruções"), para evitar enumeração de emails
 5. Ao acessar o link:
    a. Valida token (não expirado, não usado)
    b. Formulário: Nova senha + Confirmar nova senha
-   c. Atualiza hash na tabela `nlogin` (atualiza para site E servidor simultaneamente)
+   c. Atualiza o hash na tabela `nlogin` (a alteração vale para o site e para o servidor ao mesmo tempo)
    d. Invalida o token
    e. Redireciona para `/login` com mensagem de sucesso
 
 ### RN-AUTH-04: Integração nLogin
-- O campo `password` na tabela do nLogin usa hash **bcrypt** com prefixo `$2a$`
-- O site DEVE usar a mesma implementação de bcrypt para gerar e verificar hashes
+- O campo `password` na tabela do nLogin usa hash bcrypt com prefixo `$2a$`
+- O site deve usar a mesma implementação de bcrypt para gerar e verificar hashes
 - Quando o jogador troca a senha no site, a mudança vale imediatamente no servidor Minecraft
 - Se o jogador trocar a senha no servidor (comando /changepassword), o site reconhece a nova senha automaticamente (lê do mesmo banco)
 
@@ -107,75 +107,76 @@
 ### Registro (`/registro`)
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│ [NAVBAR]                                                          │
-├──────────────────────────────────────────────────────────────────┤
+┌────────────────────────────────────────────────────────────────────┐
+│ [NAVBAR]                                                           │
+├────────────────────────────────────────────────────────────────────┤
 │                                                                    │
-│                    ┌─────────────────────────┐                    │
-│                    │                         │                    │
-│                    │  ⛏️ CRIAR CONTA GRÁTIS   │                    │
-│                    │                         │                    │
-│                    │  Username *             │                    │
-│                    │  [________________] ✅   │                    │
-│                    │                         │                    │
-│                    │  Email *                │                    │
-│                    │  [________________]     │                    │
-│                    │                         │                    │
-│                    │  Data de Nascimento *   │                    │
-│                    │  [__/__/____]           │                    │
-│                    │                         │                    │
-│                    │  Senha *                │                    │
-│                    │  [________________] 👁️   │                    │
-│                    │  ████████░░ Forte       │                    │
-│                    │                         │                    │
-│                    │  Confirmar Senha *      │                    │
-│                    │  [________________] 👁️   │                    │
-│                    │                         │                    │
-│                    │  ☐ Li e concordo com    │                    │
-│                    │    os Termos e Condições │                    │
-│                    │                         │                    │
-│                    │  [  CRIAR MINHA CONTA  ]│                    │
-│                    │                         │                    │
-│                    │  Já tem conta? Faça     │                    │
-│                    │  login aqui →           │                    │
-│                    │                         │                    │
-│                    └─────────────────────────┘                    │
+│                    ┌─────────────────────────┐                     │
+│                    │                         │                     │
+│                    │  CRIAR CONTA GRÁTIS     │                     │
+│                    │                         │                     │
+│                    │  Username *             │                     │
+│                    │  [________________] [ok]│                     │
+│                    │                         │                     │
+│                    │  Email *                │                     │
+│                    │  [________________]     │                     │
+│                    │                         │                     │
+│                    │  Data de Nascimento *   │                     │
+│                    │  [__/__/____]           │                     │
+│                    │                         │                     │
+│                    │  Senha *                │                     │
+│                    │  [_______________] [ver]│                     │
+│                    │  ████████░░ Forte       │                     │
+│                    │                         │                     │
+│                    │  Confirmar Senha *      │                     │
+│                    │  [_______________] [ver]│                     │
+│                    │                         │                     │
+│                    │  [ ] Li e concordo com  │                     │
+│                    │      os Termos e        │                     │
+│                    │      Condições          │                     │
+│                    │                         │                     │
+│                    │  [  CRIAR MINHA CONTA  ]│                     │
+│                    │                         │                     │
+│                    │  Já tem conta? Faça     │                     │
+│                    │  login aqui →           │                     │
+│                    │                         │                     │
+│                    └─────────────────────────┘                     │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │ [FOOTER]                                                           │
-└──────────────────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Login (`/login`)
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│ [NAVBAR]                                                          │
-├──────────────────────────────────────────────────────────────────┤
+┌────────────────────────────────────────────────────────────────────┐
+│ [NAVBAR]                                                           │
+├────────────────────────────────────────────────────────────────────┤
 │                                                                    │
-│                    ┌─────────────────────────┐                    │
-│                    │                         │                    │
-│                    │  🎮 ENTRAR              │                    │
-│                    │                         │                    │
-│                    │  Username ou Email *    │                    │
-│                    │  [________________]     │                    │
-│                    │                         │                    │
-│                    │  Senha *                │                    │
-│                    │  [________________] 👁️   │                    │
-│                    │                         │                    │
-│                    │  ☐ Lembrar de mim       │                    │
-│                    │         Esqueci a senha →│                    │
-│                    │                         │                    │
-│                    │  [      ENTRAR        ] │                    │
-│                    │                         │                    │
-│                    │  Não tem conta? Crie    │                    │
-│                    │  uma grátis →           │                    │
-│                    │                         │                    │
-│                    └─────────────────────────┘                    │
+│                    ┌─────────────────────────┐                     │
+│                    │                         │                     │
+│                    │  ENTRAR                 │                     │
+│                    │                         │                     │
+│                    │  Username ou Email *    │                     │
+│                    │  [________________]     │                     │
+│                    │                         │                     │
+│                    │  Senha *                │                     │
+│                    │  [_______________] [ver]│                     │
+│                    │                         │                     │
+│                    │  [ ] Lembrar de mim     │                     │
+│                    │        Esqueci a senha →│                     │
+│                    │                         │                     │
+│                    │  [      ENTRAR        ] │                     │
+│                    │                         │                     │
+│                    │  Não tem conta? Crie    │                     │
+│                    │  uma grátis →           │                     │
+│                    │                         │                     │
+│                    └─────────────────────────┘                     │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │ [FOOTER]                                                           │
-└──────────────────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 ---

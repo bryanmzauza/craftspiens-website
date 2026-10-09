@@ -70,11 +70,11 @@ const ROLE_LABELS: Record<string, string> = {
   PROFESSOR: "Professor",
 };
 
-const REPUTATION_BADGES: { min: number; label: string; emoji: string }[] = [
-  { min: 201, label: "Lenda", emoji: "💎" },
-  { min: 51, label: "Veterano", emoji: "🏆" },
-  { min: 11, label: "Membro", emoji: "⭐" },
-  { min: 0, label: "Novato", emoji: "🌱" },
+const REPUTATION_BADGES: { min: number; label: string }[] = [
+  { min: 201, label: "Lenda" },
+  { min: 51, label: "Veterano" },
+  { min: 11, label: "Membro" },
+  { min: 0, label: "Novato" },
 ];
 
 function getReputationBadge(rep: number) {
@@ -300,7 +300,7 @@ export function TopicoContent({
                   </span>
                 )}
                 <p className="mt-1 text-[10px] text-[#A0A0A0]">
-                  {badge.emoji} {badge.label} ({post.author.reputation ?? 0})
+                  {badge.label} ({post.author.reputation ?? 0})
                 </p>
                 <p className="text-[10px] text-[#A0A0A0]">
                   {post.author.postCount ?? 0} posts · {post.author.commentCount ?? 0} comentários

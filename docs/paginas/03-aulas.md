@@ -1,4 +1,4 @@
-# 📖 Página 03 — Aulas
+# Página 03 — Aulas
 
 > **Rota**: `/aulas` e `/aulas/[slug]`
 > **Acesso**: Público (catálogo) / Logado (conteúdo detalhado)
@@ -9,7 +9,7 @@
 ## Regras de Negócio
 
 ### RN-AULAS-01: Hero da Página
-- Título: **"AULAS GAMIFICADAS"** em fonte Minecraft
+- Título: "AULAS GAMIFICADAS" em fonte Minecraft
 - Subtítulo: "Aprenda de verdade, jogando de verdade."
 - Breadcrumb: Home > Aulas
 - Background com screenshot de uma sala de aula dentro do Minecraft
@@ -22,7 +22,7 @@
   - Construções e aulas de campo temáticas por disciplina
   - Não requer mods — funciona com Minecraft nativo (Java Edition)
 - Vídeo demonstrativo ou galeria de screenshots das aulas
-- Destaque: "10x mais envolvente que aulas convencionais"
+- Texto de destaque na página: "10x mais envolvente que aulas convencionais"
 
 ### RN-AULAS-03: Catálogo de Disciplinas
 - Grid de cards mostrando todas as disciplinas disponíveis
@@ -56,11 +56,11 @@
 - Seção de FAQ por disciplina
 
 ### RN-AULAS-06: Seção ENEM & Reforço
-- Destaque especial para preparação de ENEM
+- Bloco dedicado à preparação para o ENEM
 - Conteúdo programático alinhado ao ENEM
 - Simulados e exercícios gamificados
 - Estatísticas de desempenho (se logado)
-- Card especial com badge "ENEM" em destaque
+- Card próprio com badge "ENEM"
 
 ### RN-AULAS-07: Seção "Para Pais"
 - Bloco informativo direcionado aos pais:
@@ -76,78 +76,78 @@
 ### Página de Catálogo (`/aulas`)
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│ [NAVBAR]                                                          │
-├──────────────────────────────────────────────────────────────────┤
+┌────────────────────────────────────────────────────────────────────┐
+│ [NAVBAR]                                                           │
+├────────────────────────────────────────────────────────────────────┤
 │                                                                    │
 │  Home > Aulas                                                      │
 │                                                                    │
 │  ████████████████████████████                                      │
-│  █  AULAS GAMIFICADAS     █                                      │
+│  █  AULAS GAMIFICADAS       █                                      │
 │  ████████████████████████████                                      │
 │  Aprenda de verdade, jogando de verdade.                           │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │                     COMO FUNCIONAM AS AULAS                        │
 │                                                                    │
-│  [Texto explicativo]            [▶ Vídeo / Screenshots]           │
+│  [Texto explicativo]            [Vídeo / Screenshots]              │
 │  • Aulas no Minecraft online                                       │
 │  • Quadro funcional no jogo                                        │
 │  • Minigames temáticos                                             │
 │  • Sem mods necessários                                            │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │                                                                    │
-│  Filtrar: [Todos ▼] [Fundamental ▼] [Médio ▼] [ENEM ▼] [🔍___] │
+│  Filtrar: [Todos ▼] [Fundamental ▼] [Médio ▼] [ENEM ▼] [Buscar__]  │
 │                                                                    │
 │  12 disciplinas encontradas                                        │
 │                                                                    │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐            │
-│  │ [📐 Ícone]   │  │ [📝 Ícone]   │  │ [🌍 Ícone]   │            │
-│  │              │  │              │  │              │            │
-│  │ Matemática   │  │ Português    │  │ Geografia    │            │
-│  │ Fund. / Méd. │  │ Fund. / Méd. │  │ Fund. / Méd. │            │
-│  │ 12 aulas     │  │ 10 aulas     │  │ 8 aulas      │            │
-│  └──────────────┘  └──────────────┘  └──────────────┘            │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐              │
+│  │ [Ícone]      │  │ [Ícone]      │  │ [Ícone]      │              │
+│  │              │  │              │  │              │              │
+│  │ Matemática   │  │ Português    │  │ Geografia    │              │
+│  │ Fund. / Méd. │  │ Fund. / Méd. │  │ Fund. / Méd. │              │
+│  │ 12 aulas     │  │ 10 aulas     │  │ 8 aulas      │              │
+│  └──────────────┘  └──────────────┘  └──────────────┘              │
 │                                                                    │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐            │
-│  │ [🔬 Ícone]   │  │ [📜 Ícone]   │  │ [⚡ Ícone]   │            │
-│  │              │  │              │  │              │            │
-│  │ Ciências     │  │ História     │  │ Física       │            │
-│  │ Fundamental  │  │ Fund. / Méd. │  │ Ens. Médio   │            │
-│  │ 8 aulas      │  │ 10 aulas     │  │ 6 aulas      │            │
-│  └──────────────┘  └──────────────┘  └──────────────┘            │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐              │
+│  │ [Ícone]      │  │ [Ícone]      │  │ [Ícone]      │              │
+│  │              │  │              │  │              │              │
+│  │ Ciências     │  │ História     │  │ Física       │              │
+│  │ Fundamental  │  │ Fund. / Méd. │  │ Ens. Médio   │              │
+│  │ 8 aulas      │  │ 10 aulas     │  │ 6 aulas      │              │
+│  └──────────────┘  └──────────────┘  └──────────────┘              │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
-│                    🎯 ENEM & REFORÇO                               │
+├────────────────────────────────────────────────────────────────────┤
+│                    ENEM & REFORÇO                                  │
 │                                                                    │
 │  Preparação gamificada para o ENEM.                                │
 │  [Saiba mais →]                                                    │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
-│                    👨‍👩‍👧 PARA PAIS                                   │
+├────────────────────────────────────────────────────────────────────┤
+│                    PARA PAIS                                       │
 │                                                                    │
 │  Acompanhe o progresso do seu filho em um                          │
 │  ambiente seguro e monitorado.                                     │
 │  [Falar com equipe →]                                              │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │ [FOOTER]                                                           │
-└──────────────────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Página de Detalhe (`/aulas/[slug]`)
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│ [NAVBAR]                                                          │
-├──────────────────────────────────────────────────────────────────┤
+┌────────────────────────────────────────────────────────────────────┐
+│ [NAVBAR]                                                           │
+├────────────────────────────────────────────────────────────────────┤
 │                                                                    │
 │  Home > Aulas > Matemática                                         │
 │                                                                    │
-│  ┌─────────────────────────────────────────────────────────┐      │
-│  │  [Banner da disciplina — screenshot do Minecraft]       │      │
-│  └─────────────────────────────────────────────────────────┘      │
+│  ┌─────────────────────────────────────────────────────────┐       │
+│  │  [Banner da disciplina — screenshot do Minecraft]       │       │
+│  └─────────────────────────────────────────────────────────┘       │
 │                                                                    │
 │  MATEMÁTICA                    Nível: Fundamental / Médio          │
 │                                12 aulas disponíveis                │
@@ -155,34 +155,34 @@
 │  [Descrição completa da disciplina, metodologia aplicada,          │
 │   como são os minigames e construções temáticas...]                │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │  PROFESSOR(ES)                                                     │
 │                                                                    │
-│  ┌────┐  Prof. Marcelo Camilli                                    │
-│  │foto│  Formado em Matemática pela UFPR...                       │
+│  ┌────┐  Prof. Marcelo Camilli                                     │
+│  │foto│  Formado em Matemática pela UFPR...                        │
 │  └────┘                                                            │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │  CONTEÚDO PROGRAMÁTICO                                             │
 │                                                                    │
-│  ☑ Aula 01 — Introdução à Álgebra                                 │
-│  ☑ Aula 02 — Equações do 1º grau                                  │
-│  ☐ Aula 03 — Equações do 2º grau                                  │
-│  ☐ Aula 04 — Funções                                               │
+│  [x] Aula 01 — Introdução à Álgebra                                │
+│  [x] Aula 02 — Equações do 1º grau                                 │
+│  [ ] Aula 03 — Equações do 2º grau                                 │
+│  [ ] Aula 04 — Funções                                             │
 │  ... (lista completa)                                              │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │  GALERIA                                                           │
 │                                                                    │
-│  [Screenshot 1] [Screenshot 2] [▶ Vídeo]                          │
+│  [Screenshot 1] [Screenshot 2] [Vídeo]                             │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │              ┌──────────────────────┐                              │
 │              │   ASSISTIR AULAS     │                              │
 │              └──────────────────────┘                              │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │ [FOOTER]                                                           │
-└──────────────────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -193,31 +193,31 @@
 
 | Campo | Tipo | Obrigatório |
 |-------|------|:-----------:|
-| `id` | INT (PK) | ✅ |
-| `nome` | VARCHAR(100) | ✅ |
-| `slug` | VARCHAR(100) UNIQUE | ✅ |
-| `descricao` | TEXT | ✅ |
-| `descricao_curta` | VARCHAR(255) | ✅ |
-| `icone` | VARCHAR(255) | ✅ |
-| `banner` | VARCHAR(255) | ❌ |
-| `niveis` | JSON (array de strings) | ✅ |
-| `total_aulas` | INT | ✅ |
-| `professor_ids` | JSON (array de IDs) | ✅ |
-| `ativo` | BOOLEAN | ✅ |
-| `created_at` | DATETIME | ✅ |
-| `updated_at` | DATETIME | ✅ |
+| `id` | INT (PK) | Sim |
+| `nome` | VARCHAR(100) | Sim |
+| `slug` | VARCHAR(100) UNIQUE | Sim |
+| `descricao` | TEXT | Sim |
+| `descricao_curta` | VARCHAR(255) | Sim |
+| `icone` | VARCHAR(255) | Sim |
+| `banner` | VARCHAR(255) | Não |
+| `niveis` | JSON (array de strings) | Sim |
+| `total_aulas` | INT | Sim |
+| `professor_ids` | JSON (array de IDs) | Sim |
+| `ativo` | BOOLEAN | Sim |
+| `created_at` | DATETIME | Sim |
+| `updated_at` | DATETIME | Sim |
 
 ### Aula (Tópico)
 
 | Campo | Tipo | Obrigatório |
 |-------|------|:-----------:|
-| `id` | INT (PK) | ✅ |
-| `disciplina_id` | INT (FK) | ✅ |
-| `titulo` | VARCHAR(200) | ✅ |
-| `descricao` | TEXT | ✅ |
-| `ordem` | INT | ✅ |
-| `duracao_minutos` | INT | ❌ |
-| `ativo` | BOOLEAN | ✅ |
+| `id` | INT (PK) | Sim |
+| `disciplina_id` | INT (FK) | Sim |
+| `titulo` | VARCHAR(200) | Sim |
+| `descricao` | TEXT | Sim |
+| `ordem` | INT | Sim |
+| `duracao_minutos` | INT | Não |
+| `ativo` | BOOLEAN | Sim |
 
 ---
 

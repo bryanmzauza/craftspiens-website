@@ -1,4 +1,4 @@
-# 🦶 Componente Global — Footer
+# Componente Global — Footer
 
 > **Componente**: `components/layout/Footer.tsx`
 > **Presente em**: Todas as páginas
@@ -40,8 +40,8 @@ O footer é dividido em 3 áreas principais:
 - Status do Servidor → `/status`
 
 **Coluna 4: Contato**
-- 📧 contato@craftsapiens.com.br
-- 📱 (41) 9 9587-1942 (link WhatsApp)
+- Email: contato@craftsapiens.com.br
+- WhatsApp: (41) 9 9587-1942 (link para o WhatsApp)
 - IP do Servidor: `jogar.craftsapiens.com.br` com botão copiar
 
 #### Área Inferior — Copyright & Legal
@@ -82,28 +82,29 @@ Não afiliado à Mojang Studios. Minecraft é marca registrada de Mojang Synergi
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
 │                                                                          │
-│  📬 FIQUE POR DENTRO DAS NOVIDADES                                       │
-│  [email________________________] [INSCREVER]                              │
+│  FIQUE POR DENTRO DAS NOVIDADES                                          │
+│  [email________________________] [INSCREVER]                             │
 │                                                                          │
 ├──────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
-│  ┌─────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐ │
-│  │ [Logo]       │  │ Institucional│  │ Suporte      │  │ Contato      │ │
-│  │              │  │              │  │              │  │              │ │
-│  │ O Maior      │  │ Sobre        │  │ Termos       │  │ 📧 contato@   │ │
-│  │ Metaverso    │  │ Aulas        │  │ Privacidade  │  │ craftsapiens │ │
-│  │ Educacional  │  │ Cronograma   │  │ FAQ          │  │ .com.br      │ │
-│  │ do Mundo.    │  │ Blog         │  │ Status       │  │              │ │
-│  │              │  │ Contato      │  │              │  │ 📱 (41) 9    │ │
-│  │ [🎮][📺][📷] │  │              │  │              │  │ 9587-1942    │ │
-│  │ [🎵][🐦][📘] │  │              │  │              │  │              │ │
-│  │ [✈️]         │  │              │  │              │  │              │ │
-│  │              │  │              │  │              │  │              │ │
-│  │      CONTATO │  │              │  │              │  │              │ │
-│  └─────────────┘  └──────────────┘  └──────────────┘  │ 🖥️ jogar.    │ │
-│                                                        │ craftsapiens │ │
-│                                                        │ .com.br [📋] │ │
-│                                                        └──────────────┘ │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
+│  │ [Logo]       │  │ Institucional│  │ Suporte      │  │ Contato      │  │
+│  │              │  │              │  │              │  │              │  │
+│  │ O Maior      │  │ Sobre        │  │ Termos       │  │ Email:       │  │
+│  │ Metaverso    │  │ Aulas        │  │ Privacidade  │  │ contato@     │  │
+│  │ Educacional  │  │ Cronograma   │  │ FAQ          │  │ craftsapiens │  │
+│  │ do Mundo.    │  │ Blog         │  │ Status       │  │ .com.br      │  │
+│  │              │  │ Contato      │  │              │  │              │  │
+│  │ [Discord]    │  │              │  │              │  │ WhatsApp:    │  │
+│  │ [YouTube]    │  │              │  │              │  │ (41) 9       │  │
+│  │ [Instagram]  │  │              │  │              │  │ 9587-1942    │  │
+│  │ [TikTok]     │  │              │  │              │  │              │  │
+│  │ [Twitter]    │  │              │  │              │  │ IP: jogar.   │  │
+│  │ [Facebook]   │  │              │  │              │  │ craftsapiens │  │
+│  │ [Telegram]   │  │              │  │              │  │ .com.br      │  │
+│  │              │  │              │  │              │  │ [Copiar IP]  │  │
+│  │      CONTATO │  │              │  │              │  │              │  │
+│  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘  │
 │                                                                          │
 ├──────────────────────────────────────────────────────────────────────────┤
 │                                                                          │

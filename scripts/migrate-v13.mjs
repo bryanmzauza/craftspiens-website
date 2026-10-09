@@ -41,7 +41,7 @@ const ID_CHUNK = 1000;
 
 const mariaDbUrl = process.env.DATABASE_URL;
 if (!mariaDbUrl) {
-  console.error("❌ DATABASE_URL (MariaDB de origem) não definida no .env");
+  console.error("Erro: DATABASE_URL (MariaDB de origem) não definida no .env");
   process.exit(1);
 }
 
@@ -176,6 +176,25 @@ function rowReader(spec, row) {
 // A ordem respeita as chaves estrangeiras. `columns` lista as colunas lidas
 // da origem; `map` recebe o leitor e a data de "agora" (fallback de datas).
 
+
+// Até a v0.14 os ícones das categorias do fórum eram emojis; agora são nomes de
+// ícones do Lucide (src/components/comunidade/CategoryIcon.tsx).
+const FORUM_ICON_NAMES = new Map([
+  [0x1f4e2, "Megaphone"],
+  [0x1f4ac, "MessageCircle"],
+  [0x2753, "CircleHelp"],
+  [0x1f4a1, "Lightbulb"],
+  [0x1f41b, "Bug"],
+  [0x1f3d7, "Hammer"],
+  [0x1f3ae, "Gamepad2"],
+]);
+
+function forumIconName(icon) {
+  if (!icon) return null;
+  const codePoint = icon.codePointAt(0);
+  return FORUM_ICON_NAMES.get(codePoint) ?? (/^[A-Za-z0-9]+$/.test(icon) ? icon : null);
+}
+
 const TABLES = [
   {
     model: "User",
@@ -235,7 +254,7 @@ const TABLES = [
       name: r.req("name"),
       slug: r.req("slug"),
       description: r.str("description"),
-      icon: r.str("icon"),
+      icon: forumIconName(r.str("icon")),
       order: r.int("order", 0),
       staffOnly: r.bool("staff_only", false),
       active: r.bool("active", true),
@@ -351,7 +370,7 @@ const TABLES = [
       if (!slug) {
         // Slug é obrigatório e único no PostgreSQL: gera um a partir do título + id
         slug = `${slugify(title) || "topico"}-${id}`.slice(0, 300);
-        console.warn(`   ⚠️ posts id=${id}: slug ausente, gerado "${slug}"`);
+        console.warn(`   Aviso: posts id=${id}: slug ausente, gerado "${slug}"`);
       }
       return {
         id,
@@ -639,7 +658,7 @@ async function readSource(conn) {
 
   for (const spec of TABLES) {
     if (!existing.has(spec.source)) {
-      console.warn(`⚠️  ${spec.source}: tabela não existe no MariaDB — pulando ${spec.model}.`);
+      console.warn(`Aviso: ${spec.source}: tabela não existe no MariaDB — pulando ${spec.model}.`);
       results.push({ spec, skipped: true, data: [] });
       continue;
     }
@@ -649,9 +668,9 @@ async function readSource(conn) {
     const ignored = sourceColumns.filter((c) => !spec.columns.includes(c));
 
     const rows = await conn.query(`SELECT * FROM \`${spec.source}\``);
-    console.log(`📦 ${spec.source.padEnd(30)} ${String(rows.length).padStart(7)} linhas  → ${spec.model}`);
-    if (absent.length) console.warn(`   ⚠️ colunas ausentes no MariaDB (usando valor padrão): ${absent.join(", ")}`);
-    if (ignored.length) console.warn(`   ⚠️ colunas do MariaDB sem destino no PostgreSQL (NÃO migradas): ${ignored.join(", ")}`);
+    console.log(`${spec.source.padEnd(30)} ${String(rows.length).padStart(7)} linhas  → ${spec.model}`);
+    if (absent.length) console.warn(`   Aviso: colunas ausentes no MariaDB (usando valor padrão): ${absent.join(", ")}`);
+    if (ignored.length) console.warn(`   Aviso: colunas do MariaDB sem destino no PostgreSQL (NÃO migradas): ${ignored.join(", ")}`);
 
     const data = [];
     for (const row of rows) {
@@ -659,7 +678,7 @@ async function readSource(conn) {
         data.push(spec.map(rowReader(spec, row), now));
       } catch (error) {
         if (!(error instanceof MappingError)) throw error;
-        console.error(`   ❌ ${error.message}`);
+        console.error(`   Erro: ${error.message}`);
         errors += 1;
       }
     }
@@ -737,13 +756,13 @@ async function main() {
     console.log(`\nTotal: ${totalRows} linhas convertidas em ${results.filter((r) => !r.skipped).length} tabelas.`);
 
     if (errors > 0) {
-      console.error(`\n❌ ${errors} linha(s) com erro de conversão. Nada foi gravado no PostgreSQL.`);
+      console.error(`\nErro: ${errors} linha(s) com erro de conversão. Nada foi gravado no PostgreSQL.`);
       failed = true;
       return;
     }
 
     if (DRY_RUN) {
-      console.log("\n✅ Dry run concluído: leitura e conversão OK. Nada foi gravado.");
+      console.log("\nDry run concluído: leitura e conversão OK. Nada foi gravado.");
       return;
     }
 
@@ -757,30 +776,30 @@ async function main() {
       summary.push(line);
 
       if (result.skipped) {
-        line.status = "⚠️ tabela ausente no MariaDB";
+        line.status = "tabela ausente no MariaDB";
         continue;
       }
       if (aborted) {
-        line.status = "⏭️ não executado";
+        line.status = "não executado";
         failed = true;
         continue;
       }
 
       try {
-        console.log(`\n➡️  ${spec.model}: gravando ${result.data.length} registros...`);
+        console.log(`\n${spec.model}: gravando ${result.data.length} registros...`);
         line.inserted = await writeTable(pg.prisma, result);
         const { present, total } = await verifyTable(pg.prisma, result);
         line.present = present;
         line.total = total;
         if (present === result.data.length) {
-          line.status = "✅ OK";
+          line.status = "OK";
         } else {
-          line.status = `❌ faltam ${result.data.length - present} (conflito de chave única?)`;
+          line.status = `faltam ${result.data.length - present} (conflito de chave única?)`;
           failed = true;
         }
       } catch (error) {
-        console.error(`❌ Erro ao gravar ${spec.model}:`, error);
-        line.status = "❌ erro";
+        console.error(`Erro ao gravar ${spec.model}:`, error);
+        line.status = "erro";
         failed = true;
         // As próximas tabelas dependem desta (chaves estrangeiras): interrompe
         aborted = true;
@@ -791,15 +810,15 @@ async function main() {
 
     if (failed) {
       console.error(
-        "\n❌ Migração terminou com erros ou divergências. Corrija e rode de novo (é idempotente).\n" +
+        "\nErro: Migração terminou com erros ou divergências. Corrija e rode de novo (é idempotente).\n" +
           "   Divergência em 'No destino' indica registros pulados por conflito de chave única\n" +
           "   (slug, email, código...) com dados que já existiam no PostgreSQL."
       );
     } else {
-      console.log("\n🎉 Migração v0.13 concluída: todos os registros estão no PostgreSQL.");
+      console.log("\nMigração v0.13 concluída: todos os registros estão no PostgreSQL.");
     }
   } catch (error) {
-    console.error("\n❌ Erro na migração:", error);
+    console.error("\nErro na migração:", error);
     failed = true;
   } finally {
     if (conn) conn.release();

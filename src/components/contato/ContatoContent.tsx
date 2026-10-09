@@ -203,7 +203,7 @@ export function ContatoContent() {
           </motion.div>
 
           <p className="mt-6 text-center text-sm text-green-cs">
-            ⚡ Respondemos via WhatsApp mais rapidamente
+            Pelo WhatsApp a resposta costuma ser mais rápida.
           </p>
         </div>
       </section>

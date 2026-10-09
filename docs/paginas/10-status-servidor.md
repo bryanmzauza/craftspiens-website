@@ -1,4 +1,4 @@
-# 🖥️ Página 10 — Status do Servidor & Rankings
+# Página 10 — Status do Servidor & Rankings
 
 > **Rota**: `/status`
 > **Acesso**: Público
@@ -9,7 +9,7 @@
 ## Regras de Negócio
 
 ### RN-STATUS-01: Hero da Página
-- Título: **"STATUS DO SERVIDOR"** em fonte Minecraft
+- Título: "STATUS DO SERVIDOR" em fonte Minecraft
 - Subtítulo: "Acompanhe o servidor em tempo real."
 - Breadcrumb: Home > Status
 
@@ -17,16 +17,16 @@
 - Painel principal exibindo:
   | Dado | Fonte | Atualização |
   |------|-------|-------------|
-  | **Status** | Online 🟢 / Offline 🔴 | A cada 15 segundos |
+  | **Status** | Online / Offline | A cada 15 segundos |
   | **Jogadores Online** | X / Máx (ex: 42/200) | A cada 15 segundos |
   | **Versão** | Ex: 1.20.4 | Server List Ping |
   | **IP do Servidor** | `jogar.craftsapiens.com.br` | Estático |
   | **Latência** | Ping em ms | A cada 15 segundos |
   | **Uptime** | Tempo desde o último restart | A cada 1 minuto |
 
-- Indicador visual: grande e centralizado
-  - 🟢 ONLINE (verde pulsante) — com contador de jogadores animado
-  - 🔴 OFFLINE (vermelho) — com mensagem "Servidor em manutenção"
+- Indicador visual grande e centralizado:
+  - ONLINE (indicador verde pulsante), com contador de jogadores animado
+  - OFFLINE (indicador vermelho), com a mensagem "Servidor em manutenção"
 - Botão "COPIAR IP" ao lado do endereço do servidor
 
 ### RN-STATUS-03: Lista de Jogadores Online
@@ -52,27 +52,27 @@
 #### Top XP (Experiência)
 | # | Jogador | XP | Nível |
 |---|---------|-----|-------|
-| 🥇 | SteveJogador | 15.430 | Lenda |
-| 🥈 | Maria_MC | 12.100 | Veterano |
-| 🥉 | Pedro99 | 9.800 | Veterano |
+| 1 | SteveJogador | 15.430 | Lenda |
+| 2 | Maria_MC | 12.100 | Veterano |
+| 3 | Pedro99 | 9.800 | Veterano |
 | 4 | ... | ... | ... |
 
 #### Top Moedas SAPIENS
 | # | Jogador | Moedas |
 |---|---------|--------|
-| 🥇 | ... | 5.200 |
+| 1 | ... | 5.200 |
 | ... | ... | ... |
 
 #### Top Tempo Online
 | # | Jogador | Horas |
 |---|---------|-------|
-| 🥇 | ... | 340h |
+| 1 | ... | 340h |
 | ... | ... | ... |
 
 #### Top Aulas Concluídas
 | # | Jogador | Aulas |
 |---|---------|-------|
-| 🥇 | ... | 28 |
+| 1 | ... | 28 |
 | ... | ... | ... |
 
 - Cada ranking exibe top 10 (com link "Ver ranking completo")
@@ -87,7 +87,7 @@
 - Se logado: highlight na posição do jogador
 
 ### RN-STATUS-07: Meu Ranking (Logado)
-- Card especial mostrando a posição do jogador logado em cada ranking
+- Card com a posição do jogador logado em cada ranking
 - "Você está em #42 no ranking de XP | #15 no ranking de Moedas"
 - Link para o perfil
 
@@ -96,70 +96,70 @@
 ## Wireframe Textual
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│ [NAVBAR]                                                          │
-├──────────────────────────────────────────────────────────────────┤
+┌────────────────────────────────────────────────────────────────────┐
+│ [NAVBAR]                                                           │
+├────────────────────────────────────────────────────────────────────┤
 │  Home > Status                                                     │
 │                                                                    │
 │  ██████████████████████████████                                    │
-│  █  STATUS DO SERVIDOR       █                                    │
+│  █  STATUS DO SERVIDOR       █                                     │
 │  ██████████████████████████████                                    │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │                                                                    │
-│  ┌────────────────────────────────────────────────────────┐       │
-│  │                                                        │       │
-│  │           🟢 SERVIDOR ONLINE                           │       │
-│  │                                                        │       │
-│  │     42 / 200 jogadores online                          │       │
-│  │                                                        │       │
-│  │  IP: jogar.craftsapiens.com.br  [📋 COPIAR IP]        │       │
-│  │  Versão: 1.20.4  |  Ping: 23ms  |  Uptime: 14d 3h    │       │
-│  │                                                        │       │
-│  └────────────────────────────────────────────────────────┘       │
+│  ┌────────────────────────────────────────────────────────┐        │
+│  │                                                        │        │
+│  │           ● SERVIDOR ONLINE                            │        │
+│  │                                                        │        │
+│  │     42 / 200 jogadores online                          │        │
+│  │                                                        │        │
+│  │  IP: jogar.craftsapiens.com.br  [COPIAR IP]            │        │
+│  │  Versão: 1.20.4  |  Ping: 23ms  |  Uptime: 14d 3h      │        │
+│  │                                                        │        │
+│  └────────────────────────────────────────────────────────┘        │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │  JOGADORES ONLINE (42)                                             │
 │                                                                    │
-│  [👤Steve] [👤Maria] [👤Pedro] [👤João] [👤Ana]                    │
-│  [👤Lucas] [👤Julia] [👤Rafael] [👤Camila] ...                     │
+│  [Steve] [Maria] [Pedro] [João] [Ana]                              │
+│  [Lucas] [Julia] [Rafael] [Camila] ...                             │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │  JOGADORES NAS ÚLTIMAS 24H                                         │
 │                                                                    │
 │  50│     ╱╲                                                        │
-│  40│    ╱  ╲      ╱╲                                              │
-│  30│   ╱    ╲    ╱  ╲                                             │
-│  20│──╱      ╲──╱    ╲──                                          │
-│  10│─╱                  ╲─                                        │
+│  40│    ╱  ╲      ╱╲                                               │
+│  30│   ╱    ╲    ╱  ╲                                              │
+│  20│──╱      ╲──╱    ╲──                                           │
+│  10│─╱                  ╲─                                         │
 │   0│──────────────────────                                         │
 │    00:00  06:00  12:00  18:00   Agora                              │
 │                                                                    │
 │  [24h] [7 dias] [30 dias]                                          │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │  RANKINGS                                                          │
 │                                                                    │
-│  [⭐ XP] [💰 Moedas] [🕐 Tempo Online] [📚 Aulas]                 │
+│  [XP] [Moedas] [Tempo Online] [Aulas]                              │
 │                                                                    │
-│  ┌────────────────────────────────────────────────────────┐       │
-│  │ # │  Jogador              │  XP       │  Nível        │       │
-│  │───┼───────────────────────┼───────────┼───────────────│       │
-│  │ 🥇│  [👤] SteveJogador    │  15.430   │  💎 Lenda     │       │
-│  │ 🥈│  [👤] Maria_MC        │  12.100   │  🏆 Veterano  │       │
-│  │ 🥉│  [👤] Pedro99         │   9.800   │  🏆 Veterano  │       │
-│  │ 4 │  [👤] JoaoGamer       │   8.200   │  🏆 Veterano  │       │
-│  │ 5 │  [👤] AnaBuilder      │   7.500   │  ⭐ Membro    │       │
-│  │...│  ...                  │  ...      │  ...          │       │
-│  │───┼───────────────────────┼───────────┼───────────────│       │
-│  │ 42│  [👤] VOCÊ (destaque) │   3.210   │  ⭐ Membro    │       │
-│  └────────────────────────────────────────────────────────┘       │
+│  ┌────────────────────────────────────────────────────────┐        │
+│  │ # │  Jogador              │  XP       │  Nível         │        │
+│  │───┼───────────────────────┼───────────┼────────────────│        │
+│  │ 1 │  [img] SteveJogador   │  15.430   │  Lenda         │        │
+│  │ 2 │  [img] Maria_MC       │  12.100   │  Veterano      │        │
+│  │ 3 │  [img] Pedro99        │   9.800   │  Veterano      │        │
+│  │ 4 │  [img] JoaoGamer      │   8.200   │  Veterano      │        │
+│  │ 5 │  [img] AnaBuilder     │   7.500   │  Membro        │        │
+│  │...│  ...                  │  ...      │  ...           │        │
+│  │───┼───────────────────────┼───────────┼────────────────│        │
+│  │ 42│  [img] VOCÊ (destaque)│   3.210   │  Membro        │        │
+│  └────────────────────────────────────────────────────────┘        │
 │                                                                    │
 │  [Ver ranking completo →]                                          │
 │                                                                    │
-├──────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │ [FOOTER]                                                           │
-└──────────────────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -191,12 +191,12 @@
 
 | Campo | Tipo | Obrigatório |
 |-------|------|:-----------:|
-| `id` | BIGINT (PK) | ✅ |
-| `online` | BOOLEAN | ✅ |
-| `players_online` | INT | ✅ |
-| `players_max` | INT | ✅ |
-| `latency_ms` | INT | ❌ |
-| `recorded_at` | DATETIME | ✅ |
+| `id` | BIGINT (PK) | Sim |
+| `online` | BOOLEAN | Sim |
+| `players_online` | INT | Sim |
+| `players_max` | INT | Sim |
+| `latency_ms` | INT | Não |
+| `recorded_at` | DATETIME | Sim |
 
 > Registrar a cada 5 minutos. Purgar dados com mais de 90 dias.
 

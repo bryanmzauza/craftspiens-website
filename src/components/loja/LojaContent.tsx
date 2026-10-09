@@ -187,7 +187,7 @@ export function LojaContent() {
                             className="absolute left-0 right-0 top-0 py-1 text-center text-xs font-bold uppercase text-white"
                             style={{ backgroundColor: cor }}
                           >
-                            ⭐ {plan.badge || "Mais popular"}
+                            {plan.badge || "Mais popular"}
                           </div>
                         )}
 

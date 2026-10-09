@@ -7,6 +7,29 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.14.1] — 09/10/2026 — Arquitetura de produção e revisão de textos
+
+### Adicionado
+
+- **`docs/arquitetura-producao.md`** — arquitetura de produção:
+  - Site em VPS dedicada atrás da Cloudflare; PostgreSQL (Docker) e MariaDB do Pterodactyl no servidor físico
+  - Túnel WireGuard exclusivo (`wg-site`) entre a VPS do site e o servidor físico
+  - Usuário próprio no MariaDB com permissões só na tabela `nlogin`
+  - nginx com IP real vindo da Cloudflare, firewall liberando a porta 443 só para a Cloudflare
+  - Serviço systemd, ordem da primeira instalação, deploy de atualizações e rollback
+  - Backup diário criptografado do PostgreSQL no Google Drive (rclone), restauração e teste mensal
+  - Diagnóstico de problemas comuns e checklist de validação
+
+### Alterado
+
+- **README** e **`docs/stack-tecnica.md`** — seção de produção aponta para a nova arquitetura (o PostgreSQL não fica mais na VPS)
+- **Revisão de textos em todo o projeto**: emojis removidos da documentação, do CHANGELOG, dos e-mails, das mensagens dos scripts e da interface; linguagem da documentação revisada para um tom neutro e direto
+- **Ícones das categorias do fórum** passam a ser nomes de ícones do Lucide (ex.: `Megaphone`), no mesmo padrão das disciplinas (`src/components/comunidade/CategoryIcon.tsx`). O `seed-forum` grava os novos valores e o `migrate-v13` converte os emojis antigos
+- **Equipe (página Sobre)**: avatares com as iniciais do nome no lugar de emojis
+- **Selos de reputação** (fórum e perfil): exibem só o nome do nível
+
+---
+
 ## [v0.14] — 08/10/2026 — Higienização pré-produção e segurança
 
 ### Adicionado
@@ -694,7 +717,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 - **Componente TopicoContent** (`src/components/comunidade/TopicoContent.tsx`):
   - Visualizador completo de tópico com sidebar do autor (avatar, role, badge de reputação, stats)
-  - Sistema de reputação visual: Novato 🌱, Membro ⭐, Veterano 🏆, Lenda 💎
+  - Sistema de reputação visual com quatro níveis: Novato, Membro, Veterano e Lenda
   - Renderizador de conteúdo com bold, italic, code inline e sanitização XSS
   - Seção de comentários com respostas aninhadas (1 nível), paginação, reações (like/dislike)
   - Formulário de resposta com suporte a reply direto a comentário
@@ -1053,7 +1076,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **`src/components/auth/RegistroContent.tsx`** — Integração com API de registro:
   - `POST /api/auth/register` com dados do formulário
   - Verificação de disponibilidade de username em tempo real (debounce 500ms via `useEffect`)
-  - Indicador visual: ✅ Disponível / ❌ Em uso / ⏳ Verificando (Loader2 spinner)
+  - Indicador visual: Disponível / Em uso / Verificando (spinner Loader2)
   - Login automático após registro bem-sucedido via `signIn("credentials")`
   - Mensagem de sucesso antes do redirecionamento
 
@@ -1113,7 +1136,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ### Adicionado
 
-- **Página Cronograma** (`src/components/cronograma/CronogramaContent.tsx`) — Implementação completa conforme docs/paginas/04-cronograma.md:
+- **Página Cronograma** (`src/components/cronograma/CronogramaContent.tsx`) — Implementação conforme docs/paginas/04-cronograma.md:
   - Hero com breadcrumb reutilizável (PageHero)
   - Visão semanal com grid 7 colunas por dia da semana, highlight no dia atual
   - Visão mensal com calendário navegável (← Anterior / Próximo →), dias com indicadores coloridos de aulas
@@ -1128,7 +1151,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   - Layout responsivo: desktop grid 7 colunas, mobile lista vertical por dia com barra de cor
   - 10 aulas mock distribuídas na semana com dados realistas de professores e disciplinas
 
-- **Página Blog** (`src/components/blog/BlogContent.tsx`) — Implementação completa conforme docs/paginas/11-blog.md:
+- **Página Blog** (`src/components/blog/BlogContent.tsx`) — Implementação conforme docs/paginas/11-blog.md:
   - Hero com breadcrumb
   - Barra de busca global com ícone, filtra por título, resumo e tags
   - 7 categorias filtráveis (Todos, Novidades, Aulas, Eventos, Mídia, Tutoriais, Comunidade) com cores individuais
@@ -1139,10 +1162,10 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   - 9 posts mock com dados realistas (autores, categorias, tags, datas)
   - Links preparados para rota `/blog/[slug]`
 
-- **Página Loja** (`src/components/loja/LojaContent.tsx`) — Implementação completa conforme docs/paginas/05-loja.md:
+- **Página Loja** (`src/components/loja/LojaContent.tsx`) — Implementação conforme docs/paginas/05-loja.md:
   - Hero com breadcrumb
   - Seção destaque "Planos VIP / Premium" com 3 cards comparativos (VIP, VIP+, Premium)
-    - Cada plano com ícone, preço mensal, lista de features com ✅/❌, botão "Assinar"
+    - Cada plano com ícone, preço mensal, lista de features (incluída / não incluída), botão "Assinar"
     - Plano VIP+ marcado como "MAIS POPULAR" com borda destacada e banner dourado
   - Catálogo de 8 produtos em 4 categorias (Ranks, Cosméticos, Moedas, Kits)
   - Filtro por categoria com tabs
@@ -1154,7 +1177,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
     - Modal de carrinho com lista de itens, remoção individual, total e botão "Finalizar Compra"
   - Animações de entrada com Framer Motion stagger
 
-- **Página Comunidade** (`src/components/comunidade/ComunidadeContent.tsx`) — Implementação completa conforme docs/paginas/06-comunidade.md:
+- **Página Comunidade** (`src/components/comunidade/ComunidadeContent.tsx`) — Implementação conforme docs/paginas/06-comunidade.md:
   - Hero com breadcrumb dinâmico (muda conforme categoria aberta)
   - Barra de busca global do fórum
   - 7 categorias (Anúncios, Geral, Dúvidas, Sugestões, Bugs, Showroom, Off-Topic) com:
@@ -1162,14 +1185,14 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
     - Contagem de tópicos e comentários
     - Último post com título, autor e tempo relativo
   - Navegação interna: clique em categoria → lista de tópicos
-  - Lista de tópicos com: badges fixado (📌), fechado (🔒), resolvido (✅), título, autor com cargo, contagem de comentários e views, tempo da última atividade
+  - Lista de tópicos com: badges de fixado, fechado e resolvido, título, autor com cargo, contagem de comentários e views, tempo da última atividade
   - Botão "Novo Tópico" (requer implementação de auth)
   - Botão "Voltar" para retornar à lista de categorias
   - Barra de estatísticas (total de tópicos, comentários, membros)
   - Estado vazio para categorias sem tópicos
   - 6 tópicos mock na categoria "Geral" com variações de fixado/fechado
 
-- **Página Perfil — Dashboard** (`src/components/perfil/PerfilContent.tsx`) — Implementação completa conforme docs/paginas/09-perfil.md:
+- **Página Perfil — Dashboard** (`src/components/perfil/PerfilContent.tsx`) — Implementação conforme docs/paginas/09-perfil.md:
   - Header do perfil com avatar Minecraft (via mc-heads.net), username, badge de rank (VIP+) com cor, badge de reputação (Veterano), data de registro, último acesso, botão "Editar Perfil"
   - 6 cards de métricas: Moedas SAPIENS, XP Total, Tempo Online, Aulas Concluídas, Ranking Geral, Plano Atual com expiração
   - Seção "Progresso de Aulas" com barras de progresso animadas (Framer Motion) por disciplina, cores individuais, percentual e contagem
@@ -1177,16 +1200,16 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   - Seção "Atividade Recente" com timeline de 6 ações (login, aula, fórum, compra, conquista, milestone) com ícones e cores específicas
   - Links de navegação rápida: Minhas Compras, Configurações, Meu Ranking
 
-- **Página Perfil — Compras** (`src/components/perfil/ComprasContent.tsx`) — Implementação completa conforme docs/paginas/09-perfil.md (RN-PERFIL-02):
+- **Página Perfil — Compras** (`src/components/perfil/ComprasContent.tsx`) — Implementação conforme docs/paginas/09-perfil.md (RN-PERFIL-02):
   - Hero com breadcrumb de 3 níveis (Home > Perfil > Compras)
   - Banner de VIP ativo com data de expiração e botão "Renovar" → /loja
   - Resumo: total gasto e número de pedidos
   - Filtro por status (Todos, Aprovados, Pendentes, Cancelados, Reembolsados)
-  - Lista de 6 pedidos mock com: produto, badge de status colorido (✅ Aprovado, ⏳ Pendente, ❌ Cancelado, 🔄 Reembolsado), data, método de pagamento (PIX/Cartão/Boleto), código do pedido, valor
+  - Lista de 6 pedidos mock com: produto, badge de status colorido (Aprovado, Pendente, Cancelado, Reembolsado), data, método de pagamento (PIX/Cartão/Boleto), código do pedido, valor
   - Estado vazio quando filtro não encontra resultados
   - Meta robots noindex, nofollow (página protegida)
 
-- **Página Perfil — Configurações** (`src/components/perfil/ConfiguracoesContent.tsx`) — Implementação completa conforme docs/paginas/09-perfil.md (RN-PERFIL-03):
+- **Página Perfil — Configurações** (`src/components/perfil/ConfiguracoesContent.tsx`) — Implementação conforme docs/paginas/09-perfil.md (RN-PERFIL-03):
   - Sidebar de navegação com 5 abas: Dados Pessoais, Alterar Senha, Notificações, Privacidade, Zona de Perigo
   - **Dados Pessoais**: Username (readonly), email editável com aviso de confirmação, bio com textarea e contador de caracteres (500 max), data de nascimento (readonly)
   - **Alterar Senha**: Campos senha atual, nova senha e confirmação com validação de match, aviso de sync com nLogin/Minecraft, botão desabilitado até validação
@@ -1239,7 +1262,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Componente PageHero** (`src/components/ui/PageHero.tsx`) — Hero reutilizável para páginas internas: breadcrumb de navegação, título animado (Framer Motion fade-in), subtítulo opcional, gradiente de fundo
 - **Componente Input** (`src/components/ui/Input.tsx`) — Input de formulário reutilizável com label, estado de erro, forwarded ref, estilização consistente com o design system
 - **Componente SectionTitle** (`src/components/ui/SectionTitle.tsx`) — Título de seção animado com Framer Motion, suporte a subtítulo, centralizado por padrão
-- **Página Sobre** (`src/components/sobre/SobreContent.tsx`) — Implementação completa conforme docs/paginas/02-sobre.md:
+- **Página Sobre** (`src/components/sobre/SobreContent.tsx`) — Implementação conforme docs/paginas/02-sobre.md:
   - Timeline interativa (2020–2026) com items animados
   - Citação do fundador PH com card estilizado
   - Seção "Quem Somos" com placeholder para vídeo institucional
@@ -1247,39 +1270,39 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   - Grid de reconhecimento na mídia (6 veículos)
   - Grid da equipe (7 membros com avatar, nome, cargo)
   - Listagem da hierarquia do servidor (5 cargos com descrição)
-- **Página Contato** (`src/components/contato/ContatoContent.tsx`) — Implementação completa conforme docs/paginas/08-contato.md:
+- **Página Contato** (`src/components/contato/ContatoContent.tsx`) — Implementação conforme docs/paginas/08-contato.md:
   - 3 cards de canais de contato (WhatsApp, Email, Discord) com links diretos
   - Grid de redes sociais (7 redes com ícones e cores)
   - Formulário de contato com campos nome, email, assunto (select), mensagem (textarea), campo honeypot anti-bot
   - FAQ accordion (6 perguntas frequentes) com animação de abertura/fechamento
   - Seção de localização/horário de atendimento
-- **Página Termos** (`src/components/termos/TermosContent.tsx`) — Implementação completa conforme docs/paginas/12-termos.md:
+- **Página Termos** (`src/components/termos/TermosContent.tsx`) — Implementação conforme docs/paginas/12-termos.md:
   - Toggle de abas Termos / Política de Privacidade
   - 13 seções de Termos e Condições completas
   - 8 seções de Política de Privacidade (LGPD)
   - Sidebar fixa com Table of Contents e scroll spy via IntersectionObserver
   - Botão de impressão
   - Meta de "última atualização"
-- **Página Status do Servidor** (`src/components/status/StatusContent.tsx`) — Implementação completa conforme docs/paginas/10-status-servidor.md:
+- **Página Status do Servidor** (`src/components/status/StatusContent.tsx`) — Implementação conforme docs/paginas/10-status-servidor.md:
   - Painel de status em tempo real (fetch `/api/server-status` a cada 15s com auto-refresh)
   - Indicador online/offline com animação de pulso
   - Grid de estatísticas (jogadores, versão, MOTD, IP com botão copiar)
   - Sistema de abas de ranking (XP, Moedas, Tempo Online, Aulas) com dados mock
   - Tabela de ranking estilizada com medalhas (ouro/prata/bronze)
-- **Página Aulas** (`src/components/aulas/AulasContent.tsx`) — Implementação completa conforme docs/paginas/03-aulas.md:
+- **Página Aulas** (`src/components/aulas/AulasContent.tsx`) — Implementação conforme docs/paginas/03-aulas.md:
   - Seção "Como Funciona" com 4 cards explicativos do método gamificado
   - Catálogo de 8 disciplinas com ícone, cor, nível e quantidade de cursos
   - Barra de busca e filtro por nível (Fundamental/Médio/Todos)
   - Seção ENEM & Reforço com CTA
   - Seção informativa para pais com benefícios
-- **Página Login aprimorada** (`src/components/auth/LoginContent.tsx`) — Enhacement do formulário de login:
+- **Página Login aprimorada** (`src/components/auth/LoginContent.tsx`) — Melhorias no formulário de login:
   - Toggle de visibilidade de senha (eye icon)
   - Checkbox "Lembrar de mim"
   - Link "Esqueci a senha" para `/recuperar-senha`
   - Validação client-side, estado de loading e exibição de erros
   - Ícone Gamepad2 e título estilizado
-- **Página Registro aprimorada** (`src/components/auth/RegistroContent.tsx`) — Implementação completa conforme docs/paginas/07-auth.md:
-  - Campo username com validação (3-16 chars, alfanumérico + _) e indicador visual ✅/❌
+- **Página Registro aprimorada** (`src/components/auth/RegistroContent.tsx`) — Implementação conforme docs/paginas/07-auth.md:
+  - Campo username com validação (3-16 chars, alfanumérico + _) e indicador visual de válido/inválido
   - Campo email com autoComplete
   - Campo data de nascimento com validação de idade mínima (13 anos)
   - Campo senha com toggle de visibilidade e indicador de força (5 níveis: Fraca → Muito Forte)
@@ -1320,7 +1343,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Componente Footer** (`src/components/layout/Footer.tsx`) — 4 colunas (Logo+redes, Institucional, Suporte, Contato), barra de newsletter com input e-mail, botão copiar IP do servidor, links de redes sociais, disclaimer Mojang, copyright dinâmico
 - **Componente SocialIcons** (`src/components/ui/SocialIcons.tsx`) — SVGs inline para Discord, YouTube, Instagram, TikTok, Twitter/X, Facebook, Telegram, hover com cor da respectiva rede
 - **Componente Button** (`src/components/ui/Button.tsx`) — Variantes primary (verde CTA) e secondary (outlined branco), suporte a href (renderiza Link) ou button, fullWidth
-- **Página Home — Landing Page** (`src/app/page.tsx`) — Implementação completa com 6 seções:
+- **Página Home — Landing Page** (`src/app/page.tsx`) — Implementação com 6 seções:
   - **HeroSection** — Título "CONSTRUA SEU FUTURO JOGANDO" em Minecrafter, subtítulo, descrição, CTAs (Iniciar Jornada / Ver Grade), animações de entrada (Framer Motion)
   - **FeaturesSection** — 3 cards clicáveis (Aulas Gamificadas, Moeda SAPIENS, Enem & Reforço) com ícones Lucide, hover scale+glow, stagger animation
   - **HowItWorksSection** — 4 steps visuais (Crie conta → Entre no servidor → Assista aulas → Conquiste recompensas), fade-in on scroll
@@ -1351,15 +1374,15 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ### Adicionado
 
-- **Documentação completa de regras de negócio** — Criação da pasta `docs/` com especificações detalhadas de todas as páginas, componentes e funcionalidades do site
+- **Documentação de regras de negócio** — Criação da pasta `docs/` com especificações detalhadas de todas as páginas, componentes e funcionalidades do site
 - **docs/README.md** — Visão geral do projeto, dados da CraftSapiens e índice da documentação
 - **docs/stack-tecnica.md** — Definição da stack tecnológica (Next.js 14+ / TypeScript / Tailwind CSS / Prisma / MySQL), arquitetura do sistema, integração nLogin, gateway de pagamento (MercadoPago), estrutura de pastas e variáveis de ambiente
-- **docs/design-system.md** — Design system completo: paleta de cores (tema Minecraft), tipografia (Minecrafter + Inter), espaçamento, breakpoints, componentes base (botões, cards, inputs, badges) e efeitos visuais
+- **docs/design-system.md** — Design system: paleta de cores (tema Minecraft), tipografia (Minecrafter + Inter), espaçamento, breakpoints, componentes base (botões, cards, inputs, badges) e efeitos visuais
 - **docs/paginas/01-home.md** — Landing page: hero "CONSTRUA SEU FUTURO JOGANDO", CTAs, cards de features (Aulas Gamificadas, Moeda SAPIENS, Enem & Reforço), seção "Como Funciona", status do servidor em tempo real, depoimentos e CTA final
 - **docs/paginas/02-sobre.md** — Página Sobre: história da CraftSapiens, timeline, quem somos, missão/visão/valores, reconhecimento na mídia, equipe e hierarquia do servidor
 - **docs/paginas/03-aulas.md** — Catálogo de aulas: método de ensino gamificado, grid de disciplinas com filtros (nível, disciplina, busca), detalhe por disciplina, seção ENEM & Reforço, seção para pais, modelo de dados de Disciplina e Aula
 - **docs/paginas/04-cronograma.md** — Grade curricular: visão semanal/mensal, filtros, detalhes de aula (modal), próximas aulas com countdown, exportação para calendário (.ics), avisos de férias/recesso
-- **docs/paginas/05-loja.md** — Loja completa: categorias (VIP/Premium, Ranks, Cosméticos, Moedas, Kits), comparativo de planos VIP, carrinho de compras, checkout com MercadoPago (PIX/cartão/boleto), ativação automática de produtos, sistema de cupons, modelo de dados de Produto/Pedido/Item/Cupom, regras de segurança
+- **docs/paginas/05-loja.md** — Loja: categorias (VIP/Premium, Ranks, Cosméticos, Moedas, Kits), comparativo de planos VIP, carrinho de compras, checkout com MercadoPago (PIX/cartão/boleto), ativação automática de produtos, sistema de cupons, modelo de dados de Produto/Pedido/Item/Cupom, regras de segurança
 - **docs/paginas/06-comunidade.md** — Fórum integrado: categorias, tópicos + comentários (Markdown), sistema de reputação e badges, moderação completa, busca, notificações, anti-spam, modelo de dados de Categoria/Tópico/Comentário/Reação/Report
 - **docs/paginas/07-auth.md** — Autenticação: registro com integração nLogin (bcrypt, conta compartilhada site ↔ servidor Minecraft), login, recuperação de senha, verificação de disponibilidade em tempo real, proteção de rotas, segurança (rate limiting, CSRF, anti-enumeração)
 - **docs/paginas/08-contato.md** — Contato: canais (WhatsApp, email, Discord), redes sociais, formulário de contato com categorias, FAQ rápido, newsletter com double opt-in, modelo de dados de Mensagem e Newsletter
@@ -1379,4 +1402,4 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ### Adicionado
 
 - Inicialização do repositório
-- Estrutura de documentação completa do projeto CraftSapiens
+- Estrutura de documentação do projeto CraftSapiens

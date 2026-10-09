@@ -10,6 +10,7 @@ import {
   Loader2,
 } from "lucide-react";
 import Link from "next/link";
+import { CategoryIcon } from "@/components/comunidade/CategoryIcon";
 import { PageHero } from "@/components/ui/PageHero";
 
 interface Category {
@@ -126,7 +127,7 @@ export function ComunidadeContent() {
                     className="flex w-full items-center gap-4 rounded-xl border border-white/10 bg-bg-card/50 p-4 text-left transition-all hover:border-white/20 hover:bg-bg-card/80"
                   >
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/5 text-xl">
-                      <span>{cat.icon ?? "💬"}</span>
+                      <CategoryIcon icon={cat.icon} />
                     </div>
 
                     <div className="min-w-0 flex-1">

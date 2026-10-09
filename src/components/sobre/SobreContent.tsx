@@ -41,14 +41,23 @@ const VALUES = [
 ];
 
 const TEAM = [
-  { name: "Helton A. Gonçalves", role: "Diretor / Fundador", emoji: "👨‍💼" },
-  { name: "Jonas Agra", role: "Minecraft Interessante", emoji: "🎮" },
-  { name: "Thawana Oliveira", role: "Professora", emoji: "👩‍🏫" },
-  { name: "Marcelo Camilli", role: "Professor", emoji: "👨‍🏫" },
-  { name: "Erica", role: "Redes Sociais", emoji: "📱" },
-  { name: "Wilton Andretti", role: "Professor", emoji: "👨‍🏫" },
-  { name: "Arthur Martins", role: "Professor", emoji: "👨‍🏫" },
+  { name: "Helton A. Gonçalves", role: "Diretor / Fundador" },
+  { name: "Jonas Agra", role: "Minecraft Interessante" },
+  { name: "Thawana Oliveira", role: "Professora" },
+  { name: "Marcelo Camilli", role: "Professor" },
+  { name: "Erica", role: "Redes Sociais" },
+  { name: "Wilton Andretti", role: "Professor" },
+  { name: "Arthur Martins", role: "Professor" },
 ];
+
+/** Iniciais do primeiro e do último nome, para o avatar da equipe */
+function initials(name: string): string {
+  // Ignora abreviações como "A." no meio do nome
+  const parts = name.split(/\s+/).filter((part) => !/^[A-Z]\.$/.test(part));
+  const first = parts[0]?.[0] ?? "";
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : "";
+  return (first + last).toUpperCase();
+}
 
 const MEDIA = [
   { name: "Jornal O Popular do Paraná", icon: Newspaper, type: "Impresso" },
@@ -259,8 +268,11 @@ export function SobreContent() {
                 variants={fadeIn}
                 className="flex flex-col items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-6 text-center backdrop-blur"
               >
-                <span className="flex h-16 w-16 items-center justify-center rounded-full bg-bg-card text-3xl">
-                  {member.emoji}
+                <span
+                  className="flex h-16 w-16 items-center justify-center rounded-full bg-bg-card font-[family-name:var(--font-press-start)] text-sm text-green-cs"
+                  aria-hidden="true"
+                >
+                  {initials(member.name)}
                 </span>
                 <h3 className="text-sm font-bold text-white">{member.name}</h3>
                 <span className="text-xs text-green-cs">{member.role}</span>

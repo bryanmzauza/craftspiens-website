@@ -213,7 +213,7 @@ const PRODUCTS = [
 
 async function seed() {
   try {
-    console.log(`🛒 Seed da Loja — ${PRODUCTS.length} produtos (dados de exemplo)\n`);
+    console.log(`Seed da Loja — ${PRODUCTS.length} produtos (dados de exemplo)\n`);
 
     for (const product of PRODUCTS) {
       const { slug, ...data } = product;
@@ -230,13 +230,13 @@ async function seed() {
           active: true,
         },
       });
-      console.log(`✓ ${data.category.padEnd(9)} ${data.name}`);
+      console.log(`${data.category.padEnd(9)} ${data.name}`);
     }
 
-    console.log(`\n✅ ${PRODUCTS.length} produtos inseridos/atualizados com sucesso!`);
-    console.log("⚠️  Lembre-se: revise o catálogo e configure o serverCommand de cada produto antes de vender.");
+    console.log(`\n${PRODUCTS.length} produtos inseridos/atualizados com sucesso!`);
+    console.log("Aviso: Lembre-se: revise o catálogo e configure o serverCommand de cada produto antes de vender.");
   } catch (err) {
-    console.error("❌ Erro no seed da loja:", err);
+    console.error("Erro no seed da loja:", err);
     process.exitCode = 1;
   } finally {
     await disconnect();
