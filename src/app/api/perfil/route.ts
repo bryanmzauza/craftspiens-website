@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { getNloginById } from "@/lib/nlogin"
 
 export async function GET() {
   const session = await auth()
@@ -12,14 +13,6 @@ export async function GET() {
     where: { id: session.user.id },
     include: {
       profile: true,
-      nlogin: {
-        select: {
-          last_name: true,
-          unique_id: true,
-          last_seen: true,
-          creation_date: true,
-        },
-      },
       _count: {
         select: {
           orders: true,
@@ -34,18 +27,20 @@ export async function GET() {
     return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 })
   }
 
+  const nlogin = await getNloginById(user.nloginId)
+
   return NextResponse.json({
     id: user.id,
-    username: user.nlogin.last_name,
+    username: nlogin?.last_name ?? "Unknown",
     email: user.email,
     role: user.role,
     birthDate: user.birthDate,
     createdAt: user.createdAt,
     deactivatedAt: user.deactivatedAt,
     nlogin: {
-      uuid: user.nlogin.unique_id,
-      lastSeen: user.nlogin.last_seen,
-      creationDate: user.nlogin.creation_date,
+      uuid: nlogin?.unique_id ?? null,
+      lastSeen: nlogin?.last_seen ?? null,
+      creationDate: nlogin?.creation_date ?? null,
     },
     profile: user.profile ? {
       bio: user.profile.bio,

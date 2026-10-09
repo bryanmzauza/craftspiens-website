@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { getNloginsByIds, getNloginById } from "@/lib/nlogin";
 
 // GET /api/forum/comentarios?topicoId=xxx&page=1&limit=30
 export async function GET(request: NextRequest) {
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
             id: true,
             role: true,
             createdAt: true,
-            nlogin: { select: { last_name: true, unique_id: true } },
+            nloginId: true,
             _count: { select: { posts: true, comments: true } },
           },
         },
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
               select: {
                 id: true,
                 role: true,
-                nlogin: { select: { last_name: true, unique_id: true } },
+                nloginId: true,
               },
             },
             reactions: {
@@ -52,6 +53,19 @@ export async function GET(request: NextRequest) {
     }),
     prisma.comment.count({ where: { postId: topicoId, parentId: null } }),
   ]);
+
+  // Batch fetch nlogin data for all authors
+  const allNloginIds = new Set<number>();
+  for (const c of comments) {
+    allNloginIds.add(c.author.nloginId);
+    if ("replies" in c) {
+      for (const r of c.replies as typeof comments) {
+        allNloginIds.add(r.author.nloginId);
+      }
+    }
+  }
+  const nlogins = await getNloginsByIds([...allNloginIds]);
+  const nloginMap = new Map(nlogins.map((n) => [n.id, n]));
 
   function mapComment(c: typeof comments[number]) {
     const likes = c.reactions.filter((r) => r.type === "LIKE").length;
@@ -65,8 +79,8 @@ export async function GET(request: NextRequest) {
       dislikes,
       author: {
         id: c.author.id,
-        username: c.author.nlogin.last_name,
-        uuid: c.author.nlogin.unique_id,
+        username: nloginMap.get(c.author.nloginId)?.last_name ?? "Unknown",
+        uuid: nloginMap.get(c.author.nloginId)?.unique_id ?? null,
         role: c.author.role,
       },
       replies: "replies" in c
@@ -82,8 +96,8 @@ export async function GET(request: NextRequest) {
               dislikes: rDislikes,
               author: {
                 id: r.author.id,
-                username: r.author.nlogin.last_name,
-                uuid: r.author.nlogin.unique_id,
+                username: nloginMap.get(r.author.nloginId)?.last_name ?? "Unknown",
+                uuid: nloginMap.get(r.author.nloginId)?.unique_id ?? null,
                 role: r.author.role,
               },
             };
@@ -182,7 +196,7 @@ export async function POST(request: NextRequest) {
           select: {
             id: true,
             role: true,
-            nlogin: { select: { last_name: true, unique_id: true } },
+            nloginId: true,
           },
         },
       },
@@ -194,6 +208,8 @@ export async function POST(request: NextRequest) {
     }),
   ]);
 
+  const nlogin = await getNloginById(comment.author.nloginId);
+
   return NextResponse.json(
     {
       id: comment.id,
@@ -201,8 +217,8 @@ export async function POST(request: NextRequest) {
       createdAt: comment.createdAt,
       author: {
         id: comment.author.id,
-        username: comment.author.nlogin.last_name,
-        uuid: comment.author.nlogin.unique_id,
+        username: nlogin?.last_name ?? "Unknown",
+        uuid: nlogin?.unique_id ?? null,
         role: comment.author.role,
       },
     },

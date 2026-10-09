@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
-import { prisma } from "@/lib/prisma";
+import { prisma, prismaMariaDb } from "@/lib/prisma";
 import { hashPassword } from "@/lib/nlogin";
 
 export async function POST(request: Request) {
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
 
     const resetToken = await prisma.passwordResetToken.findUnique({
       where: { tokenHash },
-      include: { user: { include: { nlogin: true } } },
+      include: { user: true },
     });
 
     if (!resetToken) {
@@ -76,17 +76,16 @@ export async function POST(request: Request) {
 
     const newHash = await hashPassword(password);
 
-    // Atualizar senha no nLogin e marcar token como usado em transação
-    await prisma.$transaction([
-      prisma.nlogin.update({
-        where: { id: resetToken.user.nloginId },
-        data: { password: newHash },
-      }),
-      prisma.passwordResetToken.update({
-        where: { id: resetToken.id },
-        data: { usedAt: new Date() },
-      }),
-    ]);
+    // Atualizar senha no nLogin (MariaDB) e marcar token como usado (PostgreSQL)
+    await prismaMariaDb.nlogin.update({
+      where: { id: resetToken.user.nloginId },
+      data: { password: newHash },
+    });
+
+    await prisma.passwordResetToken.update({
+      where: { id: resetToken.id },
+      data: { usedAt: new Date() },
+    });
 
     return NextResponse.json({
       message: "Senha redefinida com sucesso! Faça login com sua nova senha.",

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { getNloginsByIds } from "@/lib/nlogin";
 
 function slugify(text: string): string {
   return text
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             role: true,
-            nlogin: { select: { last_name: true, unique_id: true } },
+            nloginId: true,
           },
         },
         _count: { select: { comments: true, reactions: true } },
@@ -62,6 +63,11 @@ export async function GET(request: NextRequest) {
     }),
     prisma.post.count({ where }),
   ]);
+
+  // Batch fetch nlogin data for topic authors
+  const nloginIds = [...new Set(topics.map((t) => t.author.nloginId))];
+  const nlogins = await getNloginsByIds(nloginIds);
+  const nloginMap = new Map(nlogins.map((n) => [n.id, n]));
 
   return NextResponse.json({
     category,
@@ -80,8 +86,8 @@ export async function GET(request: NextRequest) {
       createdAt: t.createdAt,
       author: {
         id: t.author.id,
-        username: t.author.nlogin.last_name,
-        uuid: t.author.nlogin.unique_id,
+        username: nloginMap.get(t.author.nloginId)?.last_name ?? "Unknown",
+        uuid: nloginMap.get(t.author.nloginId)?.unique_id ?? null,
         role: t.author.role,
       },
     })),
@@ -210,11 +216,6 @@ export async function POST(request: NextRequest) {
       lastActivityAt: new Date(),
     },
     include: {
-      author: {
-        select: {
-          nlogin: { select: { last_name: true, unique_id: true } },
-        },
-      },
       category: { select: { slug: true } },
     },
   });

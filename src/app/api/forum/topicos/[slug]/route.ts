@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { getNloginById } from "@/lib/nlogin";
 
 // GET /api/forum/topicos/[slug] — Detalhe do tópico
 export async function GET(
@@ -17,7 +18,7 @@ export async function GET(
           id: true,
           role: true,
           createdAt: true,
-          nlogin: { select: { last_name: true, unique_id: true } },
+          nloginId: true,
           profile: { select: { bio: true } },
           _count: { select: { posts: true, comments: true } },
         },
@@ -59,6 +60,8 @@ export async function GET(
     authorLikesOnComments -
     authorDislikes;
 
+  const nlogin = await getNloginById(post.author.nloginId);
+
   return NextResponse.json({
     post: {
       id: post.id,
@@ -77,8 +80,8 @@ export async function GET(
       category: post.category,
       author: {
         id: post.author.id,
-        username: post.author.nlogin.last_name,
-        uuid: post.author.nlogin.unique_id,
+        username: nlogin?.last_name ?? "Unknown",
+        uuid: nlogin?.unique_id ?? null,
         role: post.author.role,
         bio: post.author.profile?.bio,
         joinedAt: post.author.createdAt,

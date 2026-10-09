@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getNloginsByIds } from "@/lib/nlogin";
 
 
 export async function GET(
@@ -12,7 +13,7 @@ export async function GET(
     where: { slug, published: true },
     include: {
       category: true,
-      author: { select: { id: true, nlogin: { select: { last_name: true, unique_id: true } } } },
+      author: { select: { id: true, nloginId: true } },
     },
   });
 
@@ -35,7 +36,7 @@ export async function GET(
     },
     include: {
       category: true,
-      author: { select: { id: true, nlogin: { select: { last_name: true, unique_id: true } } } },
+      author: { select: { id: true, nloginId: true } },
     },
     orderBy: { publishedAt: "desc" },
     take: 3,
@@ -61,6 +62,20 @@ export async function GET(
     }),
   ]);
 
+  // Batch fetch nlogin data for all authors
+  const authorNloginIds = [
+    ...(post.author ? [post.author.nloginId] : []),
+    ...related.filter((r) => r.author).map((r) => r.author!.nloginId),
+  ];
+  const nlogins = await getNloginsByIds([...new Set(authorNloginIds)]);
+  const nloginMap = new Map(nlogins.map((n) => [n.id, n]));
+
+  const resolveAuthor = (author: { id: string; nloginId: number } | null) => {
+    if (!author) return null;
+    const n = nloginMap.get(author.nloginId);
+    return { username: n?.last_name ?? "Unknown", uuid: n?.unique_id ?? null };
+  };
+
   return NextResponse.json({
     post: {
       id: post.id,
@@ -72,10 +87,7 @@ export async function GET(
       tags: post.tags ? JSON.parse(post.tags) : [],
       readTime: post.readTime,
       category: { name: post.category.name, slug: post.category.slug },
-      author: post.author ? {
-        username: post.author.nlogin.last_name,
-        uuid: post.author.nlogin.unique_id,
-      } : null,
+      author: resolveAuthor(post.author),
       publishedAt: post.publishedAt,
       views: post.views,
     },
@@ -88,10 +100,7 @@ export async function GET(
       tags: r.tags ? JSON.parse(r.tags) : [],
       readTime: r.readTime,
       category: { name: r.category.name, slug: r.category.slug },
-      author: r.author ? {
-        username: r.author.nlogin.last_name,
-        uuid: r.author.nlogin.unique_id,
-      } : null,
+      author: resolveAuthor(r.author),
       publishedAt: r.publishedAt,
     })),
     navigation: { prev, next },

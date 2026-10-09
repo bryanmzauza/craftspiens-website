@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
+import { getNloginById } from "@/lib/nlogin";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
@@ -54,10 +55,14 @@ export async function POST(request: Request) {
 
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase().trim() },
-      include: { nlogin: true },
     });
 
-    if (!user || !user.nlogin) {
+    if (!user) {
+      return genericResponse;
+    }
+
+    const nlogin = await getNloginById(user.nloginId);
+    if (!nlogin) {
       return genericResponse;
     }
 
@@ -92,7 +97,7 @@ export async function POST(request: Request) {
     try {
       await sendPasswordResetEmail(
         user.email,
-        user.nlogin.last_name,
+        nlogin.last_name,
         resetUrl
       );
     } catch (emailError) {

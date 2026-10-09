@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: craftsapiens-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: craftsapiens
+      POSTGRES_PASSWORD: craftsapiens_dev
+      POSTGRES_DB: craftsapiens
+    ports:
+      - "5454:5455"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma, prismaMariaDb } from "@/lib/prisma";
 import { nloginVerifyPassword } from "@/lib/nlogin-algorithms";
 
 export async function DELETE(request: NextRequest) {
@@ -16,27 +16,35 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "Confirmação e senha são obrigatórios." }, { status: 400 });
   }
 
-  // Verificar que a confirmação está correta (username + " CONFIRMAR")
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    include: { nlogin: { select: { last_name: true, password: true } } },
+    select: { id: true, nloginId: true },
   });
 
   if (!user) {
     return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });
   }
 
-  const expectedConfirmation = `${user.nlogin.last_name} CONFIRMAR`;
+  const nlogin = await prismaMariaDb.nlogin.findFirst({
+    where: { id: user.nloginId },
+    select: { last_name: true, password: true },
+  });
+
+  if (!nlogin) {
+    return NextResponse.json({ error: "Erro ao verificar credenciais." }, { status: 400 });
+  }
+
+  const expectedConfirmation = `${nlogin.last_name} CONFIRMAR`;
   if (confirmation !== expectedConfirmation) {
     return NextResponse.json({ error: "Texto de confirmação incorreto." }, { status: 400 });
   }
 
   // Verificar senha atual
-  if (!user.nlogin.password) {
+  if (!nlogin.password) {
     return NextResponse.json({ error: "Erro ao verificar credenciais." }, { status: 400 });
   }
 
-  const passwordValid = await nloginVerifyPassword(password, user.nlogin.password);
+  const passwordValid = await nloginVerifyPassword(password, nlogin.password);
   if (!passwordValid) {
     return NextResponse.json({ error: "Senha incorreta." }, { status: 403 });
   }

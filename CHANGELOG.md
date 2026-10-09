@@ -7,6 +7,65 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.13] — Migração para PostgreSQL (Dual Database)
+
+### Adicionado
+
+- **Docker Compose** para PostgreSQL 17 Alpine (desenvolvimento local):
+  - Container `craftsapiens-postgres` na porta 5454
+  - Volume persistente `pgdata`
+  - Credenciais: `craftsapiens` / `craftsapiens_dev`
+
+- **Schema PostgreSQL** (`prisma/schema.pg.prisma`):
+  - Todos os modelos do site (User, Profile, Product, Order, Post, Comment, BlogPost, Discipline, Lesson, etc.)
+  - Gerador separado em `src/generated/prisma-pg`
+  - Config separada em `prisma.pg.config.ts`
+
+- **Funções auxiliares cross-database** em `lib/nlogin.ts`:
+  - `getNloginById(id)` — busca nlogin individual no MariaDB
+  - `getNloginsByIds(ids)` — busca batch de nlogins (evita N+1)
+  - `enrichUsersWithNlogin(users)` — enriquece lista de users com dados nlogin
+
+- **Script de migração** (`scripts/migrate-v13.mjs`):
+  - Migra dados de todas as tabelas do MariaDB para PostgreSQL
+  - Suporte a ON CONFLICT DO NOTHING (idempotente)
+  - Mapeamento completo de colunas snake_case → camelCase
+
+### Alterado
+
+- **Arquitetura de banco de dados**: MariaDB agora é usado **apenas** para a tabela `nlogin` (autenticação Minecraft). Todos os outros dados (usuários, perfis, loja, fórum, blog, aulas) estão no **PostgreSQL**.
+
+- **Prisma schemas**:
+  - `prisma/schema.prisma` → apenas modelo Nlogin (MariaDB, output `prisma-mariadb`)
+  - `prisma/schema.pg.prisma` → todos os outros modelos (PostgreSQL, output `prisma-pg`)
+
+- **`lib/prisma.ts`** reescrito com exports duplos:
+  - `prisma` → PrismaClient PostgreSQL (via `@prisma/adapter-pg`)
+  - `prismaMariaDb` → PrismaClient MariaDB (via `@prisma/adapter-mariadb`)
+
+- **`lib/nlogin.ts`** — todas as operações nlogin agora usam `prismaMariaDb`, operações de user usam `prisma` (PG). `findUserByEmail` faz join manual cross-database.
+
+- **APIs atualizadas** para remover `include: { nlogin: ... }` e usar queries separadas:
+  - `api/auth/redefinir-senha` — operações sequenciais ao invés de `$transaction` cross-DB
+  - `api/auth/recuperar-senha` — `getNloginById` para dados do nlogin
+  - `api/blog/[slug]` e `api/blog` — batch nlogin resolution para autores
+  - `api/forum/categorias` — nlogin batch para autores de últimos tópicos
+  - `api/forum/topicos` e `api/forum/topicos/[slug]` — nlogin batch/individual para autores
+  - `api/forum/comentarios` — nlogin batch para autores de comentários e respostas
+  - `api/perfil` — `getNloginById` para dados do perfil
+  - `api/perfil/conta` — `prismaMariaDb` para verificação de senha e confirmação
+  - `api/perfil/senha` — `prismaMariaDb` para verificação e atualização de senha
+  - `api/loja/webhook` — `getNloginById` para username em email de confirmação
+
+- **`docs/stack-tecnica.md`** — atualizado com arquitetura dual-database, diagrama, comandos Prisma, variáveis de ambiente
+
+### Dependências
+
+- Adicionado: `@prisma/adapter-pg`, `pg`, `@types/pg`
+- Mantido: `@prisma/adapter-mariadb`, `mariadb` (para nLogin)
+
+---
+
 ## [v0.12] — Conteúdo de aulas e tracking de progresso
 
 ### Adicionado

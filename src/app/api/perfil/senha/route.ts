@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { prisma, prismaMariaDb } from "@/lib/prisma"
 import { verifyPassword, hashPassword, updateNloginPassword } from "@/lib/nlogin"
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { headers } from "next/headers"
@@ -43,20 +43,29 @@ export async function POST(request: Request) {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    include: { nlogin: { select: { id: true, password: true } } },
+    select: { id: true, nloginId: true },
   })
 
-  if (!user?.nlogin?.password) {
+  if (!user) {
     return NextResponse.json({ error: "Erro ao verificar conta." }, { status: 400 })
   }
 
-  const valid = await verifyPassword(currentPassword, user.nlogin.password)
+  const nlogin = await prismaMariaDb.nlogin.findFirst({
+    where: { id: user.nloginId },
+    select: { id: true, password: true },
+  })
+
+  if (!nlogin?.password) {
+    return NextResponse.json({ error: "Erro ao verificar conta." }, { status: 400 })
+  }
+
+  const valid = await verifyPassword(currentPassword, nlogin.password)
   if (!valid) {
     return NextResponse.json({ error: "Senha atual incorreta." }, { status: 403 })
   }
 
   const newHash = await hashPassword(newPassword)
-  await updateNloginPassword(user.nlogin.id, newHash)
+  await updateNloginPassword(nlogin.id, newHash)
 
   return NextResponse.json({ success: true })
 }

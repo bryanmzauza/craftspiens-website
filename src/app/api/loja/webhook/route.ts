@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getNloginById } from "@/lib/nlogin";
 import { payment } from "@/lib/mercadopago";
 import { sendOrderConfirmationEmail } from "@/lib/email";
 import crypto from "crypto";
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
     const order = await prisma.order.findUnique({
       where: { id: externalRef },
       include: {
-        user: { include: { nlogin: true } },
+        user: true,
         items: { include: { product: true } },
       },
     });
@@ -122,7 +123,8 @@ export async function POST(request: Request) {
 
     // Send confirmation email fire-and-forget on approval
     if (newStatus === "APPROVED" && order.user.email) {
-      const username = order.user.nlogin?.last_name || "Jogador";
+      const nlogin = await getNloginById(order.user.nloginId);
+      const username = nlogin?.last_name || "Jogador";
       const itemsList = order.items.map(
         (item) => `${item.quantity}x ${item.product.name}`
       );

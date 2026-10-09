@@ -187,14 +187,18 @@ Os rankings são obtidos diretamente do banco de dados do servidor:
 | Serviço | Uso |
 |---------|-----|
 | **Vercel** | Hosting do Next.js (frontend + API routes) |
-| **PlanetScale / Railway / VPS** | Hosting do MySQL/MariaDB |
-| **Servidor Minecraft** | VPS existente (jogar.craftsapiens.com.br) |
+| **PlanetScale / Railway / VPS** | Hosting do PostgreSQL (dados do site) |
+| **Servidor Minecraft (VPS)** | MariaDB (nLogin) + servidor Minecraft (jogar.craftsapiens.com.br) |
+| **Docker Compose** | PostgreSQL local para desenvolvimento |
 
 ### Variáveis de Ambiente
 
 ```env
-# Banco de dados
+# Banco de dados — MariaDB (nLogin do Minecraft)
 DATABASE_URL="mysql://user:password@host:3306/craftsapiens"
+
+# Banco de dados — PostgreSQL (dados do site)
+POSTGRES_URL="postgresql://craftsapiens:craftsapiens_dev@localhost:5432/craftsapiens"
 
 # NextAuth
 NEXTAUTH_URL="https://craftsapiens.com.br"
@@ -274,13 +278,17 @@ src/
 │   ├── forum/
 │   └── perfil/
 ├── lib/
-│   ├── prisma.ts               # Cliente Prisma
+│   ├── prisma.ts               # Clientes Prisma (PG + MariaDB)
 │   ├── auth.ts                 # Config NextAuth
-│   ├── nlogin.ts               # Funções de integração nLogin
+│   ├── nlogin.ts               # Funções de integração nLogin (cross-DB)
 │   ├── minecraft-status.ts     # Query do servidor MC
 │   └── payment.ts              # Integração MercadoPago/Stripe
+├── generated/
+│   ├── prisma-pg/              # Cliente Prisma para PostgreSQL
+│   └── prisma-mariadb/         # Cliente Prisma para MariaDB
 ├── styles/
 │   └── globals.css             # Tailwind base + custom fonts
 └── prisma/
-    └── schema.prisma           # Schema do banco de dados
+    ├── schema.prisma           # Schema MariaDB (nLogin)
+    └── schema.pg.prisma        # Schema PostgreSQL (dados do site)
 ```

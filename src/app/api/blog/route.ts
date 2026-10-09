@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getNloginsByIds } from "@/lib/nlogin";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -24,13 +25,17 @@ export async function GET(request: NextRequest) {
   const [posts, total] = await Promise.all([
     prisma.blogPost.findMany({
       where,
-      include: { category: true, author: { select: { id: true, nlogin: { select: { last_name: true, unique_id: true } } } } },
+      include: { category: true, author: { select: { id: true, nloginId: true } } },
       orderBy: { publishedAt: "desc" },
       skip: (page - 1) * limit,
       take: limit,
     }),
     prisma.blogPost.count({ where }),
   ]);
+
+  const nloginIds = [...new Set(posts.filter((p) => p.author).map((p) => p.author!.nloginId))];
+  const nlogins = await getNloginsByIds(nloginIds);
+  const nloginMap = new Map(nlogins.map((n) => [n.id, n]));
 
   return NextResponse.json({
     posts: posts.map((p) => ({
@@ -43,8 +48,8 @@ export async function GET(request: NextRequest) {
       readTime: p.readTime,
       category: { name: p.category.name, slug: p.category.slug },
       author: p.author ? {
-        username: p.author.nlogin.last_name,
-        uuid: p.author.nlogin.unique_id,
+        username: nloginMap.get(p.author.nloginId)?.last_name ?? "Unknown",
+        uuid: nloginMap.get(p.author.nloginId)?.unique_id ?? null,
       } : null,
       publishedAt: p.publishedAt,
     })),
