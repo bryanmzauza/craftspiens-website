@@ -8,7 +8,8 @@ services:
       POSTGRES_PASSWORD: craftsapiens_dev
       POSTGRES_DB: craftsapiens
     ports:
-      - "5454:5455"
+      # Só acessível pela própria máquina; o Postgres escuta na 5432 dentro do container
+      - "127.0.0.1:5454:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 

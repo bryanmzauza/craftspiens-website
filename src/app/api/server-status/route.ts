@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { SERVER_IP } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -12,10 +13,10 @@ interface ServerStatus {
 
 export async function GET() {
   try {
-    const host = process.env.MINECRAFT_SERVER_HOST ?? "jogar.craftsapiens.com.br";
-    const port = Number(process.env.MINECRAFT_SERVER_PORT ?? 25565);
+    const host = process.env.MINECRAFT_SERVER_HOST || SERVER_IP;
+    const port = Number(process.env.MINECRAFT_SERVER_PORT || 25565);
 
-    // Use a public Minecraft status API as fallback
+    // Status obtained from the public mcsrvstat.us API
     const res = await fetch(
       `https://api.mcsrvstat.us/3/${host}:${port}`,
       { next: { revalidate: 30 } }

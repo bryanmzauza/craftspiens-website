@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function PUT(
   request: Request,
@@ -11,8 +12,13 @@ export async function PUT(
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   }
 
+  const rl = await checkRateLimit(`cart:${session.user.id}`, RATE_LIMITS.cart);
+  if (!rl.success) {
+    return rateLimitResponse(rl, "Muitas alterações no carrinho. Aguarde um momento.");
+  }
+
   const { id } = await params;
-  const body = await request.json();
+  const body = await request.json().catch(() => ({}));
   const { quantity } = body;
 
   if (typeof quantity !== "number" || quantity < 1 || quantity > 99) {
@@ -40,6 +46,11 @@ export async function DELETE(
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  }
+
+  const rl = await checkRateLimit(`cart:${session.user.id}`, RATE_LIMITS.cart);
+  if (!rl.success) {
+    return rateLimitResponse(rl, "Muitas alterações no carrinho. Aguarde um momento.");
   }
 
   const { id } = await params;

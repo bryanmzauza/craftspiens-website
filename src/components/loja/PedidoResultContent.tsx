@@ -57,29 +57,29 @@ const STATUS_CONFIG = {
 };
 
 function PedidoResultInner({ status }: { status: "success" | "pending" | "failure" }) {
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const searchParams = useSearchParams();
+  const externalReference = searchParams.get("external_reference");
   const [order, setOrder] = useState<OrderData | null>(null);
-  const [loading, setLoading] = useState(false);
+  // Só há o que carregar quando o retorno do pagamento traz a referência do pedido
+  const [loading, setLoading] = useState(Boolean(externalReference));
 
   const config = STATUS_CONFIG[status];
   const Icon = config.icon;
 
-  const externalReference = searchParams.get("external_reference");
-  const collectionStatus = searchParams.get("collection_status");
-
   useEffect(() => {
-    if (externalReference && session) {
-      setLoading(true);
-      fetch(`/api/loja/pedido/${externalReference}`)
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => {
-          if (data) setOrder(data);
-        })
-        .catch(() => {})
-        .finally(() => setLoading(false));
-    }
+    if (!externalReference || !session) return;
+    fetch(`/api/loja/pedido/${externalReference}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) setOrder(data);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [externalReference, session]);
+
+  // Sem sessão o pedido não é buscado: não exibe o carregamento
+  const showLoading = loading && sessionStatus !== "unauthenticated";
 
   return (
     <>
@@ -118,7 +118,7 @@ function PedidoResultInner({ status }: { status: "success" | "pending" | "failur
           </p>
 
           {/* Order details */}
-          {loading ? (
+          {showLoading ? (
             <div className="mt-6 flex justify-center">
               <Loader2 size={24} className="animate-spin text-green-cs" />
             </div>

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isUnlimitedStock } from "@/lib/products";
+import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function GET() {
   const session = await auth();
@@ -55,7 +57,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   }
 
-  const body = await request.json();
+  const rl = await checkRateLimit(`cart:${session.user.id}`, RATE_LIMITS.cart);
+  if (!rl.success) {
+    return rateLimitResponse(rl, "Muitas alterações no carrinho. Aguarde um momento.");
+  }
+
+  const body = await request.json().catch(() => ({}));
   const { productId, quantity = 1 } = body;
 
   if (!productId || typeof productId !== "string") {
@@ -74,16 +81,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Produto não encontrado" }, { status: 404 });
   }
 
-  if (product.stock !== -1 && product.stock < quantity) {
-    return NextResponse.json({ error: "Estoque insuficiente" }, { status: 400 });
-  }
-
   const existing = await prisma.cartItem.findUnique({
     where: { userId_productId: { userId: session.user.id, productId } },
   });
 
+  const totalQty = (existing?.quantity ?? 0) + quantity;
+  if (totalQty > 99) {
+    return NextResponse.json({ error: "Quantidade máxima por produto atingida" }, { status: 400 });
+  }
+  if (!isUnlimitedStock(product.stock) && product.stock < totalQty) {
+    return NextResponse.json({ error: "Estoque insuficiente" }, { status: 400 });
+  }
+
   if (existing) {
-    const newQty = existing.quantity + quantity;
+    const newQty = totalQty;
     const updated = await prisma.cartItem.update({
       where: { id: existing.id },
       data: { quantity: newQty },

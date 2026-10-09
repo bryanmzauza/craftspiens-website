@@ -45,6 +45,8 @@
 - Se o servidor estiver offline, exibir "Servidor em manutenção" com ícone de alerta
 
 ### RN-HOME-05: Seção de Depoimentos / Social Proof
+> **Status:** removida na v0.14 até existirem depoimentos reais e autorizados. Não publicar depoimentos fictícios.
+
 - Exibir 3-4 depoimentos de alunos e pais
 - Cada depoimento: foto (skin do Minecraft), nome, texto, cargo (aluno/pai)
 - Carrossel automático em mobile, grid em desktop
@@ -125,9 +127,9 @@
 | Dado | Fonte | Atualização |
 |------|-------|-------------|
 | Jogadores online | API `/api/server-status` | A cada 30 segundos |
-| Total de alunos | Banco de dados (contagem de users) | Cache de 1h |
-| Quantidade de aulas | Banco de dados (contagem de cursos) | Cache de 1h |
-| Depoimentos | Estático / CMS | Manual |
+| Total de alunos | API `/api/estatisticas` (contas ativas) | A cada carregamento |
+| Quantidade de aulas | API `/api/estatisticas` (aulas ativas) | A cada carregamento |
+| Depoimentos | — (seção removida até haver depoimentos reais) | — |
 
 ---
 

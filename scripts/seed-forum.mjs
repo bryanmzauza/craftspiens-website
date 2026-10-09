@@ -1,21 +1,10 @@
-import "dotenv/config";
-import * as mariadb from "mariadb";
+// Script para popular as categorias do fórum (PostgreSQL).
+// Uso: npm run db:seed:forum  (ou node scripts/seed-forum.mjs)
+//
+// Requer: POSTGRES_URL no .env e tabelas criadas com `npm run db:push:pg`.
+// Idempotente: faz upsert pelo slug.
 
-const DATABASE_URL = process.env.DATABASE_URL;
-if (!DATABASE_URL) {
-  console.error("DATABASE_URL não definida no .env");
-  process.exit(1);
-}
-
-const url = new URL(DATABASE_URL.replace(/^mysql:/, "mariadb:"));
-const pool = mariadb.createPool({
-  host: url.hostname,
-  port: Number(url.port) || 3306,
-  user: url.username,
-  password: url.password,
-  database: url.pathname.slice(1),
-  connectionLimit: 2,
-});
+import { prisma, disconnect } from "./lib/pg-prisma.mjs";
 
 const CATEGORIES = [
   {
@@ -77,34 +66,30 @@ const CATEGORIES = [
 ];
 
 async function seed() {
-  let conn;
   try {
-    conn = await pool.getConnection();
-
     for (const cat of CATEGORIES) {
-      const id = `fcat_${cat.slug.replace(/-/g, "_")}`;
-      await conn.query(
-        `INSERT INTO forum_categories (id, name, slug, description, icon, \`order\`, staff_only, active)
-         VALUES (?, ?, ?, ?, ?, ?, ?, true)
-         ON DUPLICATE KEY UPDATE
-           name = VALUES(name),
-           description = VALUES(description),
-           icon = VALUES(icon),
-           \`order\` = VALUES(\`order\`),
-           staff_only = VALUES(staff_only)`,
-        [id, cat.name, cat.slug, cat.description, cat.icon, cat.order, cat.staff_only]
-      );
+      const data = {
+        name: cat.name,
+        description: cat.description,
+        icon: cat.icon,
+        order: cat.order,
+        staffOnly: cat.staff_only,
+      };
+      await prisma.forumCategory.upsert({
+        where: { slug: cat.slug },
+        update: data,
+        create: { id: `fcat_${cat.slug.replace(/-/g, "_")}`, slug: cat.slug, active: true, ...data },
+      });
       console.log(`✓ Categoria: ${cat.name}`);
     }
 
     console.log(`\n✅ ${CATEGORIES.length} categorias do fórum inseridas/atualizadas com sucesso!`);
   } catch (err) {
     console.error("Erro ao popular categorias:", err);
-    process.exit(1);
+    process.exitCode = 1;
   } finally {
-    if (conn) conn.release();
-    await pool.end();
+    await disconnect();
   }
 }
 
-seed();
+await seed();

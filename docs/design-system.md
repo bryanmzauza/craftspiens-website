@@ -237,6 +237,6 @@ Base de 4px (sistema de 4-point grid).
 |------|---------|------------|
 | **Logo CraftSapiens** | SVG | Vetorial, escalável |
 | **Screenshots do servidor** | WebP | next/image com lazy loading |
-| **Avatares de skin Minecraft** | API externa | `mc-heads.net` ou `crafatar.com` |
+| **Avatares de skin Minecraft** | API externa | `mc-heads.net` |
 | **Ícones de features** | PNG/SVG | Sprites ou componentes individuais |
 | **Background hero** | WebP | Comprimido, com fallback de cor sólida |

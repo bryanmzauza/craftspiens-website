@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -8,8 +9,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   }
 
-  const body = await request.json();
-  const code = (body.code as string || "").trim().toUpperCase();
+  const rl = await checkRateLimit(`coupon:${session.user.id}`, RATE_LIMITS.coupon);
+  if (!rl.success) {
+    return rateLimitResponse(rl, "Muitas tentativas de cupom. Tente novamente mais tarde.");
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const code = typeof body.code === "string" ? body.code.trim().toUpperCase() : "";
 
   if (!code || code.length > 50) {
     return NextResponse.json(

@@ -11,10 +11,6 @@ import {
   ShoppingCart,
   Check,
   X,
-  Gem,
-  Zap,
-  Shield,
-  HeadphonesIcon,
   Loader2,
 } from "lucide-react";
 import Link from "next/link";
@@ -22,182 +18,33 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { PageHero } from "@/components/ui/PageHero";
 import { SectionTitle } from "@/components/ui/SectionTitle";
+import type { PublicProduct } from "@/lib/products";
 
-type ProductCategory = "vip" | "rank" | "cosmetico" | "moeda" | "kit";
+type ProductCategory = PublicProduct["category"];
 
-interface Product {
-  id: number;
-  nome: string;
-  descricaoCurta: string;
-  preco: number;
-  precoOriginal?: number;
-  categoria: ProductCategory;
-  cor: string;
-  badge?: string;
-  beneficios: string[];
-}
-
-interface VipPlan {
-  id: string;
-  nome: string;
-  preco: number;
-  cor: string;
-  icon: typeof Crown;
-  popular?: boolean;
-  features: { label: string; included: boolean }[];
-}
-
-const VIP_PLANS: VipPlan[] = [
-  {
-    id: "vip",
-    nome: "VIP",
-    preco: 19.9,
-    cor: "#4CAF50",
-    icon: Star,
-    features: [
-      { label: "Acesso ao servidor", included: true },
-      { label: "Aulas básicas", included: true },
-      { label: "Aulas avançadas", included: true },
-      { label: "Aulas ENEM", included: false },
-      { label: "100 Moedas SAPIENS/mês", included: true },
-      { label: "Rank VIP exclusivo", included: true },
-      { label: "Cosméticos exclusivos", included: false },
-      { label: "Suporte prioritário", included: false },
-    ],
-  },
-  {
-    id: "vip-plus",
-    nome: "VIP+",
-    preco: 29.9,
-    cor: "#FFD700",
-    icon: Crown,
-    popular: true,
-    features: [
-      { label: "Acesso ao servidor", included: true },
-      { label: "Aulas básicas", included: true },
-      { label: "Aulas avançadas", included: true },
-      { label: "Aulas ENEM", included: true },
-      { label: "300 Moedas SAPIENS/mês", included: true },
-      { label: "Rank VIP+ exclusivo", included: true },
-      { label: "Cosméticos exclusivos", included: true },
-      { label: "Suporte prioritário", included: false },
-    ],
-  },
-  {
-    id: "premium",
-    nome: "Premium",
-    preco: 49.9,
-    cor: "#9C27B0",
-    icon: Gem,
-    features: [
-      { label: "Acesso ao servidor", included: true },
-      { label: "Aulas básicas", included: true },
-      { label: "Aulas avançadas", included: true },
-      { label: "Aulas ENEM", included: true },
-      { label: "500 Moedas SAPIENS/mês", included: true },
-      { label: "Rank Premium exclusivo", included: true },
-      { label: "Cosméticos exclusivos", included: true },
-      { label: "Suporte prioritário", included: true },
-    ],
-  },
-];
-
-const PRODUCTS: Product[] = [
-  {
-    id: 1,
-    nome: "Rank Gold",
-    descricaoCurta: "Título dourado exclusivo no chat e tablist do servidor.",
-    preco: 19.9,
-    categoria: "rank",
-    cor: "#FFD700",
-    beneficios: ["Prefixo [Gold] no chat", "Cor dourada no tablist", "Acesso a /fly em lobby"],
-  },
-  {
-    id: 2,
-    nome: "Rank Diamond",
-    descricaoCurta: "Título diamante com efeitos especiais e comandos extras.",
-    preco: 34.9,
-    categoria: "rank",
-    cor: "#00BCD4",
-    badge: "POPULAR",
-    beneficios: ["Prefixo [Diamond] no chat", "Partículas de diamante", "Acesso a /fly"],
-  },
-  {
-    id: 3,
-    nome: "Trail Fire",
-    descricaoCurta: "Trilha de partículas de fogo ao caminhar.",
-    preco: 9.9,
-    categoria: "cosmetico",
-    cor: "#FF5722",
-    badge: "NOVO",
-    beneficios: ["Partículas de fogo ao andar", "Toggle on/off com comando"],
-  },
-  {
-    id: 4,
-    nome: "Trail Stars",
-    descricaoCurta: "Trilha de estrelas brilhantes que seguem seus passos.",
-    preco: 9.9,
-    categoria: "cosmetico",
-    cor: "#FFC107",
-    beneficios: ["Partículas de estrelas ao andar", "Toggle on/off com comando"],
-  },
-  {
-    id: 5,
-    nome: "500 Moedas SAPIENS",
-    descricaoCurta: "Pacote de 500 moedas para usar no servidor.",
-    preco: 14.9,
-    categoria: "moeda",
-    cor: "#4CAF50",
-    beneficios: ["500 moedas creditadas instantaneamente", "Use na loja in-game"],
-  },
-  {
-    id: 6,
-    nome: "1.500 Moedas SAPIENS",
-    descricaoCurta: "Pacote de 1.500 moedas com bônus de 20%.",
-    preco: 39.9,
-    precoOriginal: 44.7,
-    categoria: "moeda",
-    cor: "#4CAF50",
-    badge: "MAIS VENDIDO",
-    beneficios: ["1.500 moedas (inclui 250 bônus)", "Use na loja in-game"],
-  },
-  {
-    id: 7,
-    nome: "Kit Iniciante",
-    descricaoCurta: "Ferramentas e itens essenciais para começar no servidor.",
-    preco: 12.9,
-    categoria: "kit",
-    cor: "#795548",
-    beneficios: ["Armadura de ferro completa", "Ferramentas de diamante", "64 steaks", "32 blocos variados"],
-  },
-  {
-    id: 8,
-    nome: "Kit Aventureiro",
-    descricaoCurta: "Equipamento avançado para explorar e construir.",
-    preco: 24.9,
-    categoria: "kit",
-    cor: "#FF9800",
-    beneficios: ["Armadura de diamante", "Ferramentas de netherite", "Elytra + fogos", "Stack de materiais"],
-  },
-];
+const DEFAULT_COLOR = "#4CAF50";
 
 const CATEGORY_ICONS: Record<ProductCategory, typeof Crown> = {
-  vip: Crown,
-  rank: Star,
-  cosmetico: Sparkles,
-  moeda: Coins,
-  kit: Package,
+  VIP: Crown,
+  RANK: Star,
+  COSMETICO: Sparkles,
+  MOEDA: Coins,
+  KIT: Package,
 };
 
 const CATEGORY_LABELS: Record<ProductCategory, string> = {
-  vip: "VIP/Premium",
-  rank: "Ranks",
-  cosmetico: "Cosméticos",
-  moeda: "Moedas",
-  kit: "Kits",
+  VIP: "VIP/Premium",
+  RANK: "Ranks",
+  COSMETICO: "Cosméticos",
+  MOEDA: "Moedas",
+  KIT: "Kits",
 };
 
-const CATEGORIES: (ProductCategory | "todos")[] = ["todos", "rank", "cosmetico", "moeda", "kit"];
+const CATEGORIES: (ProductCategory | "todos")[] = ["todos", "RANK", "COSMETICO", "MOEDA", "KIT"];
+
+function formatPrice(value: number): string {
+  return `R$ ${value.toFixed(2).replace(".", ",")}`;
+}
 
 export function LojaContent() {
   const { data: session } = useSession();
@@ -205,12 +52,41 @@ export function LojaContent() {
   const [categoriaAtiva, setCategoriaAtiva] = useState<ProductCategory | "todos">("todos");
   const [cartItemCount, setCartItemCount] = useState(0);
   const [cartTotal, setCartTotal] = useState(0);
-  const [addingId, setAddingId] = useState<number | null>(null);
+  const [addingId, setAddingId] = useState<string | null>(null);
+  const [products, setProducts] = useState<PublicProduct[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+
+  useEffect(() => {
+    async function fetchProducts() {
+      try {
+        const res = await fetch("/api/loja/produtos");
+        if (res.ok) {
+          const data = await res.json();
+          setProducts(data.products ?? []);
+        }
+      } catch {
+        // silently fail — mostra estado vazio
+      } finally {
+        setLoadingProducts(false);
+      }
+    }
+    fetchProducts();
+  }, []);
+
+  const vipProducts = useMemo(
+    () => products.filter((p) => p.category === "VIP"),
+    [products]
+  );
+
+  const otherProducts = useMemo(
+    () => products.filter((p) => p.category !== "VIP"),
+    [products]
+  );
 
   const filteredProducts = useMemo(() => {
-    if (categoriaAtiva === "todos") return PRODUCTS;
-    return PRODUCTS.filter((p) => p.categoria === categoriaAtiva);
-  }, [categoriaAtiva]);
+    if (categoriaAtiva === "todos") return otherProducts;
+    return otherProducts.filter((p) => p.category === categoriaAtiva);
+  }, [categoriaAtiva, otherProducts]);
 
   const fetchCartSummary = useCallback(async () => {
     try {
@@ -229,24 +105,32 @@ export function LojaContent() {
     if (session) fetchCartSummary();
   }, [session, fetchCartSummary]);
 
-  const addToCart = async (productId: number) => {
+  /** Adiciona ao carrinho; retorna true se o item foi adicionado */
+  const addToCart = async (productId: string): Promise<boolean> => {
     if (!session) {
       router.push("/login?redirect=/loja");
-      return;
+      return false;
     }
     setAddingId(productId);
     try {
       const res = await fetch("/api/carrinho", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId: String(productId) }),
+        body: JSON.stringify({ productId }),
       });
       if (res.ok) await fetchCartSummary();
+      return res.ok;
     } catch {
       // silently fail
+      return false;
     } finally {
       setAddingId(null);
     }
+  };
+
+  // VIP: adiciona ao carrinho e segue direto para o carrinho
+  const buyVip = async (productId: string) => {
+    if (await addToCart(productId)) router.push("/loja/carrinho");
   };
 
   return (
@@ -258,175 +142,239 @@ export function LojaContent() {
       />
 
       <div className="mx-auto max-w-7xl px-4 pb-16 lg:px-6">
-        {/* Planos VIP */}
-        <section className="mb-16">
-          <div className="mb-8 text-center">
-            <SectionTitle>PLANOS VIP / PREMIUM</SectionTitle>
-            <p className="mt-3 text-[#A0A0A0]">
-              Escolha o plano ideal e turbine sua experiência no servidor.
-            </p>
+        {loadingProducts ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="h-8 w-8 animate-spin text-green-cs" />
           </div>
+        ) : products.length === 0 ? (
+          <div className="rounded-2xl border border-white/10 bg-bg-card/50 p-12 text-center">
+            <Package size={40} className="mx-auto mb-3 text-[#A0A0A0] opacity-40" />
+            <p className="text-[#A0A0A0]">Nenhum produto disponível no momento. Volte em breve!</p>
+          </div>
+        ) : (
+          <>
+            {/* Planos VIP */}
+            {vipProducts.length > 0 && (
+              <section className="mb-16">
+                <div className="mb-8 text-center">
+                  <SectionTitle>PLANOS VIP / PREMIUM</SectionTitle>
+                  <p className="mt-3 text-[#A0A0A0]">
+                    Escolha o plano ideal e turbine sua experiência no servidor.
+                  </p>
+                </div>
 
-          <div className="grid gap-6 md:grid-cols-3">
-            {VIP_PLANS.map((plan, i) => {
-              const Icon = plan.icon;
-              return (
-                <motion.div
-                  key={plan.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.1 }}
-                  className={`relative overflow-hidden rounded-2xl border p-6 ${
-                    plan.popular
-                      ? "border-2 bg-bg-card/80"
-                      : "border-white/10 bg-bg-card/50"
-                  }`}
-                  style={
-                    plan.popular ? { borderColor: plan.cor } : {}
-                  }
-                >
-                  {plan.popular && (
-                    <div
-                      className="absolute left-0 right-0 top-0 py-1 text-center text-xs font-bold text-white"
-                      style={{ backgroundColor: plan.cor }}
-                    >
-                      ⭐ MAIS POPULAR
-                    </div>
-                  )}
+                <div className="grid gap-6 md:grid-cols-3">
+                  {vipProducts.map((plan, i) => {
+                    const cor = plan.color || DEFAULT_COLOR;
+                    const destaque = plan.featured;
+                    const adding = addingId === plan.id;
+                    return (
+                      <motion.div
+                        key={plan.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: i * 0.1 }}
+                        className={`relative overflow-hidden rounded-2xl border p-6 ${
+                          destaque
+                            ? "border-2 bg-bg-card/80"
+                            : "border-white/10 bg-bg-card/50"
+                        }`}
+                        style={destaque ? { borderColor: cor } : {}}
+                      >
+                        {destaque && (
+                          <div
+                            className="absolute left-0 right-0 top-0 py-1 text-center text-xs font-bold uppercase text-white"
+                            style={{ backgroundColor: cor }}
+                          >
+                            ⭐ {plan.badge || "Mais popular"}
+                          </div>
+                        )}
 
-                  <div className={plan.popular ? "mt-6" : ""}>
-                    <div
-                      className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl"
-                      style={{ backgroundColor: `${plan.cor}20` }}
-                    >
-                      <Icon size={24} style={{ color: plan.cor }} />
-                    </div>
+                        <div className={destaque ? "mt-6" : ""}>
+                          <div
+                            className="mb-4 inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl"
+                            style={{ backgroundColor: `${cor}20` }}
+                          >
+                            {plan.imageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element -- imagem de produto com host arbitrário
+                              <img src={plan.imageUrl} alt={plan.name} className="h-full w-full object-cover" />
+                            ) : (
+                              <Crown size={24} style={{ color: cor }} />
+                            )}
+                          </div>
 
-                    <h3 className="text-xl font-bold text-white">{plan.nome}</h3>
-                    <div className="mt-2 flex items-baseline gap-1">
-                      <span className="text-3xl font-bold" style={{ color: plan.cor }}>
-                        R$ {plan.preco.toFixed(2).replace(".", ",")}
-                      </span>
-                      <span className="text-sm text-[#A0A0A0]">/mês</span>
-                    </div>
-
-                    <ul className="mt-6 space-y-3">
-                      {plan.features.map((feat) => (
-                        <li key={feat.label} className="flex items-center gap-2 text-sm">
-                          {feat.included ? (
-                            <Check size={16} className="shrink-0 text-green-cs" />
-                          ) : (
-                            <X size={16} className="shrink-0 text-[#A0A0A0]/40" />
+                          {!destaque && plan.badge && (
+                            <span
+                              className="mb-2 ml-2 inline-block rounded px-2 py-0.5 align-top text-[10px] font-bold uppercase text-white"
+                              style={{ backgroundColor: cor }}
+                            >
+                              {plan.badge}
+                            </span>
                           )}
-                          <span className={feat.included ? "text-[#E0E0E0]" : "text-[#A0A0A0]/50"}>
-                            {feat.label}
+
+                          <h3 className="text-xl font-bold text-white">{plan.name}</h3>
+                          <div className="mt-2 flex items-baseline gap-1">
+                            <span className="text-3xl font-bold" style={{ color: cor }}>
+                              {formatPrice(plan.price)}
+                            </span>
+                            {!!plan.durationDays && (
+                              <span className="text-sm text-[#A0A0A0]">/{plan.durationDays} dias</span>
+                            )}
+                          </div>
+                          {!!plan.originalPrice && (
+                            <span className="text-xs text-[#A0A0A0] line-through">
+                              {formatPrice(plan.originalPrice)}
+                            </span>
+                          )}
+
+                          {plan.benefits.length > 0 ? (
+                            <ul className="mt-6 space-y-3">
+                              {plan.benefits.map((feat) => (
+                                <li key={feat.label} className="flex items-center gap-2 text-sm">
+                                  {feat.included ? (
+                                    <Check size={16} className="shrink-0 text-green-cs" />
+                                  ) : (
+                                    <X size={16} className="shrink-0 text-[#A0A0A0]/40" />
+                                  )}
+                                  <span className={feat.included ? "text-[#E0E0E0]" : "text-[#A0A0A0]/50"}>
+                                    {feat.label}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="mt-6 text-sm text-[#E0E0E0]">
+                              {plan.shortDescription || plan.description}
+                            </p>
+                          )}
+
+                          <button
+                            onClick={() => buyVip(plan.id)}
+                            disabled={adding || !plan.inStock}
+                            className="mt-6 flex w-full items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-bold uppercase text-white transition-all hover:shadow-lg disabled:opacity-60"
+                            style={{ backgroundColor: cor }}
+                          >
+                            {adding && <Loader2 size={16} className="animate-spin" />}
+                            {!plan.inStock
+                              ? "Esgotado"
+                              : adding
+                              ? "Adicionando..."
+                              : plan.durationDays
+                              ? `Comprar (${plan.durationDays} dias)`
+                              : "Comprar"}
+                          </button>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {/* Produtos */}
+            {otherProducts.length > 0 && (
+              <section>
+                <div className="mb-8">
+                  <SectionTitle>PRODUTOS</SectionTitle>
+                </div>
+
+                {/* Categorias (apenas as que têm produtos) */}
+                <div className="mb-6 flex flex-wrap gap-2">
+                  {CATEGORIES.filter(
+                    (cat) => cat === "todos" || otherProducts.some((p) => p.category === cat)
+                  ).map((cat) => {
+                    const label = cat === "todos" ? "Todos" : CATEGORY_LABELS[cat];
+                    return (
+                      <button
+                        key={cat}
+                        onClick={() => setCategoriaAtiva(cat)}
+                        className={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+                          categoriaAtiva === cat
+                            ? "bg-green-cs/20 text-green-cs"
+                            : "text-[#A0A0A0] hover:text-white"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Grid de produtos */}
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  {filteredProducts.map((product, i) => {
+                    const CatIcon = CATEGORY_ICONS[product.category];
+                    const cor = product.color || DEFAULT_COLOR;
+                    const adding = addingId === product.id;
+                    return (
+                      <motion.div
+                        key={product.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: i * 0.05 }}
+                        className="group overflow-hidden rounded-xl border border-white/10 bg-bg-card/50 p-4 transition-all hover:border-white/20 hover:shadow-lg"
+                      >
+                        {/* Imagem do produto (ícone da categoria quando não houver) */}
+                        <div
+                          className="mb-3 flex aspect-square items-center justify-center overflow-hidden rounded-lg"
+                          style={{ backgroundColor: `${cor}10` }}
+                        >
+                          {product.imageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element -- imagem de produto com host arbitrário
+                            <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" />
+                          ) : (
+                            <CatIcon size={40} style={{ color: cor }} className="opacity-40" />
+                          )}
+                        </div>
+
+                        {/* Badges */}
+                        {product.badge && (
+                          <span
+                            className="mb-2 inline-block rounded px-2 py-0.5 text-[10px] font-bold uppercase text-white"
+                            style={{ backgroundColor: cor }}
+                          >
+                            {product.badge}
                           </span>
-                        </li>
-                      ))}
-                    </ul>
+                        )}
 
-                    <button
-                      className="mt-6 w-full rounded-xl py-3 text-sm font-bold uppercase text-white transition-all hover:shadow-lg"
-                      style={{ backgroundColor: plan.cor }}
-                    >
-                      Assinar {plan.nome}
-                    </button>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        </section>
+                        <h3 className="font-bold text-white">{product.name}</h3>
+                        <p className="mt-1 text-xs text-[#A0A0A0] line-clamp-2">
+                          {product.shortDescription || product.description}
+                        </p>
 
-        {/* Produtos */}
-        <section>
-          <div className="mb-8">
-            <SectionTitle>PRODUTOS</SectionTitle>
-          </div>
+                        <div className="mt-3 flex items-baseline gap-2">
+                          <span className="text-lg font-bold text-green-cs">
+                            {formatPrice(product.price)}
+                          </span>
+                          {!!product.originalPrice && (
+                            <span className="text-xs text-[#A0A0A0] line-through">
+                              {formatPrice(product.originalPrice)}
+                            </span>
+                          )}
+                        </div>
 
-          {/* Categorias */}
-          <div className="mb-6 flex flex-wrap gap-2">
-            {CATEGORIES.map((cat) => {
-              const label = cat === "todos" ? "Todos" : CATEGORY_LABELS[cat];
-              return (
-                <button
-                  key={cat}
-                  onClick={() => setCategoriaAtiva(cat)}
-                  className={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${
-                    categoriaAtiva === cat
-                      ? "bg-green-cs/20 text-green-cs"
-                      : "text-[#A0A0A0] hover:text-white"
-                  }`}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Grid de produtos */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {filteredProducts.map((product, i) => {
-              const CatIcon = CATEGORY_ICONS[product.categoria];
-              return (
-                <motion.div
-                  key={product.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.05 }}
-                  className="group overflow-hidden rounded-xl border border-white/10 bg-bg-card/50 p-4 transition-all hover:border-white/20 hover:shadow-lg"
-                >
-                  {/* Imagem placeholder */}
-                  <div
-                    className="mb-3 flex aspect-square items-center justify-center rounded-lg"
-                    style={{ backgroundColor: `${product.cor}10` }}
-                  >
-                    <CatIcon size={40} style={{ color: product.cor }} className="opacity-40" />
-                  </div>
-
-                  {/* Badges */}
-                  {product.badge && (
-                    <span
-                      className="mb-2 inline-block rounded px-2 py-0.5 text-[10px] font-bold uppercase text-white"
-                      style={{ backgroundColor: product.cor }}
-                    >
-                      {product.badge}
-                    </span>
-                  )}
-
-                  <h3 className="font-bold text-white">{product.nome}</h3>
-                  <p className="mt-1 text-xs text-[#A0A0A0] line-clamp-2">{product.descricaoCurta}</p>
-
-                  <div className="mt-3 flex items-baseline gap-2">
-                    <span className="text-lg font-bold text-green-cs">
-                      R$ {product.preco.toFixed(2).replace(".", ",")}
-                    </span>
-                    {product.precoOriginal && (
-                      <span className="text-xs text-[#A0A0A0] line-through">
-                        R$ {product.precoOriginal.toFixed(2).replace(".", ",")}
-                      </span>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={() => addToCart(product.id)}
-                    disabled={addingId === product.id}
-                    className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-green-cs/10 py-2 text-sm font-bold text-green-cs transition-all hover:bg-green-cs hover:text-white disabled:opacity-60"
-                  >
-                    {addingId === product.id ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : (
-                      <ShoppingCart size={16} />
-                    )}
-                    {addingId === product.id ? "Adicionando..." : "Adicionar"}
-                  </button>
-                </motion.div>
-              );
-            })}
-          </div>
-        </section>
+                        <button
+                          onClick={() => addToCart(product.id)}
+                          disabled={adding || !product.inStock}
+                          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-green-cs/10 py-2 text-sm font-bold text-green-cs transition-all hover:bg-green-cs hover:text-white disabled:opacity-60"
+                        >
+                          {adding ? (
+                            <Loader2 size={16} className="animate-spin" />
+                          ) : (
+                            <ShoppingCart size={16} />
+                          )}
+                          {!product.inStock ? "Esgotado" : adding ? "Adicionando..." : "Adicionar"}
+                        </button>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+          </>
+        )}
 
         {/* Floating Cart Bar */}
         <AnimatePresence>
@@ -448,7 +396,7 @@ export function LojaContent() {
                   </span>
                 </div>
                 <span className="text-sm text-white">
-                  R$ {cartTotal.toFixed(2).replace(".", ",")}
+                  {formatPrice(cartTotal)}
                 </span>
                 <span className="rounded-lg bg-green-cs px-4 py-1.5 text-sm font-bold text-white">
                   Ver Carrinho

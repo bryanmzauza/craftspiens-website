@@ -1,62 +1,79 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getEnv } from "@/lib/env";
 import { getNloginById } from "@/lib/nlogin";
-import { payment } from "@/lib/mercadopago";
+import { getPaymentClient } from "@/lib/mercadopago";
+import { verifyMpSignature } from "@/lib/mercadopago-signature";
+import { isUnlimitedStock } from "@/lib/products";
 import { sendOrderConfirmationEmail } from "@/lib/email";
-import crypto from "crypto";
+
+type OrderStatus = "PENDING" | "APPROVED" | "REJECTED" | "REFUNDED";
+
+// Allowed transitions: a late or repeated notification never moves an order backwards
+const ALLOWED_FROM: Record<Exclude<OrderStatus, "PENDING">, OrderStatus[]> = {
+  APPROVED: ["PENDING", "REJECTED"],
+  REJECTED: ["PENDING"],
+  REFUNDED: ["APPROVED"],
+};
+
+function mapStatus(mpStatus: string | undefined): Exclude<OrderStatus, "PENDING"> | null {
+  switch (mpStatus) {
+    case "approved":
+      return "APPROVED";
+    case "rejected":
+    case "cancelled":
+      return "REJECTED";
+    case "refunded":
+    case "charged_back":
+      return "REFUNDED";
+    default:
+      return null; // pending, in_process, authorized... nothing to do yet
+  }
+}
+
+function toCents(value: number): number {
+  return Math.round(value * 100);
+}
 
 export async function POST(request: Request) {
-  const body = await request.json();
-  const { searchParams } = new URL(request.url);
-  const orderId = searchParams.get("orderId");
+  let secret: string;
+  try {
+    secret = getEnv().MERCADOPAGO_WEBHOOK_SECRET;
+  } catch (err) {
+    console.error("[webhook] Misconfigured environment:", (err as Error).message);
+    return NextResponse.json({ error: "Webhook not configured" }, { status: 503 });
+  }
 
-  // MercadoPago sends different notification types
-  // We only care about payment notifications
-  if (body.type !== "payment" || !body.data?.id) {
+  const body = await request.json().catch(() => null);
+  const { searchParams } = new URL(request.url);
+
+  // Only "payment" notifications from the Webhooks API are handled.
+  // Legacy IPN calls (?topic=...) and other types are acknowledged and ignored.
+  const type = searchParams.get("type") ?? body?.type;
+  const dataId = searchParams.get("data.id") ?? body?.data?.id?.toString();
+  if (type !== "payment" || !dataId) {
     return NextResponse.json({ received: true });
   }
 
-  // Verify webhook signature if secret is configured
   const xSignature = request.headers.get("x-signature");
   const xRequestId = request.headers.get("x-request-id");
-
-  if (process.env.MERCADOPAGO_WEBHOOK_SECRET && xSignature && xRequestId) {
-    const parts = xSignature.split(",");
-    const tsRaw = parts.find((p) => p.trim().startsWith("ts="));
-    const v1Raw = parts.find((p) => p.trim().startsWith("v1="));
-
-    if (tsRaw && v1Raw) {
-      const ts = tsRaw.split("=")[1];
-      const v1 = v1Raw.split("=")[1];
-
-      const manifest = `id:${body.data.id};request-id:${xRequestId};ts:${ts};`;
-      const hmac = crypto
-        .createHmac("sha256", process.env.MERCADOPAGO_WEBHOOK_SECRET)
-        .update(manifest)
-        .digest("hex");
-
-      if (hmac !== v1) {
-        console.error("[webhook] Invalid signature");
-        return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-      }
-    }
+  if (!xSignature || !xRequestId || !verifyMpSignature({ xSignature, xRequestId, dataId, secret })) {
+    console.error("[webhook] Missing or invalid signature");
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
   try {
-    const paymentData = await payment.get({ id: Number(body.data.id) });
+    // Never trust the notification body: always re-fetch the payment from MercadoPago
+    const paymentData = await getPaymentClient().get({ id: dataId });
 
-    if (!paymentData) {
-      return NextResponse.json({ error: "Payment not found" }, { status: 404 });
-    }
-
-    const externalRef = paymentData.external_reference || orderId;
-    if (!externalRef) {
-      console.error("[webhook] No order reference in payment");
+    const orderId = paymentData.external_reference;
+    if (!orderId) {
+      console.error(`[webhook] Payment ${paymentData.id} has no external_reference`);
       return NextResponse.json({ received: true });
     }
 
     const order = await prisma.order.findUnique({
-      where: { id: externalRef },
+      where: { id: orderId },
       include: {
         user: true,
         items: { include: { product: true } },
@@ -64,65 +81,65 @@ export async function POST(request: Request) {
     });
 
     if (!order) {
-      console.error(`[webhook] Order ${externalRef} not found`);
+      console.error(`[webhook] Order ${orderId} not found`);
       return NextResponse.json({ received: true });
     }
 
-    // Map MercadoPago status to our OrderStatus
-    let newStatus: "PENDING" | "APPROVED" | "REJECTED" | "REFUNDED";
-    switch (paymentData.status) {
-      case "approved":
-        newStatus = "APPROVED";
-        break;
-      case "rejected":
-      case "cancelled":
-        newStatus = "REJECTED";
-        break;
-      case "refunded":
-      case "charged_back":
-        newStatus = "REFUNDED";
-        break;
-      default:
-        newStatus = "PENDING";
-    }
-
-    // Only process if status actually changed
-    if (order.status === newStatus) {
+    const newStatus = mapStatus(paymentData.status);
+    if (!newStatus) {
       return NextResponse.json({ received: true });
     }
 
-    await prisma.$transaction(async (tx) => {
-      // Update order status
-      await tx.order.update({
-        where: { id: order.id },
+    if (newStatus === "APPROVED") {
+      const amountOk =
+        toCents(paymentData.transaction_amount ?? 0) >= toCents(Number(order.total));
+      if (paymentData.currency_id !== "BRL" || !amountOk) {
+        console.error(
+          `[webhook] Amount/currency mismatch for order ${order.id}: ` +
+            `${paymentData.transaction_amount} ${paymentData.currency_id} (expected ${order.total} BRL)`
+        );
+        return NextResponse.json({ received: true });
+      }
+    }
+
+    const applied = await prisma.$transaction(async (tx) => {
+      // Conditional update makes repeated/concurrent notifications idempotent
+      const updated = await tx.order.updateMany({
+        where: { id: order.id, status: { in: ALLOWED_FROM[newStatus] } },
         data: {
           status: newStatus,
           paymentMethod: paymentData.payment_method_id || null,
           paymentId: String(paymentData.id),
         },
       });
+      if (updated.count === 0) return false;
 
-      // On approval: clear cart and update stock
       if (newStatus === "APPROVED") {
-        // Clear user's cart
-        await tx.cartItem.deleteMany({
-          where: { userId: order.userId },
-        });
-
-        // Update product stock for items with limited stock
         for (const item of order.items) {
-          if (item.product.stock >= 0) {
-            await tx.product.update({
-              where: { id: item.productId },
-              data: { stock: { decrement: item.quantity } },
-            });
+          // Never let limited stock go below zero (-1 means unlimited)
+          const decremented = await tx.product.updateMany({
+            where: { id: item.productId, stock: { gte: item.quantity } },
+            data: { stock: { decrement: item.quantity } },
+          });
+          if (decremented.count === 0 && !isUnlimitedStock(item.product.stock)) {
+            console.error(`[webhook] Oversold: order ${order.id}, product ${item.productId}`);
           }
         }
+
+        // Remove only the purchased products from the cart
+        await tx.cartItem.deleteMany({
+          where: {
+            userId: order.userId,
+            productId: { in: order.items.map((item) => item.productId) },
+          },
+        });
       }
+
+      return true;
     });
 
-    // Send confirmation email fire-and-forget on approval
-    if (newStatus === "APPROVED" && order.user.email) {
+    // Send confirmation email fire-and-forget, only once per approval
+    if (applied && newStatus === "APPROVED" && order.user.email) {
       const nlogin = await getNloginById(order.user.nloginId);
       const username = nlogin?.last_name || "Jogador";
       const itemsList = order.items.map(
@@ -141,7 +158,7 @@ export async function POST(request: Request) {
       });
     }
 
-    return NextResponse.json({ received: true, status: newStatus });
+    return NextResponse.json({ received: true });
   } catch (err) {
     console.error("[webhook] Processing error:", (err as Error).message);
     return NextResponse.json(

@@ -23,15 +23,30 @@
 # misc
 .DS_Store
 *.pem
+*.key
+*.p12
 
-# debug
+# editors
+.vscode/
+.idea/
+
+# debug / logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# dumps e backups de banco
+*.sql
+*.dump
+*.bak
+*.sqlite
+*.db
+
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -40,4 +55,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-/src/generated/prisma
+# clientes Prisma gerados (npm run db:generate)
+/src/generated/

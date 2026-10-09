@@ -281,6 +281,7 @@ export function TopicoContent({
             {/* Author sidebar */}
             <div className="flex shrink-0 items-start gap-3 sm:w-40 sm:flex-col sm:items-center sm:text-center">
               {post.author.uuid ? (
+                // eslint-disable-next-line @next/next/no-img-element -- avatar externo (mc-heads.net)
                 <img
                   src={`https://mc-heads.net/avatar/${post.author.uuid}/64`}
                   alt={post.author.username}
@@ -480,6 +481,7 @@ function CommentCard({
       <div className="flex gap-3 p-4">
         {/* Author avatar */}
         {comment.author.uuid ? (
+          // eslint-disable-next-line @next/next/no-img-element -- avatar externo (mc-heads.net)
           <img
             src={`https://mc-heads.net/avatar/${comment.author.uuid}/32`}
             alt={comment.author.username}

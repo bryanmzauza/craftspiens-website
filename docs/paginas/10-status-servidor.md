@@ -45,6 +45,8 @@
 - Opção de ver: Últimas 24h | Últimos 7 dias | Último mês
 
 ### RN-STATUS-05: Rankings
+
+> **Implementação atual (v0.14):** apenas **Top Aulas Concluídas**, via `GET /api/ranking` (contas ativas com perfil público). XP, moedas e tempo online ainda não são sincronizados do servidor, então esses rankings ficam ocultos até existir essa integração.
 - Seção com múltiplos rankings em tabs ou cards:
 
 #### Top XP (Experiência)

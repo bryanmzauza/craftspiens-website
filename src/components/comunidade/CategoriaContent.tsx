@@ -218,6 +218,7 @@ export function CategoriaContent({ categoriaSlug }: { categoriaSlug: string }) {
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[#A0A0A0]">
                           <span className="flex items-center gap-1">
                             {topic.author.uuid && (
+                              // eslint-disable-next-line @next/next/no-img-element -- avatar externo (mc-heads.net)
                               <img
                                 src={`https://mc-heads.net/avatar/${topic.author.uuid}/16`}
                                 alt=""

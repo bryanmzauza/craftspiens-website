@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Printer } from "lucide-react";
 import { PageHero } from "@/components/ui/PageHero";
 import { CONTACT_EMAIL } from "@/lib/constants";
@@ -116,15 +116,25 @@ const PRIVACY_SECTIONS = [
   },
 ];
 
+function subscribeToHash(callback: () => void) {
+  window.addEventListener("hashchange", callback);
+  return () => window.removeEventListener("hashchange", callback);
+}
+
+function getHash() {
+  return window.location.hash;
+}
+
+function getServerHash() {
+  return "";
+}
+
 export function TermosContent() {
   const [activeSection, setActiveSection] = useState(SECTIONS[0].id);
-  const [activeTab, setActiveTab] = useState<"termos" | "privacidade">("termos");
-
-  useEffect(() => {
-    if (window.location.hash === "#privacidade") {
-      setActiveTab("privacidade");
-    }
-  }, []);
+  // Aba escolhida pelo usuário; até lá, a aba inicial vem do hash da URL
+  const [userTab, setUserTab] = useState<"termos" | "privacidade" | null>(null);
+  const hash = useSyncExternalStore(subscribeToHash, getHash, getServerHash);
+  const activeTab = userTab ?? (hash === "#privacidade" ? "privacidade" : "termos");
 
   useEffect(() => {
     const sections = activeTab === "termos" ? SECTIONS : PRIVACY_SECTIONS;
@@ -166,7 +176,7 @@ export function TermosContent() {
       <div className="mx-auto max-w-7xl px-4 lg:px-6">
         <div className="flex gap-2 border-b border-white/10 pb-px">
           <button
-            onClick={() => setActiveTab("termos")}
+            onClick={() => setUserTab("termos")}
             className={`px-4 py-2 text-sm font-medium transition-colors ${
               activeTab === "termos"
                 ? "border-b-2 border-green-cs text-green-cs"
@@ -176,7 +186,7 @@ export function TermosContent() {
             Termos e Condições
           </button>
           <button
-            onClick={() => setActiveTab("privacidade")}
+            onClick={() => setUserTab("privacidade")}
             className={`px-4 py-2 text-sm font-medium transition-colors ${
               activeTab === "privacidade"
                 ? "border-b-2 border-green-cs text-green-cs"

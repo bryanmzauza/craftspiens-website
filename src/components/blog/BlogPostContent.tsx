@@ -152,6 +152,7 @@ export function BlogPostContent({ slug }: { slug: string }) {
             animate={{ opacity: 1, y: 0 }}
             className="mb-8 overflow-hidden rounded-2xl"
           >
+            {/* eslint-disable-next-line @next/next/no-img-element -- capa com host arbitrário */}
             <img src={post.coverImage} alt={post.title} className="w-full object-cover" />
           </motion.div>
         ) : (
@@ -182,6 +183,7 @@ export function BlogPostContent({ slug }: { slug: string }) {
             {post.author && (
               <span className="flex items-center gap-2">
                 {post.author.uuid && (
+                  // eslint-disable-next-line @next/next/no-img-element -- avatar externo (mc-heads.net)
                   <img
                     src={`https://mc-heads.net/avatar/${post.author.uuid}/24`}
                     alt={post.author.username}

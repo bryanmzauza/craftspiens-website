@@ -1,23 +1,31 @@
 import { MercadoPagoConfig, Preference, Payment } from "mercadopago";
+import { getEnv, siteUrl } from "@/lib/env";
 
-if (!process.env.MERCADOPAGO_ACCESS_TOKEN) {
-  throw new Error("MERCADOPAGO_ACCESS_TOKEN is not defined");
+let client: MercadoPagoConfig | undefined;
+
+function getClient(): MercadoPagoConfig {
+  client ??= new MercadoPagoConfig({ accessToken: getEnv().MERCADOPAGO_ACCESS_TOKEN });
+  return client;
 }
 
-const client = new MercadoPagoConfig({
-  accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN,
-});
+export function getPreferenceClient(): Preference {
+  return new Preference(getClient());
+}
 
-export const preference = new Preference(client);
-export const payment = new Payment(client);
+export function getPaymentClient(): Payment {
+  return new Payment(getClient());
+}
 
-export const MP_CONFIG = {
-  backUrls: {
-    success: `${process.env.AUTH_URL}/loja/pedido/sucesso`,
-    failure: `${process.env.AUTH_URL}/loja/pedido/falha`,
-    pending: `${process.env.AUTH_URL}/loja/pedido/pendente`,
-  },
-  notificationUrl: `${process.env.AUTH_URL}/api/loja/webhook`,
-  statementDescriptor: "CRAFTSAPIENS",
-  autoReturn: "approved" as const,
-};
+export function getMpConfig() {
+  const base = siteUrl();
+  return {
+    backUrls: {
+      success: `${base}/loja/pedido/sucesso`,
+      failure: `${base}/loja/pedido/falha`,
+      pending: `${base}/loja/pedido/pendente`,
+    },
+    notificationUrl: `${base}/api/loja/webhook`,
+    statementDescriptor: "CRAFTSAPIENS",
+    autoReturn: "approved" as const,
+  };
+}

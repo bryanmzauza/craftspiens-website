@@ -10,7 +10,12 @@ import { signIn } from "next-auth/react";
 export function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect") || "/perfil";
+  // Só aceita caminhos internos, para não virar um redirecionamento aberto
+  const redirectParam = searchParams.get("redirect");
+  const redirectTo =
+    redirectParam?.startsWith("/") && !redirectParam.startsWith("//") && !redirectParam.startsWith("/\\")
+      ? redirectParam
+      : "/perfil";
 
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -28,6 +33,11 @@ export function LoginContent() {
         password: form.password,
         redirect: false,
       });
+
+      if (result?.code === "rate_limited") {
+        setError("Muitas tentativas de login. Aguarde alguns minutos e tente novamente.");
+        return;
+      }
 
       if (result?.error) {
         setError("Username/email ou senha incorretos.");

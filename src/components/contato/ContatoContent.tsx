@@ -7,13 +7,12 @@ import {
   Mail,
   MessageCircle,
   ChevronDown,
-  MapPin,
   Send,
 } from "lucide-react";
 import { PageHero } from "@/components/ui/PageHero";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { SocialIcons } from "@/components/ui/SocialIcons";
-import { SOCIAL_LINKS, CONTACT_EMAIL, CONTACT_PHONE, SERVER_IP } from "@/lib/constants";
+import { SOCIAL_LINKS, CONTACT_EMAIL, CONTACT_PHONE, CONTACT_WHATSAPP_URL, SERVER_IP } from "@/lib/constants";
 
 const CONTACT_CHANNELS = [
   {
@@ -21,7 +20,7 @@ const CONTACT_CHANNELS = [
     title: "WhatsApp",
     description: CONTACT_PHONE,
     action: "Chamar",
-    href: "https://wa.me/5541995871942?text=Ol%C3%A1%2C%20vim%20pelo%20site%20da%20CraftSapiens!",
+    href: `${CONTACT_WHATSAPP_URL}?text=Ol%C3%A1%2C%20vim%20pelo%20site%20da%20CraftSapiens!`,
     highlight: true,
   },
   {
@@ -352,16 +351,6 @@ export function ContatoContent() {
                 ))}
               </div>
             </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* Localização */}
-      <section className="pb-24">
-        <div className="mx-auto max-w-7xl px-4 text-center lg:px-6">
-          <div className="flex items-center justify-center gap-2 text-[#E0E0E0]">
-            <MapPin size={18} className="text-green-cs" />
-            <span>Localização: Porto Alegre, RS</span>
           </div>
         </div>
       </section>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma, prismaMariaDb } from "@/lib/prisma";
 import { nloginVerifyPassword } from "@/lib/nlogin-algorithms";
+import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function DELETE(request: NextRequest) {
   const session = await auth();
@@ -9,10 +10,15 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   }
 
-  const body = await request.json();
-  const { confirmation, password } = body as { confirmation?: string; password?: string };
+  const rateCheck = await checkRateLimit(`account-delete:${session.user.id}`, RATE_LIMITS.accountDelete);
+  if (!rateCheck.success) {
+    return rateLimitResponse(rateCheck, "Muitas tentativas. Tente novamente mais tarde.");
+  }
 
-  if (!confirmation || !password) {
+  const body = await request.json().catch(() => ({}));
+  const { confirmation, password } = body as { confirmation?: unknown; password?: unknown };
+
+  if (typeof confirmation !== "string" || typeof password !== "string" || !confirmation || !password) {
     return NextResponse.json({ error: "Confirmação e senha são obrigatórios." }, { status: 400 });
   }
 

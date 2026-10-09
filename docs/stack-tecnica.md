@@ -6,10 +6,10 @@
 
 | Tecnologia | Versão | Propósito |
 |------------|--------|-----------|
-| **Next.js** | 14+ (App Router) | Framework React com SSR/SSG, rotas, API routes |
+| **Next.js** | 16 (App Router) | Framework React com SSR/SSG, rotas, API routes |
 | **TypeScript** | 5+ | Tipagem estática para segurança e DX |
-| **Tailwind CSS** | 3+ | Estilização utilitária, responsividade |
-| **Framer Motion** | 10+ | Animações de UI (transições de página, hover, scroll) |
+| **Tailwind CSS** | 4 | Estilização utilitária, responsividade |
+| **Framer Motion** | 12+ | Animações de UI (transições de página, hover, scroll) |
 | **Canvas API** | Nativo | Partículas animadas do fundo (blocos Minecraft, orbs de XP) |
 
 ---
@@ -19,8 +19,11 @@
 | Tecnologia | Propósito |
 |------------|-----------|
 | **Next.js API Routes** | Endpoints do backend (REST API) |
-| **Prisma ORM** | Abstração do banco de dados, migrations, type-safety |
-| **MySQL / MariaDB** | Banco principal — compatível com nLogin do servidor Minecraft |
+| **Prisma ORM** | Acesso aos dois bancos, com um Prisma Client para cada |
+| **PostgreSQL** | Banco principal do site: usuários, perfis, loja, fórum, blog, aulas, rate limiting |
+| **MariaDB** | Banco do servidor Minecraft — o site usa **apenas** a tabela `nlogin` |
+
+O vínculo entre os bancos é o campo `users.nlogin_id` (PostgreSQL), que guarda o `id` da tabela `nlogin` (MariaDB). Não há chave estrangeira entre bancos: as consultas que precisam dos dois lados usam os helpers de `src/lib/nlogin.ts`.
 
 ### Esquema do Banco de Dados (Visão Geral)
 
@@ -80,7 +83,21 @@ O plugin **nLogin** é usado no servidor Minecraft para autenticação de jogado
 2. Informa senha atual + nova senha
 3. Site atualiza hash na tabela nlogin
 4. Senha atualizada vale tanto para site quanto para servidor
+5. users.session_version é incrementado: todas as sessões abertas são encerradas
 ```
+
+### Sessões
+
+- JWT com validade de 7 dias.
+- A cada minuto o token é revalidado contra o banco (role, conta ativa e `session_version`).
+- Trocar ou redefinir a senha e desativar a conta incrementam `session_version`, o que encerra as sessões abertas em até 1 minuto.
+- Uma conta desativada é reativada ao fazer login novamente.
+
+### Rate limiting
+
+- Contadores na tabela `rate_limits` do PostgreSQL (`src/lib/rate-limit.ts`): valem para todas as instâncias e sobrevivem a reinícios.
+- O IP do cliente vem **somente** do header `X-Real-IP` definido pelo nginx (`src/lib/client-ip.ts`). O `X-Forwarded-For` é ignorado porque pode ser forjado pelo cliente.
+- Login: limite por IP e por conta.
 
 ### Tabela nLogin (Referência)
 
@@ -121,21 +138,34 @@ O plugin **nLogin** é usado no servidor Minecraft para autenticação de jogado
 
 ```
 1. Jogador logado adiciona produto ao carrinho
-2. Finaliza compra → escolhe forma de pagamento
-3. Site cria sessão de pagamento via API do gateway
-4. Jogador paga (PIX, cartão, etc.)
-5. Webhook do gateway notifica o site sobre pagamento aprovado
-6. Site ativa o produto:
-   - VIP/Premium: atualiza permissões na tabela do servidor (via API ou banco direto)
-   - Item in-game: registra na tabela de itens pendentes para entrega no servidor
-7. Jogador recebe confirmação por email + notificação no perfil
+2. Finaliza compra → site cria o pedido (PENDING) e a preferência no MercadoPago
+   com external_reference = id do pedido
+3. Jogador paga (PIX, cartão, etc.) no checkout do MercadoPago
+4. MercadoPago envia o webhook para /api/loja/webhook
+5. Site valida a assinatura (x-signature), busca o pagamento na API do MercadoPago
+   e localiza o pedido pelo external_reference
+6. Na aprovação (moeda BRL e valor >= total do pedido): pedido APPROVED,
+   baixa de estoque e remoção dos itens do carrinho — tudo em uma transação idempotente
+7. Jogador recebe confirmação por email
 ```
+
+> A entrega automática dos itens no servidor Minecraft (`products.server_command`) ainda não está implementada.
+
+### Webhook — regras de segurança
+
+| Regra | Comportamento |
+|-------|---------------|
+| `MERCADOPAGO_WEBHOOK_SECRET` ausente | Responde 503 e não processa nada |
+| Assinatura ausente ou inválida | Responde 401 |
+| Notificação repetida | Ignorada (atualização condicional do status) |
+| Valor pago menor que o total ou moeda diferente de BRL | Pedido não é aprovado |
+| Status "pending" depois de aprovado | Ignorado (o status nunca regride) |
 
 ---
 
 ## Status do Servidor — Minecraft Query Protocol
 
-O site consulta o servidor Minecraft em tempo real usando o **Minecraft Server List Ping** (protocolo TCP na porta 25565).
+O site consulta o status do servidor Minecraft pela API pública **mcsrvstat.us** (`/api/server-status`). A consulta direta via **Minecraft Server List Ping** (TCP na porta 25565) fica para uma versão futura.
 
 ### Dados Disponíveis
 
@@ -149,14 +179,14 @@ O site consulta o servidor Minecraft em tempo real usando o **Minecraft Server L
 
 ### Rankings
 
-Os rankings são obtidos diretamente do banco de dados do servidor:
+| Ranking | Fonte | Status |
+|---------|-------|--------|
+| Top Aulas Concluídas | `website_user_lesson_progress` (PostgreSQL), via `/api/ranking` | Disponível |
+| Top XP | Economia do servidor | Pendente — XP ainda não é sincronizado do jogo |
+| Top Moedas SAPIENS | Economia do servidor | Pendente |
+| Top Tempo Online | Playtime do servidor | Pendente |
 
-| Ranking | Tabela/Fonte |
-|---------|-------------|
-| Top XP | Tabela de experiência do servidor |
-| Top Moedas SAPIENS | Tabela de economia do servidor |
-| Top Tempo Online | Tabela de playtime |
-| Top Aulas Concluídas | Tabela customizada de progresso |
+Só entram no ranking contas ativas com perfil público.
 
 ---
 
@@ -186,38 +216,57 @@ Os rankings são obtidos diretamente do banco de dados do servidor:
 
 | Serviço | Uso |
 |---------|-----|
-| **Vercel** | Hosting do Next.js (frontend + API routes) |
-| **PlanetScale / Railway / VPS** | Hosting do PostgreSQL (dados do site) |
-| **Servidor Minecraft (VPS)** | MariaDB (nLogin) + servidor Minecraft (jogar.craftsapiens.com.br) |
-| **Docker Compose** | PostgreSQL local para desenvolvimento |
+| **VPS (Node.js + nginx)** | Next.js (`next start` em 127.0.0.1) atrás do nginx com TLS |
+| **PostgreSQL** | Dados do site, na mesma VPS, escutando só em 127.0.0.1 |
+| **Servidor Minecraft** | MariaDB (nLogin) + servidor Minecraft |
+| **Docker Compose** | PostgreSQL local para desenvolvimento (porta 5454) |
+
+### nginx
+
+O rate limiting depende do IP real do cliente no header `X-Real-IP`:
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+Os headers de segurança (CSP, HSTS, X-Frame-Options etc.) são enviados pelo Next.js (`next.config.ts`). Se o nginx também enviar HSTS, mantenha só um dos dois.
 
 ### Variáveis de Ambiente
 
+Modelo completo em [`.env.example`](../.env.example). Todas as variáveis abaixo são validadas em `src/lib/env.ts`; em produção o servidor não inicia se alguma estiver faltando.
+
 ```env
+# Banco de dados — PostgreSQL (dados do site)
+POSTGRES_URL="postgresql://craftsapiens:craftsapiens_dev@localhost:5454/craftsapiens"
+
 # Banco de dados — MariaDB (nLogin do Minecraft)
 DATABASE_URL="mysql://user:password@host:3306/craftsapiens"
 
-# Banco de dados — PostgreSQL (dados do site)
-POSTGRES_URL="postgresql://craftsapiens:craftsapiens_dev@localhost:5432/craftsapiens"
-
-# NextAuth
-NEXTAUTH_URL="https://craftsapiens.com.br"
-NEXTAUTH_SECRET="..."
+# Auth.js (NextAuth)
+AUTH_URL="https://craftsapiens.com.br"
+AUTH_SECRET="..."            # openssl rand -base64 32
 
 # Pagamentos (MercadoPago)
 MERCADOPAGO_ACCESS_TOKEN="..."
 MERCADOPAGO_WEBHOOK_SECRET="..."
 
-# Minecraft Server
+# Minecraft Server (opcional)
 MINECRAFT_SERVER_HOST="jogar.craftsapiens.com.br"
 MINECRAFT_SERVER_PORT=25565
-MINECRAFT_QUERY_PORT=25565
 
-# Email (para contato e notificações)
+# Email
 SMTP_HOST="..."
 SMTP_PORT=587
-SMTP_USER="contato@craftsapiens.com.br"
-SMTP_PASSWORD="..."
+SMTP_SECURE="false"
+SMTP_USER="..."
+SMTP_PASS="..."
+SMTP_FROM="noreply@craftsapiens.com.br"
 ```
 
 ---
@@ -279,11 +328,14 @@ src/
 │   └── perfil/
 ├── lib/
 │   ├── prisma.ts               # Clientes Prisma (PG + MariaDB)
+│   ├── env.ts                  # Validação das variáveis de ambiente
 │   ├── auth.ts                 # Config NextAuth
 │   ├── nlogin.ts               # Funções de integração nLogin (cross-DB)
-│   ├── minecraft-status.ts     # Query do servidor MC
-│   └── payment.ts              # Integração MercadoPago/Stripe
-├── generated/
+│   ├── rate-limit.ts           # Rate limiting no PostgreSQL
+│   ├── client-ip.ts            # IP do cliente (X-Real-IP do nginx)
+│   ├── mercadopago.ts          # Clientes MercadoPago
+│   └── mercadopago-signature.ts # Validação da assinatura do webhook
+├── generated/                  # Prisma Clients gerados (npm run db:generate, não versionados)
 │   ├── prisma-pg/              # Cliente Prisma para PostgreSQL
 │   └── prisma-mariadb/         # Cliente Prisma para MariaDB
 ├── styles/

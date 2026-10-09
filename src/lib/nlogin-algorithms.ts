@@ -223,8 +223,10 @@ export async function nloginVerifyPassword(
 ): Promise<boolean> {
   const algorithm = detectAlgorithm(hashedPassword);
   if (!algorithm) {
+    // Nunca registra caracteres do hash, apenas o formato
+    const prefix = hashedPassword.startsWith("$") ? hashedPassword.split("$")[1] : "sem prefixo";
     console.warn(
-      `[nLogin] Algoritmo de hash não reconhecido: ${hashedPassword.substring(0, 10)}...`
+      `[nLogin] Algoritmo de hash não reconhecido (prefixo: ${prefix}, tamanho: ${hashedPassword.length})`
     );
     return false;
   }

@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit";
 
 // POST /api/forum/reacoes — Toggle like/dislike em tópico ou comentário
 export async function POST(request: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  }
+
+  const rl = await checkRateLimit(`reaction:${session.user.id}`, RATE_LIMITS.reaction);
+  if (!rl.success) {
+    return rateLimitResponse(rl, "Muitas reações seguidas. Aguarde um momento.");
   }
 
   let body: { postId?: string; commentId?: string; type?: string };

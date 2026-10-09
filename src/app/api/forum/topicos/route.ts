@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit";
 import { getNloginsByIds } from "@/lib/nlogin";
 
 function slugify(text: string): string {
@@ -108,19 +108,9 @@ export async function POST(request: NextRequest) {
   }
 
   // Rate limit: 5 tópicos/hora por usuário (RN-FORUM-05)
-  const rl = checkRateLimit(`forum-topic:${session.user.id}`, RATE_LIMITS.forumTopic);
+  const rl = await checkRateLimit(`forum-topic:${session.user.id}`, RATE_LIMITS.forumTopic);
   if (!rl.success) {
-    return NextResponse.json(
-      { error: "Limite de criação de tópicos excedido. Tente novamente mais tarde." },
-      {
-        status: 429,
-        headers: {
-          "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)),
-          "X-RateLimit-Remaining": "0",
-          "X-RateLimit-Reset": String(rl.resetAt),
-        },
-      }
-    );
+    return rateLimitResponse(rl, "Limite de criação de tópicos excedido. Tente novamente mais tarde.");
   }
 
   // Anti-spam: conta com mais de 1h de criação (RN-FORUM-05)

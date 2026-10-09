@@ -15,14 +15,16 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  nloginId      Int       @unique @map("nlogin_id")
-  email         String    @unique
-  role          Role      @default(ALUNO)
-  birthDate     DateTime? @map("birth_date") @db.Date
-  deactivatedAt DateTime? @map("deactivated_at")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  id             String    @id @default(cuid())
+  nloginId       Int       @unique @map("nlogin_id")
+  email          String    @unique
+  role           Role      @default(ALUNO)
+  birthDate      DateTime? @map("birth_date") @db.Date
+  deactivatedAt  DateTime? @map("deactivated_at")
+  // Incrementado ao trocar/redefinir a senha ou desativar a conta: invalida as sessões abertas
+  sessionVersion Int       @default(0) @map("session_version")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
   profile             Profile?
   orders              Order[]
@@ -208,10 +210,10 @@ model Comment {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  author    User      @relation(fields: [authorId], references: [id])
-  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
-  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
-  replies   Comment[] @relation("CommentReplies")
+  author    User       @relation(fields: [authorId], references: [id])
+  post      Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parent    Comment?   @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   Comment[]  @relation("CommentReplies")
   reactions Reaction[]
 
   @@map("comments")
@@ -393,4 +395,14 @@ model CartItem {
 
   @@unique([userId, productId])
   @@map("cart_items")
+}
+
+// Rate limiting compartilhado entre instâncias e persistente entre deploys
+model RateLimit {
+  key     String   @id @db.VarChar(255)
+  count   Int      @default(0)
+  resetAt DateTime @map("reset_at")
+
+  @@index([resetAt])
+  @@map("rate_limits")
 }

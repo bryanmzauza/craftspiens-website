@@ -10,17 +10,17 @@ export function NewsletterConfirmarContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
 
-  const [status, setStatus] = useState<"loading" | "success" | "error">(
+  const [fetchStatus, setFetchStatus] = useState<"loading" | "success" | "error">(
     "loading"
   );
-  const [message, setMessage] = useState("");
+  const [fetchMessage, setFetchMessage] = useState("");
+
+  // Sem token não há o que confirmar: o erro é derivado direto no render
+  const status = token ? fetchStatus : "error";
+  const message = token ? fetchMessage : "Token de confirmação não encontrado.";
 
   useEffect(() => {
-    if (!token) {
-      setStatus("error");
-      setMessage("Token de confirmação não encontrado.");
-      return;
-    }
+    if (!token) return;
 
     const confirm = async () => {
       try {
@@ -30,16 +30,16 @@ export function NewsletterConfirmarContent() {
         const data = await res.json();
 
         if (!res.ok) {
-          setStatus("error");
-          setMessage(data.error || "Erro ao confirmar inscrição.");
+          setFetchStatus("error");
+          setFetchMessage(data.error || "Erro ao confirmar inscrição.");
           return;
         }
 
-        setStatus("success");
-        setMessage(data.message);
+        setFetchStatus("success");
+        setFetchMessage(data.message);
       } catch {
-        setStatus("error");
-        setMessage("Erro ao conectar com o servidor.");
+        setFetchStatus("error");
+        setFetchMessage("Erro ao conectar com o servidor.");
       }
     };
 

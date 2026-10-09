@@ -7,6 +7,88 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.14] — 08/10/2026 — Higienização pré-produção e segurança
+
+### Adicionado
+
+- **Validação de variáveis de ambiente** (`src/lib/env.ts` + `src/instrumentation.ts`):
+  - Schema zod para `AUTH_*`, `POSTGRES_URL`, `DATABASE_URL`, `MERCADOPAGO_*`, `SMTP_*` e `MINECRAFT_SERVER_*`
+  - Em produção o servidor não atende requisições se alguma variável obrigatória faltar; o erro lista todas de uma vez, com dicas de renomeação (`NEXTAUTH_URL` → `AUTH_URL`, `NEXTAUTH_SECRET` → `AUTH_SECRET`, `SMTP_PASSWORD` → `SMTP_PASS`)
+  - Validação preguiçosa: o `next build` não depende das variáveis de produção
+
+- **Rate limiting no PostgreSQL** (`src/lib/rate-limit.ts`, tabela `rate_limits`):
+  - Incremento atômico (`INSERT … ON CONFLICT`), compartilhado entre instâncias e persistente entre deploys
+  - IP do cliente lido só do `X-Real-IP` definido pelo nginx (`src/lib/client-ip.ts`)
+  - Login limitado por IP (20/15 min) e por conta (5/15 min)
+  - Novos limites em verificação de username, validação de cupom, carrinho, reações do fórum, redefinição de senha, atualização de perfil e exclusão de conta
+
+- **Revogação de sessões** — campo `users.session_version`:
+  - O token JWT é revalidado contra o banco a cada minuto (role, conta ativa e versão da sessão)
+  - Trocar ou redefinir a senha e desativar a conta encerram todas as sessões abertas
+
+- **Headers de segurança** (`next.config.ts`): Content-Security-Policy, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy e Cross-Origin-Opener-Policy; `no-referrer` nas páginas cujo link carrega token
+
+- **Novas APIs com dados reais:**
+  - `GET /api/loja/produtos` — catálogo vindo do banco (sem expor `server_command`)
+  - `GET /api/ranking` — top 10 de aulas concluídas (contas ativas com perfil público)
+  - `GET /api/perfil/atividade` — compras aprovadas, tópicos, comentários e aulas concluídas do usuário
+  - `GET /api/estatisticas` — total de alunos e de aulas ativas
+
+- **Scripts de banco** no `package.json`: `db:generate`, `db:push:pg`, `db:seed` (e `db:seed:aulas|blog|forum|loja`), `db:migrate-v13`, `typecheck`
+- **`scripts/seed-loja.mjs`** — catálogo inicial da loja (dados de exemplo, revisar antes da produção)
+- **Aviso por email** ao endereço antigo quando o email da conta é alterado
+- **`docs/padrao-de-commits.md`** — padrão das mensagens de commit, versionamento e checklist antes de commitar
+
+### Alterado
+
+- **Webhook do MercadoPago** (`api/loja/webhook`):
+  - Assinatura `x-signature` obrigatória, comparada em tempo constante e com janela de 10 minutos
+  - Pedido localizado só pelo `external_reference` do pagamento (removido o `?orderId` da URL de notificação)
+  - Aprovação exige moeda BRL e valor pago maior ou igual ao total do pedido
+  - Processamento idempotente: notificações repetidas não baixam estoque nem reenviam email, e o status nunca regride
+  - Estoque limitado nunca fica negativo; só os itens comprados saem do carrinho
+- **Checkout**: preço unitário com desconto calculado antes de criar o pedido, então o total gravado é exatamente o valor cobrado
+- **Troca de email** exige a senha atual e normaliza o endereço em minúsculas; registro e login também normalizam o email
+- **Redefinição de senha**: o token é reivindicado de forma atômica (não pode ser usado duas vezes em paralelo) e liberado de novo se a atualização no nLogin falhar
+- **Sessão** passa de 30 para 7 dias
+- **Loja, Status, Perfil e Home** passam a usar dados reais (produtos, ranking, atividade, estatísticas e jogadores online)
+- **VIPs** viram compra única com duração (`/N dias`), não mais "/mês"
+- **Clientes Prisma e MercadoPago** criados na primeira utilização; `new PrismaPg({ connectionString })` corrige a `POSTGRES_URL` que era ignorada
+- **SMTP** exige STARTTLS na porta 587
+- **`scripts/migrate-v13.mjs` reescrito**: mapeamento explícito MariaDB → PostgreSQL, modo `--dry-run`, verificação de contagens e falha em qualquer erro
+- **Seeds** (`seed-aulas`, `seed-blog`, `seed-forum`) agora gravam no PostgreSQL via Prisma, com `upsert` por slug
+- **docker-compose**: porta corrigida para `127.0.0.1:5454:5432`
+- **Documentação** (README, `docs/stack-tecnica.md`, páginas) atualizada para a arquitetura dual-database, VPS + nginx e variáveis `AUTH_*` / `SMTP_PASS`
+- WhatsApp e Discord centralizados em `src/lib/constants.ts`
+
+### Corrigido
+
+- Erros de TypeScript em `lib/prisma.ts` e na rota do NextAuth
+- 4 erros de lint `react-hooks/set-state-in-effect` (Navbar, resultado do pedido, confirmação de newsletter, termos) e variáveis sem uso
+- Redirecionamento aberto no parâmetro `?redirect=` do login
+- Contagem de aulas concluídas não era atualizada ao desmarcar uma aula
+- Requisições extras e redundantes na página de disciplina
+- Log de hash não reconhecido não registra mais caracteres do hash
+
+### Removido
+
+- Dados fictícios exibidos como reais: rankings, atividade do perfil, depoimentos, números fixos da home e produtos da loja com IDs inexistentes
+- Placeholder de vídeo na página Sobre
+- Scripts obsoletos que gravavam no MariaDB: `create-tables.mjs`, `migrate-v08` a `migrate-v12` (incluindo os cupons de teste)
+- Clientes Prisma gerados do controle de versão (`/src/generated/` agora é ignorado)
+- Componente `ui/Input.tsx` sem uso, constantes `SITE_NAME`/`SITE_SLOGAN` e SVGs padrão do Next.js em `public/`
+- Host e porta do banco de produção citados no changelog
+- Localização geográfica do site (rodapé, página de contato, copyright, metadados e documentação)
+
+### Decisões técnicas
+
+- **CSP sem nonce**: mantém as páginas estáticas; nonce exigiria renderização dinâmica em todas as rotas
+- **Rate limit no PostgreSQL** em vez de Redis: não adiciona um serviço novo à VPS
+- **Reativação no login** mantida para contas desativadas; a segurança vem do `session_version`, que derruba as sessões existentes
+- **Pendências de risco médio** registradas para a próxima versão: confirmação da troca de email por link, exclusão de conta com histórico (anonimização), uso de cupom contado na aprovação, sanitização do markdown do blog e do HTML das aulas, entrega automática de itens no servidor
+
+---
+
 ## [v0.13] — Migração para PostgreSQL (Dual Database)
 
 ### Adicionado
@@ -894,7 +976,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 - **`src/lib/prisma.ts`** — Conversão automática de `mysql://` para `mariadb://` no runtime (CLI do Prisma exige `mysql://`, adapter MariaDB exige `mariadb://`)
 
-- **`.env`** — `DATABASE_URL` configurada para banco de produção em `jogar.craftsapiens.com.br:3307`
+- **`.env`** — `DATABASE_URL` configurada para o banco de produção (host e credenciais ficam fora do repositório)
 
 ### Dependências adicionadas
 
@@ -1259,7 +1341,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ### Decisões técnicas
 
-- **Prisma generator `prisma-client-js`** em vez do novo `prisma-client` (v7 adapter-based): escolhido por estabilidade e compatibilidade com o ecossistema existente, sem necessidade de adapters adicionais para MySQL
+- **Prisma generator `prisma-client-js`** em vez do novo `prisma-client` (v7 adapter-based): escolhido por estabilidade e compatibilidade com o ecossistema existente (decisão revista na v0.13, que passou a usar `@prisma/adapter-mariadb` e `@prisma/adapter-pg`)
 - **Press Start 2P** como fallback de fonte Minecrafter: fonte Minecrafter custom será adicionada em versão futura; Press Start 2P (Google Fonts) oferece estética pixelada similar sem necessidade de self-hosting imediato
 - **API mcsrvstat.us** como solução temporária para status do servidor: consulta TCP direta ao Minecraft Server List Ping será implementada em versão futura quando o backend tiver acesso direto ao servidor
 

@@ -111,17 +111,16 @@ export async function POST(request: NextRequest) {
     await prisma.userLessonProgress.delete({
       where: { id: existing.id },
     });
-    return NextResponse.json({ completed: false });
+  } else {
+    await prisma.userLessonProgress.create({
+      data: {
+        userId: session.user.id,
+        lessonId,
+      },
+    });
   }
 
-  await prisma.userLessonProgress.create({
-    data: {
-      userId: session.user.id,
-      lessonId,
-    },
-  });
-
-  // Atualiza contador de aulas concluídas no perfil
+  // Atualiza contador de aulas concluídas no perfil (ao marcar e ao desmarcar)
   const completedCount = await prisma.userLessonProgress.count({
     where: { userId: session.user.id },
   });
@@ -131,5 +130,5 @@ export async function POST(request: NextRequest) {
     data: { aulasConcluidas: completedCount },
   });
 
-  return NextResponse.json({ completed: true });
+  return NextResponse.json({ completed: !existing });
 }

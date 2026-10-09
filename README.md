@@ -29,10 +29,12 @@ Site oficial da **CraftSapiens** — a maior plataforma de ensino gamificado via
 | **TypeScript** | 5+ | Tipagem estática |
 | **Tailwind CSS** | 4 | Estilização utilitária e responsividade |
 | **Framer Motion** | 12+ | Animações de UI |
-| **Prisma ORM** | 7+ | Abstração do banco de dados (MySQL/MariaDB) |
+| **Prisma ORM** | 7+ | Acesso aos dois bancos (PostgreSQL e MariaDB) |
+| **PostgreSQL** | 17 | Dados do site (usuários, loja, fórum, blog, aulas) |
+| **MariaDB** | — | Somente a tabela `nlogin` do servidor Minecraft |
 | **NextAuth.js** | 5 (beta) | Autenticação (JWT + Credentials) |
+| **MercadoPago** | SDK 2 | Pagamentos da loja |
 | **Lucide React** | — | Ícones |
-| **Canvas API** | Nativo | Partículas animadas do fundo |
 
 ---
 
@@ -40,29 +42,35 @@ Site oficial da **CraftSapiens** — a maior plataforma de ensino gamificado via
 
 ### Pré-requisitos
 
-- **Node.js** 18+
-- **MySQL** ou **MariaDB**
+- **Node.js** 20.9+
+- **Docker** (para o PostgreSQL local)
+- Acesso a um **MariaDB** com a tabela `nlogin` do plugin nLogin
 
 ### Instalação
 
 ```bash
 # Clonar o repositório
 git clone <url-do-repo>
-cd craftsapiens-website
-
-# Instalar dependências
-npm install
+cd craftspiens-website
 
 # Configurar variáveis de ambiente
 cp .env.example .env
-# Preencher DATABASE_URL, NEXTAUTH_SECRET, etc.
+# Preencher POSTGRES_URL, DATABASE_URL, AUTH_SECRET, AUTH_URL, SMTP_*, MERCADOPAGO_*
 
-# Gerar o Prisma Client
-npx prisma generate
+# Subir o PostgreSQL local (porta 5454)
+docker compose up -d
 
-# Aplicar schema no banco de dados
-npx prisma db push
+# Instalar dependências (gera os dois Prisma Clients automaticamente)
+npm install
+
+# Criar as tabelas do site no PostgreSQL
+npm run db:push:pg
+
+# Popular aulas, blog, fórum e loja com o conteúdo inicial
+npm run db:seed
 ```
+
+> ⚠️ Nunca rode `prisma db push` com o `prisma.config.ts` (MariaDB): ele aponta para o banco do servidor Minecraft, que é gerenciado pelo plugin nLogin.
 
 ### Executar
 
@@ -74,11 +82,43 @@ npm run dev
 npm run build
 npm run start
 
-# Lint
+# Verificações
+npm run typecheck
 npm run lint
 ```
 
 O site estará disponível em [http://localhost:3000](http://localhost:3000).
+
+### Scripts de banco
+
+| Script | Descrição |
+|---|---|
+| `npm run db:generate` | Gera os Prisma Clients (PostgreSQL e MariaDB) em `src/generated/` |
+| `npm run db:push:pg` | Aplica `prisma/schema.pg.prisma` no PostgreSQL |
+| `npm run db:seed` | Executa todos os seeds (`db:seed:aulas`, `:blog`, `:forum`, `:loja`) |
+| `npm run db:migrate-v13` | Migração única dos dados antigos do MariaDB para o PostgreSQL (use `-- --dry-run` antes) |
+
+---
+
+## Produção
+
+O site roda em uma VPS com Node.js atrás do nginx. Pontos obrigatórios:
+
+- **Variáveis de ambiente:** o servidor não inicia se alguma variável obrigatória faltar (`src/lib/env.ts`).
+- **nginx:** precisa repassar o IP real do cliente, usado no rate limiting:
+
+  ```nginx
+  location / {
+      proxy_pass http://127.0.0.1:3000;
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $remote_addr;
+      proxy_set_header X-Forwarded-Proto $scheme;
+  }
+  ```
+
+- **Next.js** deve escutar só em `127.0.0.1` (`npm run start -- -H 127.0.0.1`), para que ninguém acesse a porta 3000 sem passar pelo nginx.
+- **MercadoPago:** configurar a URL `https://<domínio>/api/loja/webhook` no painel e copiar a assinatura secreta para `MERCADOPAGO_WEBHOOK_SECRET`.
 
 ---
 
@@ -87,7 +127,7 @@ O site estará disponível em [http://localhost:3000](http://localhost:3000).
 ```
 src/
 ├── app/                  # Rotas (App Router)
-│   ├── api/              # API Routes (auth, server-status)
+│   ├── api/              # API Routes (auth, loja, fórum, blog, aulas, perfil...)
 │   ├── aulas/            # Página de aulas
 │   ├── blog/             # Blog
 │   ├── comunidade/       # Fórum da comunidade
@@ -104,12 +144,16 @@ src/
 │   ├── home/             # Seções da landing page
 │   ├── layout/           # Navbar, Footer, Background
 │   └── ui/               # Componentes reutilizáveis
-├── generated/            # Prisma Client gerado
-└── lib/                  # Utilitários (auth, prisma, constants)
+├── generated/            # Prisma Clients gerados (não versionados)
+├── lib/                  # Utilitários (auth, env, prisma, rate-limit, email...)
+├── instrumentation.ts    # Validação das variáveis de ambiente na inicialização
+└── proxy.ts              # Proteção das rotas autenticadas
 
 prisma/
-└── schema.prisma         # Schema do banco de dados
+├── schema.prisma         # MariaDB — tabela nlogin (servidor Minecraft)
+└── schema.pg.prisma      # PostgreSQL — dados do site
 
+scripts/                  # Seeds e migração única MariaDB → PostgreSQL
 docs/                     # Documentação completa do projeto
 ```
 
@@ -121,6 +165,7 @@ A documentação detalhada do projeto está em [`docs/`](./docs/README.md), incl
 
 - [Stack Técnica](./docs/stack-tecnica.md) — Arquitetura e integrações
 - [Design System](./docs/design-system.md) — Paleta de cores, tipografia e componentes
+- [Padrão de Commits](./docs/padrao-de-commits.md) — Formato das mensagens, versionamento e checklist
 - Especificações de cada página e componente
 
 ---

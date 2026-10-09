@@ -11,7 +11,7 @@
 ### RN-PERFIL-01: Dashboard Principal (`/perfil`)
 
 #### Header do Perfil
-- Avatar: Skin do Minecraft renderizada (via API `crafatar.com` ou `mc-heads.net` usando UUID)
+- Avatar: Skin do Minecraft renderizada (via API `mc-heads.net` usando UUID)
 - Username (nick do Minecraft)
 - Badge de cargo/rank (Aluno, VIP, VIP+, Premium, Professor, Moderador, Admin)
 - Badge de reputação do fórum
@@ -31,6 +31,8 @@ Exibir 4-6 cards com métricas principais:
 | **Plano Atual** | Gratuito/VIP/Premium + expiração | Tabela de permissões |
 
 #### Atividade Recente
+
+> **Implementação atual (v0.14):** `GET /api/perfil/atividade` junta compras aprovadas, tópicos, comentários e aulas concluídas do próprio usuário (10 mais recentes).
 - Timeline com as últimas atividades:
   - Aulas assistidas
   - Compras realizadas

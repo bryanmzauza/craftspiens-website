@@ -24,7 +24,6 @@ interface ScheduleEntry {
   id: number;
   disciplina: string;
   professor: string;
-  professorFoto: string;
   diaSemana: DayOfWeek;
   horaInicio: string;
   horaFim: string;
@@ -48,7 +47,6 @@ const SCHEDULE: ScheduleEntry[] = [
     id: 1,
     disciplina: "Matemática",
     professor: "Prof. Camilli",
-    professorFoto: "/team/camilli.png",
     diaSemana: "seg",
     horaInicio: "14:00",
     horaFim: "15:30",
@@ -60,7 +58,6 @@ const SCHEDULE: ScheduleEntry[] = [
     id: 2,
     disciplina: "Física",
     professor: "Prof. Wilton",
-    professorFoto: "/team/wilton.png",
     diaSemana: "seg",
     horaInicio: "16:00",
     horaFim: "17:30",
@@ -72,7 +69,6 @@ const SCHEDULE: ScheduleEntry[] = [
     id: 3,
     disciplina: "Geografia",
     professor: "Prof. Arthur",
-    professorFoto: "/team/arthur.png",
     diaSemana: "ter",
     horaInicio: "15:00",
     horaFim: "16:30",
@@ -84,7 +80,6 @@ const SCHEDULE: ScheduleEntry[] = [
     id: 4,
     disciplina: "Português",
     professor: "Prof. Thawana",
-    professorFoto: "/team/thawana.png",
     diaSemana: "qua",
     horaInicio: "14:00",
     horaFim: "15:30",
@@ -96,7 +91,6 @@ const SCHEDULE: ScheduleEntry[] = [
     id: 5,
     disciplina: "Química",
     professor: "Prof. Camilli",
-    professorFoto: "/team/camilli.png",
     diaSemana: "qua",
     horaInicio: "16:00",
     horaFim: "17:30",
@@ -108,7 +102,6 @@ const SCHEDULE: ScheduleEntry[] = [
     id: 6,
     disciplina: "ENEM Preparatório",
     professor: "Prof. Helton",
-    professorFoto: "/team/helton.png",
     diaSemana: "qui",
     horaInicio: "15:00",
     horaFim: "17:00",
@@ -120,7 +113,6 @@ const SCHEDULE: ScheduleEntry[] = [
     id: 7,
     disciplina: "História",
     professor: "Prof. Arthur",
-    professorFoto: "/team/arthur.png",
     diaSemana: "sex",
     horaInicio: "14:00",
     horaFim: "15:30",
@@ -132,7 +124,6 @@ const SCHEDULE: ScheduleEntry[] = [
     id: 8,
     disciplina: "Ciências",
     professor: "Prof. Wilton",
-    professorFoto: "/team/wilton.png",
     diaSemana: "sab",
     horaInicio: "10:00",
     horaFim: "11:30",
@@ -144,7 +135,6 @@ const SCHEDULE: ScheduleEntry[] = [
     id: 9,
     disciplina: "Programação",
     professor: "Prof. Helton",
-    professorFoto: "/team/helton.png",
     diaSemana: "sab",
     horaInicio: "14:00",
     horaFim: "15:30",
@@ -156,7 +146,6 @@ const SCHEDULE: ScheduleEntry[] = [
     id: 10,
     disciplina: "Artes",
     professor: "Prof. Thawana",
-    professorFoto: "/team/thawana.png",
     diaSemana: "ter",
     horaInicio: "10:00",
     horaFim: "11:30",
@@ -210,7 +199,6 @@ function getNextClasses(schedule: ScheduleEntry[]): (ScheduleEntry & { when: str
   const now = new Date();
   const currentDayIndex = (now.getDay() + 6) % 7;
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
-  const days = Object.keys(DAYS_MAP) as DayOfWeek[];
 
   const upcoming: (ScheduleEntry & { minutesUntil: number; when: string })[] = [];
 
@@ -663,7 +651,7 @@ export function CronogramaContent() {
                 PRÓXIMAS AULAS
               </h3>
               <div className="space-y-3">
-                {nextClasses.map((entry, i) => (
+                {nextClasses.map((entry) => (
                   <button
                     key={entry.id}
                     onClick={() => setSelectedEntry(entry)}

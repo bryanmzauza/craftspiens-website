@@ -69,10 +69,6 @@
   - "Como ser Premium/VIP?" → Link para /loja
 - Cada FAQ expansível (click to expand)
 
-### RN-CONTATO-06: Mapa / Localização
-- Texto informativo: "Localização: Porto Alegre, RS"
-- Opcional: embed do Google Maps com localização genérica (cidade, não endereço exato)
-
 ### RN-CONTATO-07: Newsletter
 - Campo de inscrição para novidades:
   - Email + botão "INSCREVER"
@@ -136,10 +132,6 @@
 │                                                                    │
 ├──────────────────────────────────────────────────────────────────┤
 │                                                                    │
-│  📍 Localização: Porto Alegre, RS                                  │
-│                                                                    │
-├──────────────────────────────────────────────────────────────────┤
-│                                                                    │
 │  📬 FIQUE POR DENTRO DAS NOVIDADES                                 │
 │  [email________________] [INSCREVER]                               │
 │  ☐ Aceito receber emails sobre novidades                           │
@@ -184,4 +176,4 @@
 | Meta | Valor |
 |------|-------|
 | **Title** | Contato — CraftSapiens \| Fale Conosco |
-| **Description** | Entre em contato com a CraftSapiens. WhatsApp, email, Discord e formulário de contato. Respondemos em até 10 dias úteis. Porto Alegre, RS. |
+| **Description** | Entre em contato com a CraftSapiens. WhatsApp, email, Discord e formulário de contato. Respondemos em até 10 dias úteis.. |

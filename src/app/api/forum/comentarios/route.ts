@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit";
 import { getNloginsByIds, getNloginById } from "@/lib/nlogin";
 
 // GET /api/forum/comentarios?topicoId=xxx&page=1&limit=30
@@ -125,17 +125,9 @@ export async function POST(request: NextRequest) {
   }
 
   // Rate limit: 10 comentários/15min
-  const rl = checkRateLimit(`forum-comment:${session.user.id}`, RATE_LIMITS.forumComment);
+  const rl = await checkRateLimit(`forum-comment:${session.user.id}`, RATE_LIMITS.forumComment);
   if (!rl.success) {
-    return NextResponse.json(
-      { error: "Limite de comentários excedido. Tente novamente mais tarde." },
-      {
-        status: 429,
-        headers: {
-          "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)),
-        },
-      }
-    );
+    return rateLimitResponse(rl, "Limite de comentários excedido. Tente novamente mais tarde.");
   }
 
   let body: { postId?: string; content?: string; parentId?: string };

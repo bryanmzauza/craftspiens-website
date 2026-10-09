@@ -9,17 +9,14 @@ import {
   Star,
   Clock,
   BookOpen,
-  Trophy,
   Crown,
   Settings,
   ShoppingBag,
   BarChart3,
   Edit,
-  LogIn,
   MessageSquare,
-  Award,
+  MessagesSquare,
   ShoppingCart,
-  Zap,
   Loader2,
 } from "lucide-react";
 import { PageHero } from "@/components/ui/PageHero";
@@ -92,15 +89,21 @@ function getReputationBadge(posts: number, comments: number): { label: string; i
   return { label: "Novato", icon: "🌱" };
 }
 
-// Atividade recente ainda é mock (virá de API de atividade futura)
-const MOCK_ACTIVITY = [
-  { icon: LogIn, text: "Entrou no servidor", tempo: "Hoje 14:30", cor: "#4CAF50" },
-  { icon: BookOpen, text: "Concluiu aula de Matemática (#8)", tempo: "Hoje 10:00", cor: "#2196F3" },
-  { icon: MessageSquare, text: 'Postou no fórum: "Melhor aula!"', tempo: "Ontem", cor: "#9C27B0" },
-  { icon: ShoppingCart, text: "Comprou VIP+ Mensal (R$ 29,90)", tempo: "18/03", cor: "#FFD700" },
-  { icon: Award, text: "Atingiu 8.000 XP", tempo: "17/03", cor: "#FF9800" },
-  { icon: Zap, text: "Desbloqueou conquista: 100h online", tempo: "15/03", cor: "#E91E63" },
-];
+type ActivityType = "compra" | "topico" | "comentario" | "aula";
+
+type Activity = {
+  type: ActivityType;
+  title: string;
+  href?: string;
+  date: string;
+};
+
+const ACTIVITY_STYLES: Record<ActivityType, { icon: typeof BookOpen; prefix: string; cor: string }> = {
+  aula: { icon: BookOpen, prefix: "Concluiu a aula", cor: "#2196F3" },
+  topico: { icon: MessageSquare, prefix: "Criou o tópico", cor: "#9C27B0" },
+  comentario: { icon: MessagesSquare, prefix: "Comentou em", cor: "#FF9800" },
+  compra: { icon: ShoppingCart, prefix: "Comprou", cor: "#FFD700" },
+};
 
 export function PerfilContent() {
   const { data: session } = useSession();
@@ -110,6 +113,7 @@ export function PerfilContent() {
   const [progressData, setProgressData] = useState<
     { disciplina: string; concluidas: number; total: number; cor: string; slug: string }[]
   >([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
 
   useEffect(() => {
     async function fetchProfile() {
@@ -151,6 +155,20 @@ export function PerfilContent() {
     if (session?.user) fetchProgress();
   }, [session]);
 
+  useEffect(() => {
+    async function fetchActivity() {
+      try {
+        const res = await fetch("/api/perfil/atividade");
+        if (!res.ok) return;
+        const data = await res.json();
+        setActivities(data.activities ?? []);
+      } catch {
+        // silently fail — shows empty state
+      }
+    }
+    if (session?.user) fetchActivity();
+  }, [session]);
+
   const username = profile?.username || session?.user?.username || "Jogador";
   const avatarUrl = profile?.nlogin?.uuid
     ? `https://mc-heads.net/avatar/${profile.nlogin.uuid}/100`
@@ -169,7 +187,6 @@ export function PerfilContent() {
     { icon: Star, label: "XP Total", value: profile?.profile?.xp?.toLocaleString("pt-BR") || "0", cor: "#9C27B0" },
     { icon: Clock, label: "Tempo Online", value: formatPlaytime(profile?.profile?.playtimeMinutes || 0), cor: "#2196F3" },
     { icon: BookOpen, label: "Aulas Concluídas", value: String(profile?.profile?.aulasConcluidas || 0), cor: "#4CAF50" },
-    { icon: Trophy, label: "Ranking Geral", value: profile?.profile?.rankingPosition ? `#${profile.profile.rankingPosition}` : "—", cor: "#FF9800" },
     { icon: Crown, label: "Plano Atual", value: roleInfo.label, cor: roleInfo.color },
   ];
 
@@ -205,6 +222,7 @@ export function PerfilContent() {
         >
           <div className="relative">
             <div className="h-24 w-24 overflow-hidden rounded-xl border-2 border-white/20 bg-bg-accent">
+              {/* eslint-disable-next-line @next/next/no-img-element -- avatar externo (mc-heads.net) */}
               <img
                 src={avatarUrl}
                 alt={username}
@@ -241,7 +259,7 @@ export function PerfilContent() {
         </motion.div>
 
         {/* Cards de estatísticas */}
-        <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {stats.map((stat, i) => {
             const Icon = stat.icon;
             return (
@@ -321,19 +339,37 @@ export function PerfilContent() {
               ATIVIDADE RECENTE
             </h3>
             <div className="space-y-3">
-              {MOCK_ACTIVITY.map((item, i) => {
-                const Icon = item.icon;
+              {activities.length === 0 && (
+                <p className="text-sm text-[#A0A0A0]">
+                  Nenhuma atividade recente. Conclua uma aula ou participe da{" "}
+                  <Link href="/comunidade" className="text-green-cs hover:underline">comunidade</Link>!
+                </p>
+              )}
+              {activities.map((item, i) => {
+                const style = ACTIVITY_STYLES[item.type];
+                const Icon = style.icon;
+                const text = (
+                  <>
+                    {style.prefix} {item.type === "compra" ? item.title : <>&quot;{item.title}&quot;</>}
+                  </>
+                );
                 return (
-                  <div key={i} className="flex items-start gap-3">
+                  <div key={`${item.type}-${item.date}-${i}`} className="flex items-start gap-3">
                     <div
                       className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
-                      style={{ backgroundColor: `${item.cor}15` }}
+                      style={{ backgroundColor: `${style.cor}15` }}
                     >
-                      <Icon size={14} style={{ color: item.cor }} />
+                      <Icon size={14} style={{ color: style.cor }} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm text-white">{item.text}</p>
-                      <p className="text-xs text-[#A0A0A0]">{item.tempo}</p>
+                      {item.href ? (
+                        <Link href={item.href} className="text-sm text-white transition-colors hover:text-green-cs">
+                          {text}
+                        </Link>
+                      ) : (
+                        <p className="text-sm text-white">{text}</p>
+                      )}
+                      <p className="text-xs text-[#A0A0A0]">{formatRelativeDate(item.date)}</p>
                     </div>
                   </div>
                 );

@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Copy, Check, Mail, Phone, MapPin, Monitor, Loader2 } from "lucide-react";
+import { Copy, Check, Mail, Phone, Monitor, Loader2 } from "lucide-react";
 import {
   SITE_DESCRIPTION,
   SERVER_IP,
   CONTACT_EMAIL,
   CONTACT_PHONE,
+  CONTACT_WHATSAPP_URL,
   SOCIAL_LINKS,
   DISCLAIMER,
   COPYRIGHT,
@@ -187,7 +188,7 @@ export function Footer() {
             </li>
             <li>
               <a
-                href={`https://wa.me/5541995871942`}
+                href={CONTACT_WHATSAPP_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 text-sm text-[#A0A0A0] transition-colors hover:text-green-cs"
@@ -195,10 +196,6 @@ export function Footer() {
                 <Phone size={16} />
                 {CONTACT_PHONE}
               </a>
-            </li>
-            <li className="flex items-center gap-2 text-sm text-[#A0A0A0]">
-              <MapPin size={16} />
-              Porto Alegre, RS
             </li>
             <li>
               <button

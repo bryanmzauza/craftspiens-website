@@ -39,7 +39,7 @@ export function HeroSection() {
           </div>
         </motion.div>
 
-        {/* Visual placeholder */}
+        {/* Card decorativo com a marca */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}

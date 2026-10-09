@@ -57,6 +57,8 @@ export function ConfiguracoesContent() {
   // Profile data
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
+  const [savedEmail, setSavedEmail] = useState("");
+  const [emailSenha, setEmailSenha] = useState("");
   const [bio, setBio] = useState("");
   const [birthDate, setBirthDate] = useState("");
 
@@ -95,6 +97,7 @@ export function ConfiguracoesContent() {
 
         setUsername(data.username);
         setEmail(data.email);
+        setSavedEmail(data.email);
         setBio(data.profile?.bio || "");
         setBirthDate(
           data.birthDate
@@ -126,6 +129,8 @@ export function ConfiguracoesContent() {
     setTimeout(() => setSaved(false), 2000);
   }, []);
 
+  const emailChanged = email.trim().toLowerCase() !== savedEmail;
+
   const handleSaveDados = async () => {
     setSaving(true);
     setError("");
@@ -133,13 +138,17 @@ export function ConfiguracoesContent() {
       const res = await fetch("/api/perfil", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, bio }),
+        body: JSON.stringify({ email, bio, currentPassword: emailChanged ? emailSenha : undefined }),
       });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || "Erro ao salvar.");
         return;
       }
+      const normalizedEmail = email.trim().toLowerCase();
+      setEmail(normalizedEmail);
+      setSavedEmail(normalizedEmail);
+      setEmailSenha("");
       showSaved();
     } catch {
       setError("Erro de conexão. Tente novamente.");
@@ -166,7 +175,8 @@ export function ConfiguracoesContent() {
       setNovaSenha("");
       setConfirmarSenha("");
       setSenhaSaved(true);
-      setTimeout(() => setSenhaSaved(false), 2000);
+      // A troca de senha encerra todas as sessões: entra de novo com a nova senha
+      setTimeout(() => signOut({ redirectTo: "/login" }), 2000);
     } catch {
       setSenhaError("Erro de conexão. Tente novamente.");
     } finally {
@@ -320,8 +330,25 @@ export function ConfiguracoesContent() {
                       onChange={(e) => setEmail(e.target.value)}
                       className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-sm text-white focus:border-green-cs focus:outline-none"
                     />
-                    <p className="mt-1 text-xs text-[#A0A0A0]">Alterações requerem confirmação por email.</p>
+                    <p className="mt-1 text-xs text-[#A0A0A0]">Alterar o email exige sua senha atual.</p>
                   </div>
+
+                  {emailChanged && (
+                    <div>
+                      <label htmlFor="emailSenha" className="mb-1 block text-sm font-medium text-[#E0E0E0]">
+                        <Lock size={14} className="mr-1 inline" />
+                        Senha atual
+                      </label>
+                      <input
+                        id="emailSenha"
+                        type="password"
+                        autoComplete="current-password"
+                        value={emailSenha}
+                        onChange={(e) => setEmailSenha(e.target.value)}
+                        className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-sm text-white focus:border-green-cs focus:outline-none"
+                      />
+                    </div>
+                  )}
 
                   <div>
                     <label htmlFor="bio" className="mb-1 block text-sm font-medium text-[#E0E0E0]">
@@ -352,7 +379,7 @@ export function ConfiguracoesContent() {
 
                   <button
                     onClick={handleSaveDados}
-                    disabled={saving}
+                    disabled={saving || (emailChanged && !emailSenha)}
                     className="flex items-center gap-1.5 rounded-lg bg-green-cs px-6 py-2.5 text-sm font-bold text-white transition-all hover:bg-green-dark disabled:opacity-40"
                   >
                     {saving ? <Loader2 size={16} className="animate-spin" /> : saved ? <Check size={16} /> : <Save size={16} />}

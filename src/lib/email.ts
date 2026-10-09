@@ -1,17 +1,37 @@
-import nodemailer from "nodemailer";
-
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: process.env.SMTP_SECURE === "true",
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+import nodemailer, { type Transporter } from "nodemailer";
+import { getEnv, siteUrl } from "@/lib/env";
+import { CONTACT_WHATSAPP_URL, SERVER_IP, SOCIAL_LINKS } from "@/lib/constants";
 
 const FROM_NAME = "CraftSapiens";
-const FROM_EMAIL = process.env.SMTP_FROM || "noreply@craftsapiens.com.br";
+
+let transporter: Transporter | undefined;
+
+function getTransporter(): Transporter {
+  if (!transporter) {
+    const env = getEnv();
+    transporter = nodemailer.createTransport({
+      host: env.SMTP_HOST,
+      port: env.SMTP_PORT,
+      secure: env.SMTP_SECURE,
+      // Na porta 587 exige STARTTLS em vez de aceitar conexão sem criptografia
+      requireTLS: !env.SMTP_SECURE,
+      auth: {
+        user: env.SMTP_USER,
+        pass: env.SMTP_PASS,
+      },
+    });
+  }
+  return transporter;
+}
+
+async function send(to: string, subject: string, content: string): Promise<void> {
+  await getTransporter().sendMail({
+    from: `"${FROM_NAME}" <${getEnv().SMTP_FROM}>`,
+    to,
+    subject,
+    html: baseTemplate(content),
+  });
+}
 
 function baseTemplate(content: string): string {
   return `<!DOCTYPE html>
@@ -61,12 +81,7 @@ export async function sendPasswordResetEmail(
       Link direto: <a href="${escapeHtml(resetUrl)}" style="color:#4CAF50;word-break:break-all">${escapeHtml(resetUrl)}</a>
     </p>`;
 
-  await transporter.sendMail({
-    from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
-    to,
-    subject: "Recuperação de Senha — CraftSapiens",
-    html: baseTemplate(content),
-  });
+  await send(to, "Recuperação de Senha — CraftSapiens", content);
 }
 
 export async function sendNewsletterConfirmationEmail(
@@ -88,12 +103,7 @@ export async function sendNewsletterConfirmationEmail(
       Se você não solicitou esta inscrição, ignore este email.
     </p>`;
 
-  await transporter.sendMail({
-    from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
-    to,
-    subject: "Confirme sua inscrição — Newsletter CraftSapiens",
-    html: baseTemplate(content),
-  });
+  await send(to, "Confirme sua inscrição — Newsletter CraftSapiens", content);
 }
 
 export async function sendWelcomeEmail(
@@ -113,22 +123,17 @@ export async function sendWelcomeEmail(
       <ol style="color:#E0E0E0;font-size:14px;line-height:1.8;margin:0;padding-left:20px">
         <li>Abra o Minecraft Java Edition</li>
         <li>Vá em Multijogador → Adicionar Servidor</li>
-        <li>IP: <code style="background:rgba(76,175,80,0.2);color:#4CAF50;padding:2px 6px;border-radius:4px">jogar.craftsapiens.com.br</code></li>
+        <li>IP: <code style="background:rgba(76,175,80,0.2);color:#4CAF50;padding:2px 6px;border-radius:4px">${SERVER_IP}</code></li>
         <li>Use seu nick <strong>${escapeHtml(username)}</strong> e a senha cadastrada</li>
       </ol>
     </div>
     <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:8px 0 16px">
-      <a href="${getBaseUrl()}/perfil" style="display:inline-block;background:#4CAF50;color:#fff;font-size:16px;font-weight:bold;text-decoration:none;padding:14px 40px;border-radius:8px">
+      <a href="${siteUrl()}/perfil" style="display:inline-block;background:#4CAF50;color:#fff;font-size:16px;font-weight:bold;text-decoration:none;padding:14px 40px;border-radius:8px">
         ACESSAR MEU PERFIL
       </a>
     </td></tr></table>`;
 
-  await transporter.sendMail({
-    from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
-    to,
-    subject: "Bem-vindo ao CraftSapiens! 🎮",
-    html: baseTemplate(content),
-  });
+  await send(to, "Bem-vindo ao CraftSapiens! 🎮", content);
 }
 
 export async function sendContactConfirmationEmail(
@@ -145,20 +150,11 @@ export async function sendContactConfirmationEmail(
     </p>
     <p style="color:#aaa;font-size:13px;line-height:1.5;margin:0">
       Caso a dúvida seja urgente, entre em contato pelo nosso 
-      <a href="https://wa.me/5541995871942" style="color:#4CAF50">WhatsApp</a> ou 
-      <a href="https://discord.io/craftsapiens" style="color:#4CAF50">Discord</a>.
+      <a href="${CONTACT_WHATSAPP_URL}" style="color:#4CAF50">WhatsApp</a> ou 
+      <a href="${SOCIAL_LINKS.discord}" style="color:#4CAF50">Discord</a>.
     </p>`;
 
-  await transporter.sendMail({
-    from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
-    to,
-    subject: "Mensagem recebida — CraftSapiens",
-    html: baseTemplate(content),
-  });
-}
-
-function getBaseUrl(): string {
-  return process.env.AUTH_URL || "http://localhost:3000";
+  await send(to, "Mensagem recebida — CraftSapiens", content);
 }
 
 export async function sendOrderConfirmationEmail(
@@ -221,24 +217,47 @@ export async function sendOrderConfirmationEmail(
       Para VIPs e Ranks, entre no servidor para que as permissões sejam aplicadas.
     </p>
     <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:8px 0 16px">
-      <a href="${getBaseUrl()}/perfil/compras" style="display:inline-block;background:#4CAF50;color:#fff;font-size:16px;font-weight:bold;text-decoration:none;padding:14px 40px;border-radius:8px">
+      <a href="${siteUrl()}/perfil/compras" style="display:inline-block;background:#4CAF50;color:#fff;font-size:16px;font-weight:bold;text-decoration:none;padding:14px 40px;border-radius:8px">
         VER MINHAS COMPRAS
       </a>
     </td></tr></table>`;
 
-  await transporter.sendMail({
-    from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
-    to,
-    subject: `Compra confirmada — Pedido #${orderId.slice(0, 8)} — CraftSapiens`,
-    html: baseTemplate(content),
-  });
+  await send(to, `Compra confirmada — Pedido #${orderId.slice(0, 8)} — CraftSapiens`, content);
 }
 
-function escapeHtml(str: string): string {
+export function escapeHtml(str: string): string {
   return str
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+export async function sendEmailChangedNotice(
+  to: string,
+  username: string,
+  newEmail: string
+): Promise<void> {
+  const content = `
+    <h2 style="color:#fff;margin:0 0 16px;font-size:22px">Seu email foi alterado</h2>
+    <p style="color:#E0E0E0;font-size:15px;line-height:1.6;margin:0 0 16px">
+      Olá <strong style="color:#4CAF50">${escapeHtml(username)}</strong>,
+    </p>
+    <p style="color:#E0E0E0;font-size:15px;line-height:1.6;margin:0 0 16px">
+      O email da sua conta CraftSapiens foi alterado para <strong>${escapeHtml(maskEmail(newEmail))}</strong>.
+    </p>
+    <p style="color:#aaa;font-size:13px;line-height:1.5;margin:0">
+      Se não foi você, entre em contato imediatamente pelo
+      <a href="${CONTACT_WHATSAPP_URL}" style="color:#4CAF50">WhatsApp</a> ou
+      <a href="${SOCIAL_LINKS.discord}" style="color:#4CAF50">Discord</a>.
+    </p>`;
+
+  await send(to, "Email da conta alterado — CraftSapiens", content);
+}
+
+function maskEmail(email: string): string {
+  const [local, domain] = email.split("@");
+  if (!domain) return email;
+  return `${local.slice(0, 2)}${"*".repeat(Math.max(local.length - 2, 1))}@${domain}`;
 }

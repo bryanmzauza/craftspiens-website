@@ -137,7 +137,7 @@ export function SobreContent() {
         <div className="mx-auto max-w-7xl px-4 lg:px-6">
           <SectionTitle className="text-center">QUEM SOMOS NÓS?</SectionTitle>
 
-          <div className="mt-12 grid gap-12 lg:grid-cols-2 lg:items-center">
+          <div className="mt-12">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               whileInView={{ opacity: 1, x: 0 }}
@@ -154,22 +154,6 @@ export function SobreContent() {
               <p>
                 É um trabalho 10x mais difícil que aulas convencionais, mas acreditamos que é 10x mais eficaz. Quando o aluno se diverte aprendendo, o conhecimento realmente fica.
               </p>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-              className="flex items-center justify-center"
-            >
-              <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-white/10 bg-bg-card/50 backdrop-blur">
-                <div className="flex h-full flex-col items-center justify-center gap-4">
-                  <div className="text-5xl">🎬</div>
-                  <p className="text-sm text-[#E0E0E0]">Vídeo do Prof. Helton</p>
-                  <p className="text-xs text-[#A0A0A0]">Em breve</p>
-                </div>
-              </div>
             </motion.div>
           </div>
         </div>

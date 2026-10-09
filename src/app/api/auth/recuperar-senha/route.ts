@@ -3,33 +3,23 @@ import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getNloginById } from "@/lib/nlogin";
 import { sendPasswordResetEmail } from "@/lib/email";
-import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/client-ip";
+import { siteUrl } from "@/lib/env";
 
 export async function POST(request: Request) {
   try {
-    const ip =
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      "unknown";
+    const ip = getClientIp(request.headers);
 
-    const rateLimit = checkRateLimit(
+    const rateLimit = await checkRateLimit(
       `password-reset:${ip}`,
       RATE_LIMITS.passwordReset
     );
     if (!rateLimit.success) {
-      return NextResponse.json(
-        { error: "Muitas tentativas. Tente novamente mais tarde." },
-        {
-          status: 429,
-          headers: {
-            "Retry-After": String(
-              Math.ceil((rateLimit.resetAt - Date.now()) / 1000)
-            ),
-          },
-        }
-      );
+      return rateLimitResponse(rateLimit, "Muitas tentativas. Tente novamente mais tarde.");
     }
 
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
     const { email } = body;
 
     if (!email || typeof email !== "string") {
@@ -91,8 +81,7 @@ export async function POST(request: Request) {
       },
     });
 
-    const baseUrl = process.env.AUTH_URL || "http://localhost:3000";
-    const resetUrl = `${baseUrl}/redefinir-senha?token=${rawToken}`;
+    const resetUrl = `${siteUrl()}/redefinir-senha?token=${rawToken}`;
 
     try {
       await sendPasswordResetEmail(

@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { preference, MP_CONFIG } from "@/lib/mercadopago";
-import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { getPreferenceClient, getMpConfig } from "@/lib/mercadopago";
+import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit";
+import { isUnlimitedStock } from "@/lib/products";
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -10,17 +11,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   }
 
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const rl = checkRateLimit(`checkout:${session.user.id}`, RATE_LIMITS.checkout);
+  const rl = await checkRateLimit(`checkout:${session.user.id}`, RATE_LIMITS.checkout);
   if (!rl.success) {
-    return NextResponse.json(
-      { error: "Muitas tentativas. Tente novamente mais tarde." },
-      { status: 429, headers: { "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
-    );
+    return rateLimitResponse(rl, "Muitas tentativas. Tente novamente mais tarde.");
   }
 
-  const body = await request.json();
-  const couponCode = (body.couponCode as string || "").trim().toUpperCase();
+  const body = await request.json().catch(() => ({}));
+  const couponCode = typeof body.couponCode === "string" ? body.couponCode.trim().toUpperCase() : "";
 
   const cartItems = await prisma.cartItem.findMany({
     where: { userId: session.user.id },
@@ -42,7 +39,7 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    if (item.product.stock >= 0 && item.quantity > item.product.stock) {
+    if (!isUnlimitedStock(item.product.stock) && item.quantity > item.product.stock) {
       return NextResponse.json(
         { error: `Estoque insuficiente para "${item.product.name}"` },
         { status: 400 }
@@ -85,7 +82,17 @@ export async function POST(request: Request) {
     couponId = coupon.id;
   }
 
-  const total = Math.max(subtotal - discount, 0);
+  // Discounted unit prices are computed before creating the order, so the stored
+  // total is exactly what MercadoPago will charge (checked again by the webhook)
+  const discountFactor = subtotal > 0 ? Math.max(subtotal - discount, 0) / subtotal : 1;
+  const unitPrices = new Map(
+    orderItems.map((item) => [item.productId, Math.round(item.price * discountFactor * 100) / 100])
+  );
+  const total =
+    Math.round(
+      orderItems.reduce((sum, item) => sum + unitPrices.get(item.productId)! * item.quantity, 0) * 100
+    ) / 100;
+  discount = Math.round((subtotal - total) * 100) / 100;
 
   // Create Order + OrderItems in transaction
   const order = await prisma.$transaction(async (tx) => {
@@ -117,27 +124,25 @@ export async function POST(request: Request) {
     return newOrder;
   });
 
-  // Create MercadoPago preference items
-  // If there's a discount, adjust each item's price proportionally
-  const discountFactor = subtotal > 0 ? (subtotal - discount) / subtotal : 1;
-
+  // Create MercadoPago preference items (with the discount spread proportionally)
   const mpItems = order.items.map((item) => ({
     id: item.productId,
     title: item.product.name,
     description: item.product.shortDescription || item.product.description.slice(0, 200),
     quantity: item.quantity,
-    unit_price: Math.round(Number(item.price) * discountFactor * 100) / 100,
+    unit_price: unitPrices.get(item.productId)!,
     currency_id: "BRL" as const,
   }));
 
   try {
-    const mpPreference = await preference.create({
+    const mpConfig = getMpConfig();
+    const mpPreference = await getPreferenceClient().create({
       body: {
         items: mpItems,
-        back_urls: MP_CONFIG.backUrls,
-        auto_return: MP_CONFIG.autoReturn,
-        notification_url: `${MP_CONFIG.notificationUrl}?orderId=${order.id}`,
-        statement_descriptor: MP_CONFIG.statementDescriptor,
+        back_urls: mpConfig.backUrls,
+        auto_return: mpConfig.autoReturn,
+        notification_url: mpConfig.notificationUrl,
+        statement_descriptor: mpConfig.statementDescriptor,
         external_reference: order.id,
         payer: {
           email: session.user.email,
@@ -159,7 +164,6 @@ export async function POST(request: Request) {
       orderId: order.id,
       preferenceId: mpPreference.id,
       initPoint: mpPreference.init_point,
-      sandboxInitPoint: mpPreference.sandbox_init_point,
       total,
       discount,
       subtotal,

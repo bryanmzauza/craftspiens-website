@@ -6,9 +6,10 @@ import {
   createUserWithProfile,
 } from "@/lib/nlogin";
 import { prisma } from "@/lib/prisma";
-import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { Prisma } from "@/generated/prisma-pg";
+import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/client-ip";
 import { sendWelcomeEmail } from "@/lib/email";
-import { headers } from "next/headers";
 
 const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,16}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -27,22 +28,26 @@ function isAtLeast13(dateStr: string): boolean {
 
 export async function POST(request: Request) {
   try {
-    const headersList = await headers();
-    const ip = headersList.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-    const rateCheck = checkRateLimit(`register:${ip}`, RATE_LIMITS.register);
+    const ip = getClientIp(request.headers);
+    const rateCheck = await checkRateLimit(`register:${ip}`, RATE_LIMITS.register);
 
     if (!rateCheck.success) {
-      const retryAfter = Math.ceil((rateCheck.resetAt - Date.now()) / 1000);
-      return NextResponse.json(
-        { error: "Muitas tentativas de registro. Tente novamente mais tarde." },
-        { status: 429, headers: { "Retry-After": String(retryAfter) } }
-      );
+      return rateLimitResponse(rateCheck, "Muitas tentativas de registro. Tente novamente mais tarde.");
     }
 
-    const body = await request.json();
-    const { username, email, password, birthdate } = body;
+    const body = await request.json().catch(() => ({}));
+    const { username, password, birthdate } = body;
+    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
 
-    if (!username || !email || !password || !birthdate) {
+    if (
+      typeof username !== "string" ||
+      typeof password !== "string" ||
+      typeof birthdate !== "string" ||
+      !username ||
+      !email ||
+      !password ||
+      !birthdate
+    ) {
       return NextResponse.json(
         { error: "Todos os campos são obrigatórios." },
         { status: 400 }
@@ -63,7 +68,12 @@ export async function POST(request: Request) {
       );
     }
 
-    if (password.length < 8 || !/[a-zA-Z]/.test(password) || !/\d/.test(password)) {
+    if (
+      password.length < 8 ||
+      password.length > 128 ||
+      !/[a-zA-Z]/.test(password) ||
+      !/\d/.test(password)
+    ) {
       return NextResponse.json(
         { error: "Senha deve ter mínimo 8 caracteres, com ao menos 1 letra e 1 número." },
         { status: 400 }
@@ -118,6 +128,12 @@ export async function POST(request: Request) {
       { status: 201 }
     );
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return NextResponse.json(
+        { error: "Este email já está cadastrado." },
+        { status: 409 }
+      );
+    }
     console.error("Erro no registro:", error);
     return NextResponse.json(
       { error: "Erro interno do servidor. Tente novamente mais tarde." },

@@ -1,12 +1,25 @@
 {
   "name": "craftsapiens-website",
-  "version": "0.0.1",
+  "version": "0.14.0",
   "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run db:generate && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "postinstall": "npm run db:generate",
+    "db:generate": "prisma generate --config prisma.config.ts && prisma generate --config prisma.pg.config.ts",
+    "db:push:pg": "prisma db push --config prisma.pg.config.ts",
+    "db:seed": "npm run db:seed:aulas && npm run db:seed:blog && npm run db:seed:forum && npm run db:seed:loja",
+    "db:seed:aulas": "node scripts/seed-aulas.mjs",
+    "db:seed:blog": "node scripts/seed-blog.mjs",
+    "db:seed:forum": "node scripts/seed-forum.mjs",
+    "db:seed:loja": "node scripts/seed-loja.mjs",
+    "db:migrate-v13": "node scripts/migrate-v13.mjs"
   },
   "dependencies": {
     "@prisma/adapter-mariadb": "^7.5.0",
@@ -24,7 +37,8 @@
     "nodemailer": "^7.0.7",
     "pg": "^8.20.0",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

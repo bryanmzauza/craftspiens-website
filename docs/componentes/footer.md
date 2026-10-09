@@ -42,14 +42,13 @@ O footer é dividido em 3 áreas principais:
 **Coluna 4: Contato**
 - 📧 contato@craftsapiens.com.br
 - 📱 (41) 9 9587-1942 (link WhatsApp)
-- 📍 Porto Alegre, RS
 - IP do Servidor: `jogar.craftsapiens.com.br` com botão copiar
 
 #### Área Inferior — Copyright & Legal
 
 ```
 Não afiliado à Mojang Studios. Minecraft é marca registrada de Mojang Synergies AB.
-© 2026 CRAFTSAPIENS. Todos os direitos reservados. Localização: Porto Alegre, RS.
+© 2026 CRAFTSAPIENS. Todos os direitos reservados.
 ```
 
 ### RN-FOOTER-02: Newsletter (Opcional)
@@ -98,8 +97,8 @@ Não afiliado à Mojang Studios. Minecraft é marca registrada de Mojang Synergi
 │  │              │  │ Contato      │  │              │  │ 📱 (41) 9    │ │
 │  │ [🎮][📺][📷] │  │              │  │              │  │ 9587-1942    │ │
 │  │ [🎵][🐦][📘] │  │              │  │              │  │              │ │
-│  │ [✈️]         │  │              │  │              │  │ 📍 Porto     │ │
-│  │              │  │              │  │              │  │ Alegre, RS   │ │
+│  │ [✈️]         │  │              │  │              │  │              │ │
+│  │              │  │              │  │              │  │              │ │
 │  │      CONTATO │  │              │  │              │  │              │ │
 │  └─────────────┘  └──────────────┘  └──────────────┘  │ 🖥️ jogar.    │ │
 │                                                        │ craftsapiens │ │
@@ -111,7 +110,6 @@ Não afiliado à Mojang Studios. Minecraft é marca registrada de Mojang Synergi
 │  Não afiliado à Mojang Studios. Minecraft é marca registrada de          │
 │  Mojang Synergies AB.                                                    │
 │  © 2026 CRAFTSAPIENS. Todos os direitos reservados.                      │
-│  Localização: Porto Alegre, RS.                                          │
 │                                                                          │
 └──────────────────────────────────────────────────────────────────────────┘
 ```

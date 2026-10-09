@@ -2,10 +2,20 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma, prismaMariaDb } from "@/lib/prisma";
 import { hashPassword } from "@/lib/nlogin";
+import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/client-ip";
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const rateCheck = await checkRateLimit(
+      `password-reset-confirm:${getClientIp(request.headers)}`,
+      RATE_LIMITS.passwordResetConfirm
+    );
+    if (!rateCheck.success) {
+      return rateLimitResponse(rateCheck, "Muitas tentativas. Tente novamente mais tarde.");
+    }
+
+    const body = await request.json().catch(() => ({}));
     const { token, password, confirmPassword } = body;
 
     if (!token || typeof token !== "string") {
@@ -22,9 +32,9 @@ export async function POST(request: Request) {
       );
     }
 
-    if (password.length < 8) {
+    if (password.length < 8 || password.length > 128) {
       return NextResponse.json(
-        { error: "A senha deve ter pelo menos 8 caracteres." },
+        { error: "A senha deve ter entre 8 e 128 caracteres." },
         { status: 400 }
       );
     }
@@ -48,44 +58,53 @@ export async function POST(request: Request) {
       .update(token)
       .digest("hex");
 
-    const resetToken = await prisma.passwordResetToken.findUnique({
+    // Reivindica o token de forma atômica: duas requisições simultâneas
+    // com o mesmo link não conseguem usá-lo ao mesmo tempo
+    const now = new Date();
+    const claimed = await prisma.passwordResetToken.updateMany({
+      where: { tokenHash, usedAt: null, expiresAt: { gt: now } },
+      data: { usedAt: now },
+    });
+
+    if (claimed.count !== 1) {
+      return NextResponse.json(
+        { error: "Link inválido, expirado ou já utilizado. Solicite um novo link de recuperação." },
+        { status: 400 }
+      );
+    }
+
+    const resetToken = await prisma.passwordResetToken.findUniqueOrThrow({
       where: { tokenHash },
       include: { user: true },
     });
 
-    if (!resetToken) {
-      return NextResponse.json(
-        { error: "Token inválido ou expirado." },
-        { status: 400 }
-      );
-    }
-
-    if (resetToken.usedAt) {
-      return NextResponse.json(
-        { error: "Este link já foi utilizado." },
-        { status: 400 }
-      );
-    }
-
-    if (new Date() > resetToken.expiresAt) {
-      return NextResponse.json(
-        { error: "Token expirado. Solicite um novo link de recuperação." },
-        { status: 400 }
-      );
-    }
-
     const newHash = await hashPassword(password);
 
-    // Atualizar senha no nLogin (MariaDB) e marcar token como usado (PostgreSQL)
-    await prismaMariaDb.nlogin.update({
-      where: { id: resetToken.user.nloginId },
-      data: { password: newHash },
-    });
+    // Atualizar senha no nLogin (MariaDB); se falhar, libera o token de novo
+    try {
+      await prismaMariaDb.nlogin.update({
+        where: { id: resetToken.user.nloginId },
+        data: { password: newHash },
+      });
+    } catch (error) {
+      await prisma.passwordResetToken.update({
+        where: { id: resetToken.id },
+        data: { usedAt: null },
+      });
+      throw error;
+    }
 
-    await prisma.passwordResetToken.update({
-      where: { id: resetToken.id },
-      data: { usedAt: new Date() },
-    });
+    // Invalida os outros links pendentes e encerra as sessões abertas
+    await prisma.$transaction([
+      prisma.passwordResetToken.updateMany({
+        where: { userId: resetToken.userId, usedAt: null },
+        data: { usedAt: now },
+      }),
+      prisma.user.update({
+        where: { id: resetToken.userId },
+        data: { sessionVersion: { increment: 1 } },
+      }),
+    ]);
 
     return NextResponse.json({
       message: "Senha redefinida com sucesso! Faça login com sua nova senha.",

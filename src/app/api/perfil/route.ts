@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { getNloginById } from "@/lib/nlogin"
+import { getNloginById, verifyPassword } from "@/lib/nlogin"
+import { Prisma } from "@/generated/prisma-pg"
+import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit"
+import { sendEmailChangedNotice } from "@/lib/email"
 
 export async function GET() {
   const session = await auth()
@@ -72,39 +75,73 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Não autenticado." }, { status: 401 })
   }
 
-  const body = await request.json()
-  const { email, bio } = body
+  const rateCheck = await checkRateLimit(`profile-update:${session.user.id}`, RATE_LIMITS.profileUpdate)
+  if (!rateCheck.success) {
+    return rateLimitResponse(rateCheck, "Muitas alterações seguidas. Tente novamente mais tarde.")
+  }
 
-  if (email !== undefined) {
+  const body = await request.json().catch(() => null)
+  if (!body || typeof body !== "object") {
+    return NextResponse.json({ error: "Requisição inválida." }, { status: 400 })
+  }
+  const { bio, currentPassword } = body
+
+  if (body.email !== undefined && typeof body.email !== "string") {
+    return NextResponse.json({ error: "Email inválido." }, { status: 400 })
+  }
+  if (bio !== undefined && (typeof bio !== "string" || bio.length > 500)) {
+    return NextResponse.json({ error: "Bio deve ter no máximo 500 caracteres." }, { status: 400 })
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { email: true, nloginId: true },
+  })
+  if (!user) {
+    return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 })
+  }
+
+  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : undefined
+  const emailChanged = email !== undefined && email !== user.email
+
+  if (emailChanged) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
       return NextResponse.json({ error: "Email inválido." }, { status: 400 })
     }
 
-    const existing = await prisma.user.findFirst({
-      where: { email, id: { not: session.user.id } },
-    })
-    if (existing) {
-      return NextResponse.json({ error: "Este email já está em uso." }, { status: 409 })
+    // Trocar o email permite recuperar a senha por ele: exige a senha atual
+    if (typeof currentPassword !== "string" || !currentPassword) {
+      return NextResponse.json(
+        { error: "Informe sua senha atual para alterar o email." },
+        { status: 400 }
+      )
     }
+    const nlogin = await getNloginById(user.nloginId)
+    if (!nlogin?.password || !(await verifyPassword(currentPassword, nlogin.password))) {
+      return NextResponse.json({ error: "Senha atual incorreta." }, { status: 403 })
+    }
+
+    try {
+      await prisma.user.update({
+        where: { id: session.user.id },
+        data: { email },
+      })
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        return NextResponse.json({ error: "Este email já está em uso." }, { status: 409 })
+      }
+      throw error
+    }
+
+    // Avisa o endereço antigo (fire-and-forget)
+    sendEmailChangedNotice(user.email, nlogin.last_name, email).catch((err) =>
+      console.error("Erro ao enviar aviso de troca de email:", err)
+    )
   }
 
-  if (bio !== undefined && bio.length > 500) {
-    return NextResponse.json({ error: "Bio deve ter no máximo 500 caracteres." }, { status: 400 })
-  }
-
-  const updates: Record<string, unknown> = {}
   const profileUpdates: Record<string, unknown> = {}
-
-  if (email !== undefined) updates.email = email
   if (bio !== undefined) profileUpdates.bio = bio
-
-  if (Object.keys(updates).length > 0) {
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: updates,
-    })
-  }
 
   if (Object.keys(profileUpdates).length > 0) {
     await prisma.profile.update({

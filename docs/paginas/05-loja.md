@@ -48,6 +48,8 @@
 - Se não logado, botões redirecionam para `/login?redirect=/loja/[id]`
 
 ### RN-LOJA-05: Planos VIP / Premium (Destaque Especial)
+
+> **Implementação atual (v0.14):** os planos são produtos da categoria `VIP` cadastrados no banco (`/api/loja/produtos`), vendidos como **compra única com duração** (`duration_days`, ex.: 30 dias) — o MercadoPago Checkout Pro não renova automaticamente. Assinatura recorrente fica para uma versão futura.
 - Seção destacada na loja com comparativo de planos:
 
 | Feature | Gratuito | VIP | VIP+ | Premium |

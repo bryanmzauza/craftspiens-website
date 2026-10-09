@@ -1,23 +1,10 @@
-// Script para popular disciplinas e aulas iniciais.
-// Uso: node scripts/seed-aulas.mjs
+// Script para popular disciplinas e aulas iniciais (PostgreSQL).
+// Uso: npm run db:seed:aulas  (ou node scripts/seed-aulas.mjs)
 //
-// Requer: DATABASE_URL no .env (formato mysql://)
+// Requer: POSTGRES_URL no .env e tabelas criadas com `npm run db:push:pg`.
+// Idempotente: faz upsert pelo slug (disciplinas e aulas).
 
-import { createRequire } from "module";
-const require = createRequire(import.meta.url);
-
-const dotenv = require("dotenv");
-dotenv.config();
-
-const mariadb = require("mariadb");
-
-const dbUrl = process.env.DATABASE_URL;
-if (!dbUrl) {
-  console.error("DATABASE_URL não definida no .env");
-  process.exit(1);
-}
-
-const connUrl = dbUrl.replace(/^mysql:\/\//, "mariadb://");
+import { prisma, disconnect } from "./lib/pg-prisma.mjs";
 
 const DISCIPLINES = [
   {
@@ -304,58 +291,65 @@ const LESSONS = [
 ];
 
 async function main() {
-  const pool = mariadb.createPool({ uri: connUrl, multipleStatements: true });
-  const conn = await pool.getConnection();
-
   try {
     console.log("🌱 Seed de Aulas — Disciplinas + Aulas\n");
 
     // 1. Inserir disciplinas
     console.log(`1/2 — Inserindo ${DISCIPLINES.length} disciplinas...`);
+    const disciplineIds = new Map();
     for (const d of DISCIPLINES) {
-      await conn.query(
-        `INSERT INTO website_disciplines (id, name, slug, description, short_description, icon, color, levels, \`order\`, active)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)
-         ON DUPLICATE KEY UPDATE
-           name = VALUES(name),
-           description = VALUES(description),
-           short_description = VALUES(short_description),
-           icon = VALUES(icon),
-           color = VALUES(color),
-           levels = VALUES(levels),
-           \`order\` = VALUES(\`order\`)`,
-        [d.id, d.name, d.slug, d.description, d.shortDescription, d.icon, d.color, d.levels, d.order]
-      );
+      const data = {
+        name: d.name,
+        description: d.description,
+        shortDescription: d.shortDescription,
+        icon: d.icon,
+        color: d.color,
+        levels: d.levels,
+        order: d.order,
+      };
+      const saved = await prisma.discipline.upsert({
+        where: { slug: d.slug },
+        update: data,
+        create: { id: d.id, slug: d.slug, active: true, ...data },
+      });
+      // Se a disciplina já existia com outro id, as aulas apontam para o id real
+      disciplineIds.set(d.id, saved.id);
     }
     console.log("   ✅ Disciplinas OK");
 
     // 2. Inserir aulas
     console.log(`2/2 — Inserindo ${LESSONS.length} aulas...`);
     for (const l of LESSONS) {
-      await conn.query(
-        `INSERT INTO website_lessons (id, discipline_id, title, slug, description, content, video_url, objectives, \`order\`, duration_minutes, active)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)
-         ON DUPLICATE KEY UPDATE
-           title = VALUES(title),
-           description = VALUES(description),
-           content = VALUES(content),
-           video_url = VALUES(video_url),
-           objectives = VALUES(objectives),
-           \`order\` = VALUES(\`order\`),
-           duration_minutes = VALUES(duration_minutes)`,
-        [l.id, l.disciplineId, l.title, l.slug, l.description, l.content || null, l.videoUrl || null, l.objectives || null, l.order, l.duration]
-      );
+      const disciplineId = disciplineIds.get(l.disciplineId);
+      if (!disciplineId) {
+        throw new Error(`Disciplina "${l.disciplineId}" não encontrada para a aula "${l.slug}"`);
+      }
+
+      const data = {
+        disciplineId,
+        title: l.title,
+        description: l.description,
+        content: l.content || null,
+        videoUrl: l.videoUrl || null,
+        objectives: l.objectives || null,
+        order: l.order,
+        duration: l.duration,
+      };
+      await prisma.lesson.upsert({
+        where: { slug: l.slug },
+        update: data,
+        create: { id: l.id, slug: l.slug, active: true, ...data },
+      });
     }
     console.log("   ✅ Aulas OK");
 
     console.log("\n✅ Seed concluído com sucesso!");
   } catch (error) {
-    console.error("❌ Erro no seed:", error.message);
-    process.exit(1);
+    console.error("❌ Erro no seed:", error);
+    process.exitCode = 1;
   } finally {
-    await conn.release();
-    await pool.end();
+    await disconnect();
   }
 }
 
-main();
+await main();

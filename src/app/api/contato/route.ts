@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/client-ip";
 import { sendContactConfirmationEmail } from "@/lib/email";
-import { headers } from "next/headers";
 
 const VALID_CATEGORIES = [
   "Dúvidas sobre aulas",
@@ -15,19 +15,14 @@ const VALID_CATEGORIES = [
 
 export async function POST(request: Request) {
   try {
-    const headersList = await headers();
-    const ip = headersList.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-    const rateCheck = checkRateLimit(`contact:${ip}`, RATE_LIMITS.contact);
+    const ip = getClientIp(request.headers);
+    const rateCheck = await checkRateLimit(`contact:${ip}`, RATE_LIMITS.contact);
 
     if (!rateCheck.success) {
-      const retryAfter = Math.ceil((rateCheck.resetAt - Date.now()) / 1000);
-      return NextResponse.json(
-        { error: "Muitos envios recentes. Tente novamente mais tarde." },
-        { status: 429, headers: { "Retry-After": String(retryAfter) } }
-      );
+      return rateLimitResponse(rateCheck, "Muitos envios recentes. Tente novamente mais tarde.");
     }
 
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
     const { name, email, category, subject, message, honeypot } = body;
 
     // Anti-bot: se o campo honeypot foi preenchido, rejeitar silenciosamente

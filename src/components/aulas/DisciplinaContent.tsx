@@ -97,33 +97,25 @@ export function DisciplinaContent({ slug }: { slug: string }) {
     fetchDiscipline();
   }, [slug]);
 
+  const disciplineId = discipline?.id;
+
   useEffect(() => {
     async function fetchProgress() {
-      if (!session?.user) return;
+      if (!session?.user || !disciplineId) return;
       try {
-        const res = await fetch("/api/aulas/progresso");
+        // IDs das aulas concluídas nesta disciplina
+        const res = await fetch(
+          `/api/aulas/progresso/detalhe?disciplineId=${encodeURIComponent(disciplineId)}`
+        );
         if (!res.ok) return;
-        const data = await res.json();
-        // Busca as aulas completadas desta disciplina
-        const progressRes = await fetch(`/api/aulas/${slug}`);
-        if (!progressRes.ok) return;
-        const discData = await progressRes.json();
-        const discId = discData.discipline.id;
-
-        // Busca progresso individual: precisamos obter lesson IDs completados
-        // O endpoint de progresso retorna contagens por disciplina.
-        // Vamos buscar diretamente quais aulas foram completadas
-        const progressDetailRes = await fetch("/api/aulas/progresso/detalhe?disciplineId=" + discId);
-        if (progressDetailRes.ok) {
-          const detail = await progressDetailRes.json();
-          setCompletedLessons(new Set(detail.completedLessonIds));
-        }
+        const detail = await res.json();
+        setCompletedLessons(new Set(detail.completedLessonIds));
       } catch {
         // silently fail
       }
     }
-    if (discipline) fetchProgress();
-  }, [session, discipline, slug]);
+    fetchProgress();
+  }, [session, disciplineId]);
 
   if (loading) {
     return (

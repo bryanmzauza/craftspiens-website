@@ -40,6 +40,7 @@ Este repositório contém o código-fonte do novo site da **CraftSapiens** — a
 |-----------|-----------|
 | [Stack Técnica](./stack-tecnica.md) | Tecnologias, arquitetura e integrações |
 | [Design System](./design-system.md) | Paleta de cores, tipografia, componentes base |
+| [Padrão de Commits](./padrao-de-commits.md) | Formato das mensagens, versionamento e checklist |
 
 ### Páginas do Site
 
@@ -85,4 +86,4 @@ Este repositório contém o código-fonte do novo site da **CraftSapiens** — a
 ## Disclaimer Legal
 
 > Este site não é afiliado à Mojang Studios. Minecraft é marca registrada de Mojang Synergies AB.
-> © 2026 CRAFTSAPIENS. Todos os direitos reservados. Localização: Porto Alegre, RS.
+> © 2026 CRAFTSAPIENS. Todos os direitos reservados.

@@ -1,23 +1,10 @@
-// Script para popular o blog com categorias e posts iniciais.
-// Uso: node scripts/seed-blog.mjs
+// Script para popular o blog com categorias e posts iniciais (PostgreSQL).
+// Uso: npm run db:seed:blog  (ou node scripts/seed-blog.mjs)
 //
-// Requer: DATABASE_URL no .env (formato mysql://)
+// Requer: POSTGRES_URL no .env e tabelas criadas com `npm run db:push:pg`.
+// Idempotente: faz upsert pelo slug (categorias e posts).
 
-import { createRequire } from "module";
-const require = createRequire(import.meta.url);
-
-const dotenv = require("dotenv");
-dotenv.config();
-
-const mariadb = require("mariadb");
-
-const dbUrl = process.env.DATABASE_URL;
-if (!dbUrl) {
-  console.error("DATABASE_URL não definida no .env");
-  process.exit(1);
-}
-
-const connUrl = dbUrl.replace(/^mysql:\/\//, "mariadb://");
+import { prisma, disconnect } from "./lib/pg-prisma.mjs";
 
 const CATEGORIES = [
   { id: "cat_novidades", name: "Novidades", slug: "novidades" },
@@ -342,72 +329,56 @@ Disponível para assinantes **VIP+** e **Premium**. Acesse a Loja para assinar.`
 ];
 
 async function seed() {
-  let conn;
   try {
-    conn = await mariadb.createConnection(connUrl);
     console.log("Conectado ao banco de dados.");
 
-    // Criar tabela de categorias se não existir
-    await conn.query(`
-      CREATE TABLE IF NOT EXISTS blog_categories (
-        id VARCHAR(191) NOT NULL PRIMARY KEY,
-        name VARCHAR(100) NOT NULL,
-        slug VARCHAR(100) NOT NULL UNIQUE
-      )
-    `);
-
-    // Criar tabela de posts se não existir
-    await conn.query(`
-      CREATE TABLE IF NOT EXISTS blog_posts (
-        id VARCHAR(191) NOT NULL PRIMARY KEY,
-        title VARCHAR(255) NOT NULL,
-        slug VARCHAR(255) NOT NULL UNIQUE,
-        content LONGTEXT NOT NULL,
-        excerpt TEXT,
-        cover_image VARCHAR(500),
-        author_id VARCHAR(191),
-        category_id VARCHAR(191) NOT NULL,
-        tags TEXT,
-        views INT NOT NULL DEFAULT 0,
-        read_time INT NOT NULL DEFAULT 5,
-        published BOOLEAN NOT NULL DEFAULT FALSE,
-        published_at DATETIME,
-        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        CONSTRAINT fk_blog_category FOREIGN KEY (category_id) REFERENCES blog_categories(id)
-      )
-    `);
-
-    // Inserir categorias
+    // Categorias
+    const categoryIds = new Map();
     for (const cat of CATEGORIES) {
-      await conn.query(
-        `INSERT INTO blog_categories (id, name, slug) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name)`,
-        [cat.id, cat.name, cat.slug]
-      );
+      const saved = await prisma.blogCategory.upsert({
+        where: { slug: cat.slug },
+        update: { name: cat.name },
+        create: { id: cat.id, name: cat.name, slug: cat.slug },
+      });
+      categoryIds.set(cat.slug, saved.id);
     }
     console.log(`${CATEGORIES.length} categorias inseridas/atualizadas.`);
 
-    // Inserir posts
+    // Posts (sem autor: authorId fica null)
     for (const post of POSTS) {
-      const catId = CATEGORIES.find((c) => c.slug === post.categorySlug)?.id;
-      if (!catId) continue;
+      const categoryId = categoryIds.get(post.categorySlug);
+      if (!categoryId) {
+        throw new Error(`Categoria "${post.categorySlug}" não encontrada para o post "${post.slug}"`);
+      }
 
-      const id = `post_${post.slug.replace(/-/g, "_").slice(0, 30)}`;
-      await conn.query(
-        `INSERT INTO blog_posts (id, title, slug, content, excerpt, category_id, tags, read_time, published, published_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?)
-         ON DUPLICATE KEY UPDATE title = VALUES(title), content = VALUES(content), excerpt = VALUES(excerpt)`,
-        [id, post.title, post.slug, post.content, post.excerpt, catId, JSON.stringify(post.tags), post.readTime, post.publishedAt]
-      );
+      const data = {
+        title: post.title,
+        content: post.content,
+        excerpt: post.excerpt,
+        categoryId,
+        tags: JSON.stringify(post.tags),
+        readTime: post.readTime,
+      };
+      await prisma.blogPost.upsert({
+        where: { slug: post.slug },
+        update: data,
+        create: {
+          id: `post_${post.slug.replace(/-/g, "_").slice(0, 30)}`,
+          slug: post.slug,
+          published: true,
+          publishedAt: new Date(post.publishedAt),
+          ...data,
+        },
+      });
     }
     console.log(`${POSTS.length} posts inseridos/atualizados.`);
     console.log("Seed concluído com sucesso!");
   } catch (err) {
     console.error("Erro no seed:", err);
-    process.exit(1);
+    process.exitCode = 1;
   } finally {
-    if (conn) await conn.end();
+    await disconnect();
   }
 }
 
-seed();
+await seed();
