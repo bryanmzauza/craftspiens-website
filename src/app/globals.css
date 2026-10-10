@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* Hero da home: layout empilhado (imagem em cima, texto embaixo) em telas em pé
+   até 1024px; tela cheia em telas largas ou deitadas */
+@custom-variant stacked {
+  @media (max-width: 63.99rem) and (orientation: portrait) {
+    @slot;
+  }
+}
+
 @theme inline {
   /* Cores primárias */
   --color-green-cs: #4CAF50;
@@ -49,5 +57,100 @@ body {
   }
   ::-webkit-scrollbar-thumb:hover {
     background: #4CAF50;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Home: animações do hero
+   --------------------------------------------------------------------------- */
+
+/* Zoom lento e contínuo na imagem de fundo */
+@keyframes hero-kenburns {
+  from {
+    transform: scale(1.02) translate3d(0, 0, 0);
+  }
+  to {
+    transform: scale(1.1) translate3d(-1.5%, 1%, 0);
+  }
+}
+
+.hero-kenburns {
+  animation: hero-kenburns 38s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+/* Luz do sol no canto superior esquerdo, pulsando devagar */
+@keyframes hero-glow {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.08);
+  }
+}
+
+.hero-glow {
+  animation: hero-glow 9s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* Partículas de poeira subindo pela luz */
+@keyframes hero-mote {
+  0% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0;
+  }
+  12% {
+    opacity: var(--mote-opacity);
+  }
+  50% {
+    transform: translate3d(var(--mote-drift), -42vh, 0);
+  }
+  88% {
+    opacity: var(--mote-opacity);
+  }
+  100% {
+    transform: translate3d(calc(var(--mote-drift) * -0.6), -88vh, 0);
+    opacity: 0;
+  }
+}
+
+.hero-mote {
+  position: absolute;
+  bottom: -8px;
+  border-radius: 9999px;
+  background: rgba(255, 241, 214, 0.95);
+  filter: blur(0.6px);
+  opacity: 0;
+  animation: hero-mote var(--mote-duration) linear var(--mote-delay) infinite;
+  will-change: transform, opacity;
+}
+
+/* Indicador de rolagem */
+@keyframes scroll-cue {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+.scroll-cue-bar {
+  animation: scroll-cue 2.2s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-kenburns,
+  .hero-glow,
+  .hero-mote,
+  .scroll-cue-bar {
+    animation: none;
+  }
+  .hero-mote {
+    display: none;
   }
 }

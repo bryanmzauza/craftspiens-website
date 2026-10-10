@@ -7,6 +7,33 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.15] — 09/10/2026 — Nova página inicial
+
+### Adicionado
+
+- **Hero com imagem do campus** (`src/assets/home/hero.webp`, 1983 px, 255 KB, importada estaticamente: o `next/image` gera a URL com hash, as versões menores e a miniatura de carregamento):
+  - Zoom lento contínuo, parallax de rolagem e do ponteiro, luz pulsando e partículas subindo; tudo desativado com `prefers-reduced-motion`
+  - Enquadramento por orientação: em telas em pé a imagem fica no topo e o texto abaixo; em telas largas cobre o hero inteiro (variante `stacked` no Tailwind)
+  - Status do servidor ao vivo no cabeçalho do hero e IP do servidor com botão de copiar
+  - Miniatura desfocada exibida enquanto a imagem carrega
+- **Seção de disciplinas** na home com dados reais de `/api/aulas` (até 8, oculta quando não há disciplinas)
+- `src/lib/discipline-icons.ts` — mapa compartilhado de ícones das disciplinas
+- Propriedade `size="lg"` no componente `Button`
+- **Identidade visual**: ícone da marca ao lado do nome na navbar e no rodapé (`src/assets/brand/logo.webp`), Moeda SAPIENS com fundo transparente ilustrando o item correspondente da home (`src/assets/brand/moeda-sapiens.webp`) e favicon, `icon.png` e `apple-icon.png` gerados a partir do logo (substituem o ícone padrão do Next)
+
+### Alterado
+
+- **Home reestruturada**: hero, "O projeto" (lista numerada), disciplinas, "Como funciona" (passos ligados por linha), faixa de números e CTA final sobre a imagem escurecida
+- Textos da home revisados; títulos de seção menores e rótulos em fonte mono
+- O fundo global de partículas não é montado na home
+- `docs/paginas/01-home.md` descreve a implementação atual
+
+### Removido
+
+- `home/FeaturesSection.tsx` (substituída por `IntroSection.tsx`) e o card decorativo do hero antigo
+
+---
+
 ## [v0.14.1] — 09/10/2026 — Arquitetura de produção e revisão de textos
 
 ### Adicionado

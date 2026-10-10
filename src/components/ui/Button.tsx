@@ -3,6 +3,7 @@ import { ButtonHTMLAttributes, ReactNode } from "react";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "secondary";
+  size?: "md" | "lg";
   children: ReactNode;
   href?: string;
   fullWidth?: boolean;
@@ -10,6 +11,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 export function Button({
   variant = "primary",
+  size = "md",
   children,
   href,
   fullWidth,
@@ -17,7 +19,12 @@ export function Button({
   ...props
 }: ButtonProps) {
   const base =
-    "inline-flex items-center justify-center rounded-lg px-8 py-3 text-sm font-bold uppercase tracking-wide transition-all duration-200";
+    "inline-flex items-center justify-center gap-2 rounded-lg font-bold uppercase tracking-wide transition-all duration-200";
+
+  const sizes = {
+    md: "px-8 py-3 text-sm",
+    lg: "px-8 py-3.5 text-sm sm:px-9 sm:py-4 sm:text-[15px]",
+  };
 
   const variants = {
     primary:
@@ -26,7 +33,7 @@ export function Button({
       "border-2 border-white text-white hover:bg-white/10",
   };
 
-  const classes = `${base} ${variants[variant]} ${fullWidth ? "w-full" : ""} ${className}`;
+  const classes = `${base} ${sizes[size]} ${variants[variant]} ${fullWidth ? "w-full" : ""} ${className}`;
 
   if (href) {
     return (

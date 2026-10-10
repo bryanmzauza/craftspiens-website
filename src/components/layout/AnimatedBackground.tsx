@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 
 interface Particle {
   x: number;
@@ -77,6 +78,7 @@ function initParticles(w: number, h: number, count: number): Particle[] {
 }
 
 export function AnimatedBackground() {
+  const pathname = usePathname();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const particlesRef = useRef<Particle[]>([]);
   const animFrameRef = useRef<number>(0);
@@ -182,6 +184,9 @@ export function AnimatedBackground() {
       document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [draw]);
+
+  // A home tem o próprio fundo (imagem do hero), então o canvas não é montado nela
+  if (pathname === "/") return null;
 
   return (
     <canvas

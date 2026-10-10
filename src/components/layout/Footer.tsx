@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
+import logo from "@/assets/brand/logo.webp";
 import { useState } from "react";
 import { Copy, Check, Mail, Phone, Monitor, Loader2 } from "lucide-react";
 import {
@@ -120,9 +122,12 @@ export function Footer() {
       <div className="mx-auto grid max-w-7xl grid-cols-1 gap-10 px-4 py-16 sm:grid-cols-2 lg:grid-cols-4 lg:px-6">
         {/* Col 1: Logo & Social */}
         <div className="space-y-4">
-          <span className="font-[family-name:var(--font-press-start)] text-green-cs text-xs">
-            CRAFTSAPIENS
-          </span>
+          <div className="flex items-center gap-3">
+            <Image src={logo} alt="" width={40} height={40} className="h-10 w-10 rounded-md" />
+            <span className="font-[family-name:var(--font-press-start)] text-green-cs text-xs">
+              CRAFTSAPIENS
+            </span>
+          </div>
           <p className="text-sm text-[#E0E0E0]">{SITE_DESCRIPTION}</p>
           <SocialIcons links={SOCIAL_LINKS} />
           <Link

@@ -2,9 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Users, BookOpen, GraduationCap, Loader2 } from "lucide-react";
 
-function AnimatedCounter({ target, duration = 2000 }: { target: number; duration?: number }) {
+function AnimatedCounter({ target, duration = 1800 }: { target: number; duration?: number }) {
   const [count, setCount] = useState(0);
   const ref = useRef<HTMLSpanElement>(null);
   const hasAnimated = useRef(false);
@@ -33,74 +32,89 @@ function AnimatedCounter({ target, duration = 2000 }: { target: number; duration
   return <span ref={ref}>{count.toLocaleString("pt-BR")}</span>;
 }
 
-// null = carregando; string = texto fixo (ex.: "Offline" ou "—")
+// null = carregando; string = texto fixo (ex.: "Offline")
 type StatValue = number | string | null;
 
 export function StatsSection() {
   const [jogadoresOnline, setJogadoresOnline] = useState<StatValue>(null);
+  const [serverOnline, setServerOnline] = useState(false);
   const [alunos, setAlunos] = useState<StatValue>(null);
   const [aulas, setAulas] = useState<StatValue>(null);
 
   useEffect(() => {
-    async function fetchServerStatus() {
-      try {
-        const res = await fetch("/api/server-status");
-        const data = await res.json();
-        setJogadoresOnline(data.online ? data.players?.online ?? 0 : "Offline");
-      } catch {
-        setJogadoresOnline("Offline");
-      }
-    }
+    let active = true;
 
-    async function fetchEstatisticas() {
-      try {
-        const res = await fetch("/api/estatisticas");
-        if (!res.ok) throw new Error();
-        const data = await res.json();
+    fetch("/api/server-status")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!active) return;
+        setServerOnline(!!data.online);
+        setJogadoresOnline(data.online ? data.players?.online ?? 0 : "Offline");
+      })
+      .catch(() => {
+        if (active) setJogadoresOnline("Offline");
+      });
+
+    fetch("/api/estatisticas")
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(res.statusText))))
+      .then((data) => {
+        if (!active) return;
         setAlunos(data.alunos);
         setAulas(data.aulas);
-      } catch {
+      })
+      .catch(() => {
+        if (!active) return;
         setAlunos("—");
         setAulas("—");
-      }
-    }
+      });
 
-    fetchServerStatus();
-    fetchEstatisticas();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const stats = [
-    { icon: Users, label: "Jogadores Online", value: jogadoresOnline },
-    { icon: GraduationCap, label: "Total de Alunos", value: alunos },
-    { icon: BookOpen, label: "Aulas Disponíveis", value: aulas },
+    { label: "Jogadores online", value: jogadoresOnline, live: true },
+    { label: "Alunos cadastrados", value: alunos, live: false },
+    { label: "Aulas disponíveis", value: aulas, live: false },
   ];
 
   return (
-    <section className="py-16">
+    <section id="numeros" className="scroll-mt-16 border-t border-white/[0.06]">
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
         viewport={{ once: true }}
-        transition={{ duration: 0.5 }}
-        className="mx-auto max-w-4xl px-4 lg:px-6"
+        transition={{ duration: 0.6 }}
+        className="mx-auto grid max-w-7xl px-4 sm:grid-cols-3 sm:divide-x sm:divide-white/[0.08] lg:px-6"
       >
-        <div className="grid grid-cols-1 gap-6 rounded-2xl border border-white/10 bg-white/5 p-8 backdrop-blur sm:grid-cols-3">
-          {stats.map((stat) => (
-            <div key={stat.label} className="flex flex-col items-center gap-2 text-center">
-              <stat.icon className="h-8 w-8 text-green-cs" />
-              <span className="flex h-9 items-center text-3xl font-bold text-white">
-                {stat.value === null ? (
-                  <Loader2 className="h-6 w-6 animate-spin text-[#A0A0A0]" />
-                ) : typeof stat.value === "number" ? (
-                  <AnimatedCounter target={stat.value} />
-                ) : (
-                  stat.value
-                )}
-              </span>
-              <span className="text-sm text-[#E0E0E0]">{stat.label}</span>
-            </div>
-          ))}
-        </div>
+        {stats.map((stat) => (
+          <div
+            key={stat.label}
+            className="flex items-baseline gap-4 border-b border-white/[0.08] py-8 last:border-b-0 sm:border-b-0 sm:px-8 sm:first:pl-0 sm:last:pr-0 lg:py-10"
+          >
+            <span className="min-w-[3ch] text-4xl font-bold tabular-nums text-white lg:text-5xl">
+              {stat.value === null ? (
+                <span className="inline-block h-8 w-16 animate-pulse rounded bg-white/10 align-middle lg:h-10" />
+              ) : typeof stat.value === "number" ? (
+                <AnimatedCounter target={stat.value} />
+              ) : (
+                <span className="text-2xl text-[#A0A0A0] lg:text-3xl">{stat.value}</span>
+              )}
+            </span>
+            <span className="flex items-center gap-2 font-[family-name:var(--font-jetbrains-mono)] text-[11px] uppercase tracking-[0.2em] text-[#A0A0A0]">
+              {stat.live && stat.value !== null && (
+                <span
+                  aria-hidden="true"
+                  className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                    serverOnline ? "bg-green-cs shadow-[0_0_8px_#4CAF50]" : "bg-[#A0A0A0]"
+                  }`}
+                />
+              )}
+              {stat.label}
+            </span>
+          </div>
+        ))}
       </motion.div>
     </section>
   );

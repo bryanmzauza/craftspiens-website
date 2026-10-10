@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
+import logo from "@/assets/brand/logo.webp";
 import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { Menu, X, User, ShoppingBag, Settings, LogOut, ChevronDown } from "lucide-react";
@@ -57,7 +59,15 @@ export function Navbar() {
     >
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 lg:px-6">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-3">
+          <Image
+            src={logo}
+            alt=""
+            width={32}
+            height={32}
+            priority
+            className="h-8 w-8 rounded-md"
+          />
           <span className="font-[family-name:var(--font-press-start)] text-green-cs text-sm lg:text-base">
             CRAFTSAPIENS
           </span>

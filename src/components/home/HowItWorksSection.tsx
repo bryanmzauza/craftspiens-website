@@ -1,89 +1,73 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { UserPlus, Gamepad2, BookOpenCheck, Trophy } from "lucide-react";
 import { SERVER_IP } from "@/lib/constants";
 
 const STEPS = [
   {
-    icon: UserPlus,
     number: "01",
     title: "Crie sua conta",
-    description: "Registre-se gratuitamente no site com seu nick do Minecraft.",
+    description: "Cadastre-se no site com o seu nick do Minecraft. A conta é a mesma para o site e para o servidor.",
   },
   {
-    icon: Gamepad2,
     number: "02",
     title: "Entre no servidor",
-    description: `Conecte-se pelo IP ${SERVER_IP} e explore o campus virtual.`,
+    description: `Conecte-se pelo IP ${SERVER_IP} e conheça o campus virtual.`,
   },
   {
-    icon: BookOpenCheck,
     number: "03",
-    title: "Assista aulas jogando",
-    description:
-      "Participe de aulas ao vivo dentro do Minecraft com nossos professores.",
+    title: "Participe das aulas",
+    description: "Acompanhe o cronograma e entre nas aulas ao vivo, conduzidas pelos professores dentro do jogo.",
   },
   {
-    icon: Trophy,
     number: "04",
-    title: "Conquiste recompensas",
-    description:
-      "Ganhe Moedas SAPIENS, XP e conquistas por sua participação e desempenho.",
+    title: "Acompanhe o progresso",
+    description: "Cada aula concluída rende Moedas SAPIENS e XP. O perfil mostra o avanço por disciplina.",
   },
 ];
 
-const containerVariants = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.12 } },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
-};
-
 export function HowItWorksSection() {
   return (
-    <section className="py-24">
+    <section id="como-funciona" className="scroll-mt-16 border-t border-white/[0.06] py-24 lg:py-32">
       <div className="mx-auto max-w-7xl px-4 lg:px-6">
-        <motion.h2
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="text-center font-[family-name:var(--font-press-start)] text-2xl text-white sm:text-3xl"
-        >
-          COMO FUNCIONA
-        </motion.h2>
-
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
           viewport={{ once: true, margin: "-80px" }}
-          className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-4"
+          transition={{ duration: 0.6 }}
+          className="max-w-2xl"
         >
-          {STEPS.map((step) => (
-            <motion.div
+          <p className="font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.22em] text-green-cs">
+            Como funciona
+          </p>
+          <h2 className="mt-5 font-[family-name:var(--font-press-start)] text-xl leading-[1.5] text-white sm:text-2xl sm:leading-[1.45]">
+            Do cadastro à primeira aula em quatro passos
+          </h2>
+        </motion.div>
+
+        <ol className="relative mt-14 grid gap-10 md:grid-cols-2 lg:grid-cols-4 lg:gap-8">
+          {/* Linha que liga os passos: vertical no celular, horizontal no desktop */}
+          <div
+            aria-hidden="true"
+            className="absolute left-5 top-0 h-full w-px bg-white/10 lg:left-0 lg:top-5 lg:h-px lg:w-full"
+          />
+          {STEPS.map((step, i) => (
+            <motion.li
               key={step.number}
-              variants={itemVariants}
-              className="text-center"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-60px" }}
+              transition={{ duration: 0.5, delay: i * 0.1 }}
+              className="relative pl-16 lg:pl-0 lg:pt-16"
             >
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-green-cs/10 border border-green-cs/20">
-                <step.icon className="h-8 w-8 text-green-cs" />
-              </div>
-              <span className="mt-4 block font-[family-name:var(--font-press-start)] text-xs text-green-cs">
+              <span className="absolute left-0 top-0 flex h-10 w-10 items-center justify-center rounded-md border border-white/15 bg-bg-primary font-[family-name:var(--font-jetbrains-mono)] text-xs text-green-cs">
                 {step.number}
               </span>
-              <h3 className="mt-2 text-lg font-bold text-white">
-                {step.title}
-              </h3>
-              <p className="mt-2 text-sm text-[#E0E0E0]">
-                {step.description}
-              </p>
-            </motion.div>
+              <h3 className="text-lg font-bold text-white">{step.title}</h3>
+              <p className="mt-3 text-sm leading-relaxed text-[#E0E0E0]">{step.description}</p>
+            </motion.li>
           ))}
-        </motion.div>
+        </ol>
       </div>
     </section>
   );
