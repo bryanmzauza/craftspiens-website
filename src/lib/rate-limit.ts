@@ -67,8 +67,8 @@ export const RATE_LIMITS = {
   forumTopic: { maxAttempts: 5, windowMs: 60 * 60 * 1000 },      // 5 tópicos / 1 hora (RN-FORUM-05)
   forumComment: { maxAttempts: 10, windowMs: 15 * 60 * 1000 },   // 10 comentários / 15 min
   reaction: { maxAttempts: 60, windowMs: 60 * 1000 },            // 60 reações / 1 min
-  cart: { maxAttempts: 60, windowMs: 60 * 1000 },                // 60 alterações de carrinho / 1 min
-  checkout: { maxAttempts: 5, windowMs: 15 * 60 * 1000 },        // 5 checkouts / 15 min
+  checkout: { maxAttempts: 8, windowMs: 15 * 60 * 1000 },        // 8 pedidos criados / 15 min
+  orderPoll: { maxAttempts: 120, windowMs: 5 * 60 * 1000 },     // 120 consultas de pedido / 5 min (página do Pix)
   coupon: { maxAttempts: 10, windowMs: 15 * 60 * 1000 },         // 10 validações de cupom / 15 min
   profileUpdate: { maxAttempts: 10, windowMs: 15 * 60 * 1000 },  // 10 atualizações de perfil / 15 min
   accountDelete: { maxAttempts: 5, windowMs: 15 * 60 * 1000 },   // 5 tentativas de exclusão / 15 min

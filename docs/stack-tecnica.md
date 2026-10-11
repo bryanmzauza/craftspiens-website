@@ -129,29 +129,31 @@ Detalhes e configuração do login externo: [Login com Microsoft e Google](./log
 
 ---
 
-## Loja — Gateway de Pagamento
+## Loja — Pagamento e Entrega
 
-| Opção | Detalhes |
-|-------|----------|
-| **MercadoPago** (recomendado) | API brasileira, PIX, cartão, boleto |
-| **Stripe** (alternativa) | Cartão internacional |
+| Caminho | Como | Por quê |
+|---------|------|---------|
+| **Pix** | API de pagamentos do MercadoPago: QR Code e copia e cola no próprio site, validade de 30 min | Taxa percentual sem valor fixo (0,99% na tabela padrão de 2026); aprovação em segundos |
+| **Cartão** | Checkout Pro do MercadoPago (redireciona), à vista ou até 3x com juros pagos pelo comprador, boleto excluído. Parcelas, juros e total simulados na página de compra (`GET /api/loja/parcelas`) | Alternativa para quem não usa Pix |
 
 ### Fluxo de Compra
 
 ```
-1. Jogador logado adiciona produto ao carrinho
-2. Finaliza compra → site cria o pedido (PENDING) e a preferência no MercadoPago
+1. Jogador logado (nick vinculado, e-mail confirmado) escolhe UM produto em /loja
+2. /loja/comprar/[slug]: CPF de quem paga, cupom, Pix ou cartão, aceite dos termos
+3. POST /api/loja/pedidos cria o pedido (PENDING) e o pagamento no MercadoPago
    com external_reference = id do pedido
-3. Jogador paga (PIX, cartão, etc.) no checkout do MercadoPago
-4. MercadoPago envia o webhook para /api/loja/webhook
-5. Site valida a assinatura (x-signature), busca o pagamento na API do MercadoPago
-   e localiza o pedido pelo external_reference
-6. Na aprovação (moeda BRL e valor >= total do pedido): pedido APPROVED,
-   baixa de estoque e remoção dos itens do carrinho — tudo em uma transação idempotente
-7. Jogador recebe confirmação por email
+4. Pix: /loja/pedido/[id] mostra o QR Code e consulta o status a cada 4 s
+   Cartão: redireciona para o Checkout Pro, que volta para /loja/pedido/[id]
+5. MercadoPago envia o webhook para /api/loja/webhook
+6. Site valida a assinatura (x-signature), relê o pagamento na API e localiza o pedido
+7. Aprovado (BRL e valor >= total): pedido APPROVED, baixa de estoque e criação das
+   entregas (tabela deliveries, uma por item: produto, quantidade, dias e o jogador
+   com nick, UUID e edição Java ou Bedrock), em uma transação idempotente; e-mail
+8. O plugin da loja, no lobby, busca as entregas em GET /api/loja/entregas, decide e
+   executa os comandos (LuckPerms, Sapiens) e confirma em POST /api/loja/entregas/[id]
+   (contrato e briefing do plugin em docs/plugin-entregas.md)
 ```
-
-> A entrega automática dos itens no servidor Minecraft (`products.server_command`) ainda não está implementada.
 
 ### Webhook — regras de segurança
 
@@ -162,6 +164,18 @@ Detalhes e configuração do login externo: [Login com Microsoft e Google](./log
 | Notificação repetida | Ignorada (atualização condicional do status) |
 | Valor pago menor que o total ou moeda diferente de BRL | Pedido não é aprovado |
 | Status "pending" depois de aprovado | Ignorado (o status nunca regride) |
+| Estorno (`refunded`, `charged_back`) | Pedido REFUNDED e entregas do tipo REVOKE |
+
+### API de entregas (plugin)
+
+| Regra | Comportamento |
+|-------|---------------|
+| `DELIVERY_API_TOKEN` ausente | Responde 503; a fila espera |
+| Token diferente (comparação em tempo constante) | Responde 401 |
+| Reserva | `FOR UPDATE SKIP LOCKED`: dois servidores nunca recebem a mesma entrega |
+| Reserva sem confirmação em 10 min | Volta para a fila |
+| Falhas | Volta para a fila até 5 tentativas, depois FAILED; `aguardarJogador: true` adia sem contar tentativa até o jogador entrar |
+| Conta do jogo | Antes do pagamento, o site confere que a conta existe no nLogin e registra se é Java ou Bedrock |
 
 ---
 
@@ -223,10 +237,10 @@ Só entram no ranking contas ativas com perfil público.
 
 | Serviço | Uso |
 |---------|-----|
-| **Cloudflare** | DNS, TLS público e proteção DDoS do domínio do site |
-| **VPS do site** | nginx + Next.js (`next start` em 127.0.0.1) |
-| **Servidor físico** | PostgreSQL (Docker) com os dados do site, MariaDB do Pterodactyl (nLogin) e servidores Minecraft |
-| **WireGuard `wg-site`** | Túnel exclusivo entre a VPS do site e o servidor físico, usado para o acesso aos bancos |
+| **Cloudflare** | DNS, TLS público, proteção DDoS e cache dos arquivos estáticos do site |
+| **VPS de entrada** (Oracle Always Free) | Só nginx: recebe o tráfego da Cloudflare e repassa ao Next.js pelo túnel; mostra a página de manutenção quando o site não responde |
+| **Servidor físico** | Next.js (`next start` no IP do túnel), PostgreSQL (Docker) com os dados do site, MariaDB do Pterodactyl (nLogin) e servidores Minecraft |
+| **WireGuard `wg-site`** | Túnel exclusivo entre a VPS de entrada e o servidor físico, usado só para as requisições ao site |
 | **Docker Compose** | PostgreSQL local para desenvolvimento (porta 5454) |
 
 Arquitetura completa, instalação, backup e operação: [Arquitetura de Produção](./arquitetura-producao.md).
@@ -251,6 +265,8 @@ AUTH_SECRET="..."            # openssl rand -base64 32
 # Pagamentos (MercadoPago)
 MERCADOPAGO_ACCESS_TOKEN="..."
 MERCADOPAGO_WEBHOOK_SECRET="..."
+# Token do plugin de entregas (openssl rand -hex 32)
+DELIVERY_API_TOKEN="..."
 
 # Minecraft Server (opcional)
 MINECRAFT_SERVER_HOST="jogar.craftsapiens.com.br"
@@ -284,8 +300,8 @@ src/
 │   ├── cronograma/page.tsx     # Grade curricular (/cronograma)
 │   ├── loja/
 │   │   ├── page.tsx            # Vitrine da loja (/loja)
-│   │   ├── [id]/page.tsx       # Detalhe do produto (/loja/vip-premium)
-│   │   └── carrinho/page.tsx   # Carrinho (/loja/carrinho)
+│   │   ├── comprar/[slug]/page.tsx  # Compra de um produto: CPF, cupom, Pix ou cartão
+│   │   └── pedido/[id]/page.tsx     # QR Code do Pix, status do pagamento e da entrega
 │   ├── comunidade/
 │   │   ├── page.tsx            # Fórum - categorias (/comunidade)
 │   │   ├── [categoria]/page.tsx        # Tópicos da categoria
@@ -308,6 +324,10 @@ src/
 │       ├── loja/
 │       │   ├── produtos/route.ts
 │       │   ├── checkout/route.ts
+│       │   ├── pedidos/route.ts        # Cria pedido + pagamento (Pix ou cartão)
+│       │   ├── conta-jogo/route.ts     # Conta do jogo existe? Java ou Bedrock?
+│       │   ├── pedido/[id]/route.ts    # Situação do pedido (página do Pix consulta)
+│       │   ├── entregas/               # API do plugin do servidor (token)
 │       │   └── webhook/route.ts
 │       ├── forum/
 │       │   ├── categorias/route.ts
@@ -332,7 +352,9 @@ src/
 │   ├── nlogin.ts               # Funções de integração nLogin (cross-DB)
 │   ├── rate-limit.ts           # Rate limiting no PostgreSQL
 │   ├── client-ip.ts            # IP do cliente (X-Real-IP do nginx)
-│   ├── mercadopago.ts          # Clientes MercadoPago
+│   ├── deliveries.ts           # Fila de entregas para o plugin do lobby
+│   ├── game-account.ts         # Conta do jogo no nLogin: existência e edição
+│   ├── mercadopago.ts          # Pix (API de pagamentos) e Checkout Pro (cartão)
 │   └── mercadopago-signature.ts # Validação da assinatura do webhook
 ├── generated/                  # Prisma Clients gerados (npm run db:generate, não versionados)
 │   ├── prisma-pg/              # Cliente Prisma para PostgreSQL

@@ -77,7 +77,7 @@
 
 > Implementação atual (v0.16).
 
-- Toda conta precisa de um e-mail confirmado para usar a plataforma: perfil, carrinho, compras, fórum e progresso das aulas. As páginas públicas continuam abertas.
+- Toda conta precisa de um e-mail confirmado para usar a plataforma: perfil, compras, fórum e progresso das aulas. As páginas públicas continuam abertas.
 - Vale para qualquer forma de entrar: nick e senha, cadastro pelo site e Microsoft. Contas criadas pelo Google já entram confirmadas, porque o Google verificou o e-mail.
 - Contas com e-mail provisório (`@craftsapiens.temp`, criadas no primeiro acesso de quem não tinha e-mail no nLogin) precisam informar um e-mail real.
 - Fluxo:
@@ -119,7 +119,7 @@
 ### RN-AUTH-05: Proteção de Rotas
 - Páginas que requerem autenticação:
   - `/perfil` e sub-rotas
-  - `/loja/carrinho` e checkout
+  - `/loja/comprar` e `/loja/pedido`
   - Criar tópico/comentário no fórum
 - Ao acessar rota protegida sem login: redireciona para `/login?redirect=/rota-original`
 - Logado sem e-mail confirmado: redireciona para `/confirmar-email?redirect=/rota-original` (RN-AUTH-02c)

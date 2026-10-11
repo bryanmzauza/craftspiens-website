@@ -44,6 +44,8 @@ Este repositório contém o código-fonte da nova plataforma da CraftSapiens, pl
 | [Arquitetura de Produção](./arquitetura-producao.md) | Infraestrutura, deploy, backup e operação |
 | [Login com Microsoft e Google](./login-externo.md) | Como funciona e como configurar o login externo |
 | [E-mail](./email.md) | Envio automático pelo Cloudflare e atendimento pelo Gmail |
+| [Mercado Pago](./mercadopago.md) | Credenciais, webhook, contas de teste e checklist antes de vender |
+| [Plugin de entregas da loja](./plugin-entregas.md) | Briefing do plugin do servidor e contrato da API de entregas |
 
 ### Páginas do Site
 

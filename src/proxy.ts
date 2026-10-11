@@ -1,16 +1,15 @@
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
-const protectedRoutes = ["/perfil", "/loja/carrinho", "/loja/checkout", "/loja/pedido", "/confirmar-email"];
+const protectedRoutes = ["/perfil", "/loja/comprar", "/loja/pedido", "/confirmar-email"];
 const authRoutes = ["/login", "/registro", "/recuperar-senha", "/redefinir-senha"];
 
 // Páginas e APIs que exigem e-mail confirmado. As APIs só são bloqueadas em
 // operações que alteram dados; consultas de leitura continuam abertas.
-const verifiedPages = ["/perfil", "/loja/carrinho", "/loja/checkout", "/loja/pedido"];
+const verifiedPages = ["/perfil", "/loja/comprar", "/loja/pedido"];
 const verifiedApis = [
   "/api/perfil",
-  "/api/carrinho",
-  "/api/loja/checkout",
+  "/api/loja/pedidos",
   "/api/cupons",
   "/api/forum",
   "/api/aulas/progresso",
@@ -68,8 +67,7 @@ export default auth((req) => {
 export const config = {
   matcher: [
     "/perfil/:path*",
-    "/loja/carrinho",
-    "/loja/checkout",
+    "/loja/comprar/:path*",
     "/loja/pedido/:path*",
     "/confirmar-email",
     "/login",
@@ -77,8 +75,7 @@ export const config = {
     "/recuperar-senha",
     "/redefinir-senha",
     "/api/perfil/:path*",
-    "/api/carrinho/:path*",
-    "/api/loja/checkout",
+    "/api/loja/pedidos",
     "/api/cupons/:path*",
     "/api/forum/:path*",
     "/api/aulas/progresso/:path*",

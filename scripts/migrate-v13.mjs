@@ -28,7 +28,8 @@
  * Ao final é exibida uma tabela origem × destino por modelo. O script termina
  * com código 1 se houver qualquer erro ou divergência de contagem. Tabelas que
  * não existirem no MariaDB são puladas com aviso. A tabela `rate_limits` é nova
- * (só existe no PostgreSQL) e não é migrada.
+ * (só existe no PostgreSQL) e não é migrada. Os cupons são copiados sempre
+ * inativos, porque os do MariaDB são de teste.
  */
 import "dotenv/config";
 import * as mariadb from "mariadb";
@@ -307,13 +308,16 @@ const TABLES = [
     delegate: "coupon",
     source: "coupons",
     columns: ["id", "code", "discount", "max_uses", "uses", "active", "expires_at", "created_at"],
+    // Os cupons do MariaDB são de teste (o site não estava em produção antes da
+    // v0.13): migrados só para manter o vínculo dos pedidos antigos, sempre inativos
+    note: "Cupons migrados como INATIVOS. Crie os cupons reais depois da migração.",
     map: (r, now) => ({
       id: r.req("id"),
       code: r.req("code"),
       discount: r.decimalReq("discount"),
       maxUses: r.int("max_uses"),
       uses: r.int("uses", 0),
-      active: r.bool("active", true),
+      active: false,
       expiresAt: r.date("expires_at"),
       createdAt: r.date("created_at", now),
     }),
@@ -671,6 +675,7 @@ async function readSource(conn) {
     console.log(`${spec.source.padEnd(30)} ${String(rows.length).padStart(7)} linhas  → ${spec.model}`);
     if (absent.length) console.warn(`   Aviso: colunas ausentes no MariaDB (usando valor padrão): ${absent.join(", ")}`);
     if (ignored.length) console.warn(`   Aviso: colunas do MariaDB sem destino no PostgreSQL (NÃO migradas): ${ignored.join(", ")}`);
+    if (spec.note && rows.length) console.warn(`   Aviso: ${spec.note}`);
 
     const data = [];
     for (const row of rows) {

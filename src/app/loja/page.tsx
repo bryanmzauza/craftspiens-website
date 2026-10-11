@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { LojaContent } from "@/components/loja/LojaContent";
 
 export const metadata: Metadata = {
-  title: "Loja — CraftSapiens | Planos VIP e Itens Exclusivos",
+  title: "Loja — CraftSapiens | VIP, Premium, Sapiens e Cosméticos",
   description:
-    "Adquira planos VIP, ranks exclusivos, cosméticos e moedas SAPIENS na loja da CraftSapiens. Turbine sua experiência no Minecraft educacional.",
+    "Planos VIP e Premium, pacotes de Sapiens e cosméticos para Java e Bedrock. Pague com Pix e receba automaticamente em todos os servidores da CraftSapiens.",
 };
 
 export default function LojaPage() {

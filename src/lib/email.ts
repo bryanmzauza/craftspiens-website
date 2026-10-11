@@ -233,7 +233,8 @@ export async function sendOrderConfirmationEmail(
   orderId: string,
   total: number,
   items: string[],
-  paymentMethod: string
+  paymentMethod: string,
+  payment: { installments: number; paidAmount: number }
 ): Promise<void> {
   const methodLabels: Record<string, string> = {
     pix: "PIX",
@@ -244,6 +245,21 @@ export async function sendOrderConfirmationEmail(
   };
 
   const methodLabel = methodLabels[paymentMethod] || paymentMethod;
+  const brl = (value: number) => `R$ ${value.toFixed(2).replace(".", ",")}`;
+  const row = (label: string, value: string, highlight = false) => `
+        <tr>
+          <td style="color:#aaa;font-size:13px;padding:4px 0">${label}</td>
+          <td style="color:${highlight ? "#4CAF50;font-size:15px;font-weight:bold" : "#fff;font-size:13px"};padding:4px 0;text-align:right">${value}</td>
+        </tr>`;
+  // Cartão parcelado: valor do pedido, parcelas, juros e total pago
+  const interest = Math.round((payment.paidAmount - total) * 100) / 100;
+  const amountRows =
+    payment.installments > 1
+      ? row("Valor do pedido", brl(total)) +
+        row("Parcelas", `${payment.installments}x de ${brl(payment.paidAmount / payment.installments)}`) +
+        row("Juros do Mercado Pago", interest > 0 ? brl(interest) : "sem juros") +
+        row("Total pago", brl(payment.paidAmount), true)
+      : row("Total", brl(total), true);
 
   const itemsHtml = items
     .map(
@@ -272,19 +288,15 @@ export async function sendOrderConfirmationEmail(
         <tr>
           <td style="color:#aaa;font-size:13px;padding:4px 0">Pagamento</td>
           <td style="color:#fff;font-size:13px;padding:4px 0;text-align:right">${escapeHtml(methodLabel)}</td>
-        </tr>
-        <tr>
-          <td style="color:#aaa;font-size:13px;padding:4px 0">Total</td>
-          <td style="color:#4CAF50;font-size:15px;font-weight:bold;padding:4px 0;text-align:right">R$ ${total.toFixed(2).replace(".", ",")}</td>
-        </tr>
+        </tr>${amountRows}
       </table>
       <hr style="border:none;border-top:1px solid rgba(255,255,255,0.1);margin:12px 0">
       <p style="color:#fff;font-size:13px;margin:0 0 8px"><strong>Itens:</strong></p>
       <ul style="margin:0;padding-left:20px">${itemsHtml}</ul>
     </div>
     <p style="color:#E0E0E0;font-size:14px;line-height:1.6;margin:0 0 16px">
-      Se você comprou itens do servidor, eles serão ativados automaticamente ao entrar no Minecraft.
-      Para VIPs e Ranks, entre no servidor para que as permissões sejam aplicadas.
+      A entrega é automática: entre no lobby do servidor e o que você comprou é aplicado na hora.
+      Planos e cosméticos valem em toda a rede, no Java e no Bedrock.
     </p>
     <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:8px 0 16px">
       <a href="${siteUrl()}/perfil/compras" style="display:inline-block;background:#4CAF50;color:#fff;font-size:16px;font-weight:bold;text-decoration:none;padding:14px 40px;border-radius:8px">

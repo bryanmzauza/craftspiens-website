@@ -7,6 +7,50 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.17] — 10/10/2026 — Loja refeita: Pix no site, planos anuais e entrega automática
+
+### Adicionado
+
+- **Pix no próprio site** (`src/lib/mercadopago.ts`, `POST /api/loja/pedidos`): o pagamento é criado na API de pagamentos do MercadoPago e a página `/loja/pedido/[id]` mostra o QR Code, o código copia e cola e a contagem regressiva (30 min); a confirmação aparece sozinha quando o webhook aprova. Escolha do MercadoPago: taxa percentual sem valor fixo (0,99% na tabela padrão), o que importa para itens de R$ 6; gateways com taxa fixa de R$ 0,80 levariam 13% do menor Sapiens
+- **Cartão pelo Checkout Pro** à vista ou em até 3x, com boleto excluído (taxa fixa alta para itens baratos). O retorno volta direto para a página do pedido
+- **Juros do parcelamento informados antes de pagar** (`src/lib/installments.ts`, `GET /api/loja/parcelas`): a página de compra mostra, para cada opção, o valor da parcela, os juros em reais e em % sobre o valor, a taxa efetiva ao mês e ao ano e o total. As taxas vêm da API de parcelas do Mercado Pago (cache de 1 h) e o cálculo reproduz o dele; abaixo do mínimo para parcelar aparece só o à vista. O pedido guarda as parcelas e o valor pago com juros (`orders.installments`, `paid_amount`), mostrados na página do pedido, em `/perfil/compras` e no e-mail de confirmação
+- **Combos com cosméticos**: VIP + Cosméticos (R$ 44,90) e Premium + Cosméticos (R$ 79,90), o plano mensal com os 4 rastros e a Entrada Épica por 30 dias, por R$ 9,90 a mais (os cosméticos permanentes somam R$ 54,50). Oferecidos no card do plano mensal e na página de compra, que alterna entre o plano e o combo. O plugin aplica os cosméticos como permissão temporária, que soma ao renovar e não mexe nos permanentes
+- **Compra de um produto por vez** em `/loja/comprar/[slug]` (`loja/ComprarContent.tsx`): resumo e benefícios, CPF de quem paga, cupom, Pix ou cartão e aceite dos termos (16 anos ou responsável). Um Pix ainda válido para o mesmo produto e valor é reaproveitado em vez de criar outro pedido
+- **Planos anuais**: VIP Anual (R$ 350) e Premium Anual (R$ 700), pelo preço de 10 meses (2 meses grátis), com alternância Mensal/Anual na vitrine, valor equivalente por mês e economia em relação a 12 meses
+- **Novo catálogo** (`scripts/seed-loja.mjs`), com os benefícios lidos dos grupos `vip`, `premium` e `vip_sg2` do LuckPerms do servidor e as aulas exclusivas como primeiro benefício do Premium (no VIP, aparecem como não incluídas):
+  - VIP R$ 35 e Premium R$ 70 por 30 dias (`lp user {uuid} parent addtemp <grupo> 30d accumulate`: renovar soma ao tempo que falta)
+  - Sapiens: 1M por R$ 6, 3M por R$ 15 e 20M por R$ 70, creditados quando o jogador está online
+  - Cosméticos permanentes que funcionam no Java e no Bedrock: Rastro de Chamas, Corações, Notas Musicais e Estrelas (R$ 9,90) e Entrada Épica (R$ 14,90), dados por permissão global no LuckPerms
+  - Produtos de exemplo das versões anteriores são desativados pelo seed (não apagados, por causa dos pedidos)
+- **Verificação da conta do jogo** (`src/lib/game-account.ts`, `GET /api/loja/conta-jogo`): antes de aceitar o pagamento, o site confere que a conta vinculada existe no nLogin e identifica a edição (Bedrock quando há `bedrock_id`; Java nos demais casos). A página de compra mostra o nick e a edição que vão receber; conta inexistente responde `ContaJogoNaoEncontrada`
+- **Fila de entregas** (`src/lib/deliveries.ts`, tabela `deliveries`): ao aprovar o pagamento, o webhook cria uma entrega por item com o que foi comprado (slug, categoria, quantidade, dias) e para quem (nick, UUID, edição, `mojang_id`, `bedrock_id`); o estorno cria entregas do tipo REVOKE. O site não guarda nem executa comandos: o plugin do lobby decide
+- **API do plugin do lobby** com token (`DELIVERY_API_TOKEN`): `GET /api/loja/entregas?servidor=&online=&limite=` reserva as entregas pendentes de forma atômica (`FOR UPDATE SKIP LOCKED`) e `POST /api/loja/entregas/[id]` confirma o resultado (`ok`, falha, ou `aguardarJogador` para itens que precisam do jogador online, como Sapiens); reservas sem confirmação em 10 min voltam para a fila e 5 falhas marcam FAILED
+- **Briefing do plugin de entregas** (`docs/plugin-entregas.md`): contexto da rede (Velocity, LuckPerms compartilhado, Java e Bedrock), contrato da API, tabela slug para comando, configuração, comandos, especificação dos cosméticos com partículas que o Geyser traduz e critérios de aceite
+- Vitrine refeita (`loja/LojaContent.tsx`): "Como funciona" em 3 passos, seções Planos, Sapiens e Cosméticos (selo Java e Bedrock) e perguntas frequentes
+- Página do pedido com o estado da entrega (na fila, ao entrar no servidor, entregando, entregue, precisa de atenção); `/perfil/compras` mostra planos ativos com validade acumulada por família (VIP, Premium), o estado da entrega de cada pedido e o botão "Pagar" para pedidos pendentes
+- Campos `orders.pix_code`, `pix_qr_base64`, `pix_expires_at`, `checkout_url`, `paid_at`, `installments`, `paid_amount`; enums `PlayerPlatform`, `DeliveryKind` e `DeliveryStatus`
+- Variável opcional `DELIVERY_API_TOKEN` (`openssl rand -hex 32`); sem ela a API de entregas responde 503 e a fila espera
+
+### Alterado
+
+- O webhook grava `paid_at`, cria as entregas e, em estornos, as remoções; o e-mail de confirmação orienta a entrar no lobby para receber
+- `payment_method` guarda `pix` ao criar o Pix e, depois do webhook, o método informado pelo MercadoPago
+- Testes locais com o Mercado Pago: sem HTTPS em `AUTH_URL` o pagamento é criado sem `notification_url` (o Mercado Pago recusa `localhost`) e vale a URL de teste do painel; a variável opcional `MERCADOPAGO_TEST_PAYER_EMAIL` troca o pagador pela conta de teste compradora fora de produção
+- Rate limits: 8 pedidos por 15 min e 120 consultas de pedido por 5 min (`orderPoll`)
+- O `proxy.ts` protege `/loja/comprar` e `/loja/pedido` e exige e-mail confirmado em `/api/loja/pedidos`
+- A migração do MariaDB (`scripts/migrate-v13.mjs`) copia os cupons sempre inativos, porque os do banco antigo são de teste
+- Documentação da loja reescrita (`docs/paginas/05-loja.md`, `docs/stack-tecnica.md`), com o passo do plugin e da chave Pix em `docs/arquitetura-producao.md`; guia das credenciais, webhook e contas de teste do Mercado Pago em `docs/mercadopago.md`
+- Arquitetura de produção (`docs/arquitetura-producao.md`): o Next.js passa a rodar no servidor físico, junto dos bancos, e a VPS (Oracle Always Free, 1 núcleo e 500 MB) fica só com nginx e WireGuard, repassando as requisições pelo túnel. As consultas ao banco ficam locais e o PostgreSQL passa a ouvir só em `127.0.0.1`. A VPS mostra uma página de manutenção (503) quando o site não responde. Também entram as regras de rede e de iptables da Oracle, os limites de memória e CPU do serviço do site e a regra de cache da Cloudflare para `/_next/image`
+
+### Removido
+
+- Carrinho: páginas `/loja/carrinho` e `/loja/checkout`, rotas `/api/carrinho` e `/api/loja/checkout`, tabela `cart_items` e as páginas `/loja/pedido/sucesso`, `pendente` e `falha` (substituídas por `/loja/pedido/[id]`)
+- Coluna `products.server_command` (o plugin decide os comandos pelo slug do produto)
+
+> Para aplicar: `npm run db:push:pg` (remove `cart_items` e `server_command`, cria `deliveries` e as colunas `installments` e `paid_amount` em `orders`), `npm run db:seed:loja` (cria os combos), `DELIVERY_API_TOKEN` no `.env`, chave Pix cadastrada na conta do MercadoPago e o plugin do lobby com os mesmos slugs.
+
+---
+
 ## [v0.16] — 10/10/2026 — Aulas do YouTube, login externo e status do servidor
 
 ### Adicionado
@@ -505,7 +549,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 - **Script de migração v0.10** (`scripts/migrate-v10.mjs`):
   - Verifica/adiciona colunas `payment_method` e `payment_id` na tabela orders (IF NOT EXISTS)
-  - Seed de 3 cupons de exemplo: BEMVINDO10 (10%), SAPIENS20 (20%, limite 50 usos), PRIME5 (5%, limite 100 usos)
+  - Seed de 3 cupons de exemplo (5%, 10% e 20% de desconto, dois deles com limite de usos)
   - Idempotente com `ON DUPLICATE KEY UPDATE`
 
 ### Modificado

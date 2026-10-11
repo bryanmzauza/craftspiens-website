@@ -43,7 +43,7 @@ model User {
   reports             Report[]
   blogPosts           BlogPost[]
   passwordResetTokens PasswordResetToken[]
-  cartItems           CartItem[]
+  deliveries          Delivery[]
   linkedAccounts      LinkedAccount[]
   emailVerifications  EmailVerification[]
   lessonProgress      UserLessonProgress[]
@@ -96,7 +96,6 @@ model Product {
   imageUrl         String?         @map("image_url") @db.VarChar(500)
   durationDays     Int?            @map("duration_days")
   benefits         String?         @db.Text
-  serverCommand    String?         @map("server_command") @db.VarChar(500)
   stock            Int             @default(-1)
   featured         Boolean         @default(false)
   badge            String?         @db.VarChar(50)
@@ -106,7 +105,6 @@ model Product {
   createdAt        DateTime        @default(now()) @map("created_at")
 
   orderItems OrderItem[]
-  cartItems  CartItem[]
 
   @@map("products")
 }
@@ -127,12 +125,24 @@ model Order {
   paymentMethod String?     @map("payment_method") @db.VarChar(50)
   paymentId     String?     @map("payment_id") @db.VarChar(255)
   couponId      String?     @map("coupon_id")
+  // Pix: código copia e cola, QR em base64 e validade (30 min)
+  pixCode       String?     @map("pix_code") @db.Text
+  pixQrBase64   String?     @map("pix_qr_base64") @db.Text
+  pixExpiresAt  DateTime?   @map("pix_expires_at")
+  // Cartão: link do Checkout Pro do MercadoPago
+  checkoutUrl   String?     @map("checkout_url") @db.VarChar(500)
+  paidAt        DateTime?   @map("paid_at")
+  // Lidos do pagamento aprovado: parcelas e valor pago com os juros do cartão
+  // (total é o preço do pedido; no Pix e à vista os dois são iguais)
+  installments  Int?
+  paidAmount    Decimal?    @map("paid_amount") @db.Decimal(10, 2)
   createdAt     DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
 
-  user   User        @relation(fields: [userId], references: [id])
-  coupon Coupon?     @relation(fields: [couponId], references: [id])
-  items  OrderItem[]
+  user       User        @relation(fields: [userId], references: [id])
+  coupon     Coupon?     @relation(fields: [couponId], references: [id])
+  items      OrderItem[]
+  deliveries Delivery[]
 
   @@map("orders")
 }
@@ -402,21 +412,6 @@ model UserLessonProgress {
   @@map("user_lesson_progress")
 }
 
-// Carrinho de compras
-model CartItem {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  productId String   @map("product_id")
-  quantity  Int      @default(1)
-  createdAt DateTime @default(now()) @map("created_at")
-
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id])
-
-  @@unique([userId, productId])
-  @@map("cart_items")
-}
-
 // Rate limiting compartilhado entre instâncias e persistente entre deploys
 model RateLimit {
   key     String   @id @db.VarChar(255)
@@ -459,4 +454,65 @@ model EmailVerification {
 
   @@index([userId, createdAt])
   @@map("email_verifications")
+}
+
+// Entregas no servidor Minecraft. Criadas quando o pagamento é aprovado e
+// executadas pelo plugin da loja, que busca as pendentes em GET /api/loja/entregas
+// e confirma o resultado em POST /api/loja/entregas/[id] (docs/plugin-entregas.md).
+model Delivery {
+  id             String          @id @default(cuid())
+  orderId        String          @map("order_id")
+  orderItemId    String?         @map("order_item_id")
+  userId         String          @map("user_id")
+  nloginId       Int             @map("nlogin_id")
+  // Nick e UUID usados no jogo (unique_id do nLogin com hífens)
+  username       String          @db.VarChar(16)
+  uuid           String          @db.VarChar(36)
+  // Edição da conta do jogo, lida do nLogin: bedrock_id = Bedrock (Floodgate);
+  // mojang_id = Java original; nenhum dos dois = Java sem conta original
+  platform       PlayerPlatform
+  mojangId       String?         @map("mojang_id") @db.VarChar(32)
+  bedrockId      String?         @map("bedrock_id") @db.VarChar(32)
+  kind           DeliveryKind    @default(DELIVER)
+  productSlug    String          @map("product_slug") @db.VarChar(255)
+  productName    String          @map("product_name") @db.VarChar(255)
+  category       ProductCategory
+  quantity       Int             @default(1)
+  // Dias de duração do produto (planos); o plugin usa para o addtemp
+  durationDays   Int?            @map("duration_days")
+  // Marcado pelo plugin quando adia a entrega até o jogador entrar
+  requiresOnline Boolean         @default(false) @map("requires_online")
+  status         DeliveryStatus  @default(PENDING)
+  attempts       Int             @default(0)
+  claimedBy      String?         @map("claimed_by") @db.VarChar(50)
+  claimedAt      DateTime?       @map("claimed_at")
+  deliveredBy    String?         @map("delivered_by") @db.VarChar(50)
+  deliveredAt    DateTime?       @map("delivered_at")
+  lastError      String?         @map("last_error") @db.Text
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([uuid, status])
+  @@map("deliveries")
+}
+
+enum PlayerPlatform {
+  JAVA
+  BEDROCK
+}
+
+enum DeliveryKind {
+  DELIVER
+  REVOKE
+}
+
+enum DeliveryStatus {
+  PENDING
+  PROCESSING
+  DELIVERED
+  FAILED
 }

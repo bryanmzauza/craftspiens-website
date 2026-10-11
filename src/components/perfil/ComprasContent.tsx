@@ -8,7 +8,6 @@ import {
   Calendar,
   CreditCard,
   QrCode,
-  FileText,
   Check,
   Clock,
   XCircle,
@@ -18,12 +17,15 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
-  Package,
 } from "lucide-react";
 import Link from "next/link";
 import { PageHero } from "@/components/ui/PageHero";
+import { DeliveryBadge } from "@/components/loja/PedidoContent";
+import { productIcon } from "@/components/loja/catalog-ui";
+import { formatPrice } from "@/lib/products";
 
 type ApiOrderStatus = "PENDING" | "APPROVED" | "REJECTED" | "REFUNDED";
+type DeliveryStatus = "PENDING" | "PROCESSING" | "DELIVERED" | "FAILED";
 
 interface OrderItem {
   id: string;
@@ -33,6 +35,7 @@ interface OrderItem {
     category: string;
     imageUrl: string | null;
     durationDays: number | null;
+    color: string | null;
   };
   quantity: number;
   price: number;
@@ -42,37 +45,50 @@ interface ApiOrder {
   id: string;
   status: ApiOrderStatus;
   total: number;
+  installments: number | null;
+  paidAmount: number | null;
   paymentMethod: string | null;
+  paymentKind: "pix" | "cartao" | null;
+  pending: boolean;
   coupon: { code: string; discount: number } | null;
   items: OrderItem[];
+  delivery: {
+    summary: "none" | "pending" | "delivered" | "failed";
+    items: { name: string; status: DeliveryStatus; requiresOnline: boolean }[];
+  };
   createdAt: string;
+  paidAt: string | null;
 }
 
 interface ComprasResponse {
   orders: ApiOrder[];
-  vip: { name: string; expiresAt: string } | null;
+  plans: { name: string; color: string | null; expiresAt: string }[];
   summary: { totalSpent: number; totalOrders: number; approvedOrders: number };
   pagination: { page: number; pageSize: number; total: number; totalPages: number };
 }
 
 const STATUS_CONFIG: Record<ApiOrderStatus, { label: string; cor: string; icon: typeof Check }> = {
   APPROVED: { label: "Aprovado", cor: "#4CAF50", icon: Check },
-  PENDING: { label: "Pendente", cor: "#FFC107", icon: Clock },
-  REJECTED: { label: "Cancelado", cor: "#E53935", icon: XCircle },
+  PENDING: { label: "Aguardando pagamento", cor: "#FFC107", icon: Clock },
+  REJECTED: { label: "Não concluído", cor: "#E53935", icon: XCircle },
   REFUNDED: { label: "Reembolsado", cor: "#2196F3", icon: RefreshCw },
 };
 
-const PAYMENT_CONFIG: Record<string, { label: string; icon: typeof CreditCard }> = {
-  pix: { label: "PIX", icon: QrCode },
-  credit_card: { label: "Cartão", icon: CreditCard },
-  debit_card: { label: "Débito", icon: CreditCard },
-  bolbradesco: { label: "Boleto", icon: FileText },
+const PAYMENT_LABELS: Record<string, string> = {
+  pix: "Pix",
+  credit_card: "Cartão de crédito",
+  debit_card: "Cartão de débito",
+  account_money: "Saldo Mercado Pago",
 };
 
-function getPaymentInfo(method: string | null) {
-  if (!method) return { label: "—", icon: CreditCard };
-  const key = method.toLowerCase();
-  return PAYMENT_CONFIG[key] || { label: method, icon: CreditCard };
+function paymentLabel(order: ApiOrder): { label: string; icon: typeof CreditCard } {
+  const method = order.paymentMethod?.toLowerCase();
+  if (method && PAYMENT_LABELS[method]) {
+    return { label: PAYMENT_LABELS[method], icon: method === "pix" ? QrCode : CreditCard };
+  }
+  if (order.paymentKind === "cartao") return { label: "Mercado Pago", icon: CreditCard };
+  if (method) return { label: method, icon: CreditCard };
+  return { label: "Pix", icon: QrCode };
 }
 
 export function ComprasContent() {
@@ -89,11 +105,9 @@ export function ComprasContent() {
       if (filterStatus !== "todos") params.set("status", filterStatus);
       params.set("page", String(page));
       const res = await fetch(`/api/perfil/compras?${params}`);
-      if (res.ok) {
-        setData(await res.json());
-      }
+      if (res.ok) setData(await res.json());
     } catch {
-      // Silently fail
+      // Sem conexão: mantém o que já estava na tela
     } finally {
       setLoading(false);
     }
@@ -111,13 +125,13 @@ export function ComprasContent() {
   const orders = data?.orders || [];
   const pagination = data?.pagination;
   const summary = data?.summary;
-  const vip = data?.vip;
+  const plans = data?.plans || [];
 
   return (
     <>
       <PageHero
         title="MINHAS COMPRAS"
-        subtitle="Histórico de pedidos e compras realizadas."
+        subtitle="Pedidos, pagamentos e entregas no servidor."
         breadcrumbs={[
           { label: "Home", href: "/" },
           { label: "Perfil", href: "/perfil" },
@@ -126,30 +140,39 @@ export function ComprasContent() {
       />
 
       <div className="mx-auto max-w-7xl px-4 pb-16 lg:px-6">
-        {/* VIP ativo banner */}
-        {vip && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-yellow-500/30 bg-yellow-500/5 p-4"
-          >
-            <div className="flex items-center gap-3">
-              <Crown size={24} className="text-yellow-500" />
-              <div>
-                <p className="font-bold text-white">{vip.name} Ativo</p>
-                <p className="text-sm text-[#A0A0A0]">
-                  Expira em{" "}
-                  {new Date(vip.expiresAt).toLocaleDateString("pt-BR")}
-                </p>
-              </div>
-            </div>
-            <Link
-              href="/loja"
-              className="rounded-lg bg-yellow-500 px-4 py-2 text-sm font-bold text-black transition-all hover:bg-yellow-400"
-            >
-              Renovar
-            </Link>
-          </motion.div>
+        {/* Planos ativos */}
+        {plans.length > 0 && (
+          <div className="mb-6 grid gap-3 sm:grid-cols-2">
+            {plans.map((plan) => {
+              const color = plan.color || "#FFD700";
+              return (
+                <motion.div
+                  key={plan.name}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex flex-wrap items-center justify-between gap-4 rounded-xl border p-4"
+                  style={{ borderColor: `${color}55`, backgroundColor: `${color}0d` }}
+                >
+                  <div className="flex items-center gap-3">
+                    <Crown size={24} style={{ color }} />
+                    <div>
+                      <p className="font-bold text-white">{plan.name} ativo</p>
+                      <p className="text-sm text-[#A0A0A0]">
+                        Válido até {new Date(plan.expiresAt).toLocaleDateString("pt-BR")}
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/loja#planos"
+                    className="rounded-lg px-4 py-2 text-sm font-bold text-black transition-all hover:brightness-110"
+                    style={{ backgroundColor: color }}
+                  >
+                    Renovar
+                  </Link>
+                </motion.div>
+              );
+            })}
+          </div>
         )}
 
         {/* Resumo + Filtros */}
@@ -160,11 +183,8 @@ export function ComprasContent() {
           className="mb-6 flex flex-wrap items-center justify-between gap-3"
         >
           <p className="text-sm text-[#A0A0A0]">
-            Total gasto:{" "}
-            <span className="font-bold text-green-cs">
-              R$ {(summary?.totalSpent ?? 0).toFixed(2).replace(".", ",")}
-            </span>{" "}
-            · {summary?.totalOrders ?? 0} pedidos
+            Total gasto: <span className="font-bold text-green-cs">{formatPrice(summary?.totalSpent ?? 0)}</span> ·{" "}
+            {summary?.approvedOrders ?? 0} {summary?.approvedOrders === 1 ? "compra aprovada" : "compras aprovadas"}
           </p>
           <div className="flex items-center gap-2">
             <Filter size={16} className="text-[#A0A0A0]" />
@@ -175,31 +195,32 @@ export function ComprasContent() {
             >
               <option value="todos" className="bg-bg-primary">Todos</option>
               <option value="APPROVED" className="bg-bg-primary">Aprovados</option>
-              <option value="PENDING" className="bg-bg-primary">Pendentes</option>
-              <option value="REJECTED" className="bg-bg-primary">Cancelados</option>
+              <option value="PENDING" className="bg-bg-primary">Aguardando pagamento</option>
+              <option value="REJECTED" className="bg-bg-primary">Não concluídos</option>
               <option value="REFUNDED" className="bg-bg-primary">Reembolsados</option>
             </select>
           </div>
         </motion.div>
 
-        {/* Loading */}
         {loading && (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-green-cs" />
           </div>
         )}
 
-        {/* Lista de pedidos */}
         {!loading && (
           <div className="space-y-3">
             {orders.map((order, i) => {
               const statusConf = STATUS_CONFIG[order.status];
-              const paymentInfo = getPaymentInfo(order.paymentMethod);
+              const payment = paymentLabel(order);
               const StatusIcon = statusConf.icon;
-              const PaymentIcon = paymentInfo.icon;
-              const productNames = order.items.map((item) =>
-                item.quantity > 1 ? `${item.product.name} ×${item.quantity}` : item.product.name
-              ).join(", ");
+              const PaymentIcon = payment.icon;
+              const first = order.items[0];
+              const Icon = first ? productIcon(first.product.category, first.product.slug) : ShoppingBag;
+              const color = first?.product.color || "#4CAF50";
+              const productNames = order.items
+                .map((item) => (item.quantity > 1 ? `${item.quantity}x ${item.product.name}` : item.product.name))
+                .join(", ");
 
               return (
                 <motion.div
@@ -207,43 +228,84 @@ export function ComprasContent() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.03 }}
-                  className="flex flex-wrap items-center gap-4 rounded-xl border border-white/10 bg-bg-card/50 p-4 transition-all hover:border-white/20"
+                  className="rounded-xl border border-white/10 bg-bg-card/50 p-4 transition-all hover:border-white/20"
                 >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/5">
-                    <Package size={20} className="text-[#A0A0A0]" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-medium text-white">{productNames}</h3>
-                      <span
-                        className="flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-bold"
-                        style={{ backgroundColor: `${statusConf.cor}20`, color: statusConf.cor }}
-                      >
-                        <StatusIcon size={12} />
-                        {statusConf.label}
-                      </span>
-                      {order.coupon && (
-                        <span className="rounded bg-green-cs/20 px-2 py-0.5 text-[10px] font-bold text-green-cs">
-                          {order.coupon.code} -{order.coupon.discount}%
-                        </span>
-                      )}
+                  <div className="flex flex-wrap items-center gap-4">
+                    <div
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                      style={{ backgroundColor: `${color}20` }}
+                    >
+                      <Icon size={20} style={{ color }} />
                     </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-[#A0A0A0]">
-                      <span className="flex items-center gap-1">
-                        <Calendar size={12} />
-                        {new Date(order.createdAt).toLocaleDateString("pt-BR")}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <PaymentIcon size={12} />
-                        {paymentInfo.label}
-                      </span>
-                      <span className="font-mono text-[10px]">{order.id}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-medium text-white">{productNames}</h3>
+                        <span
+                          className="flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-bold"
+                          style={{ backgroundColor: `${statusConf.cor}20`, color: statusConf.cor }}
+                        >
+                          <StatusIcon size={12} />
+                          {statusConf.label}
+                        </span>
+                        {order.coupon && (
+                          <span className="rounded bg-green-cs/20 px-2 py-0.5 text-[10px] font-bold text-green-cs">
+                            {order.coupon.code} -{order.coupon.discount}%
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-[#A0A0A0]">
+                        <span className="flex items-center gap-1">
+                          <Calendar size={12} />
+                          {new Date(order.createdAt).toLocaleDateString("pt-BR")}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <PaymentIcon size={12} />
+                          {payment.label}
+                        </span>
+                        <span className="font-mono text-[10px]">{order.id}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <span className="text-lg font-bold text-white">{formatPrice(order.paidAmount ?? order.total)}</span>
+                        {order.installments != null && order.installments > 1 && order.paidAmount != null && (
+                          <p className="text-[11px] text-[#A0A0A0]">
+                            {order.installments}x de {formatPrice(order.paidAmount / order.installments)}
+                            {order.paidAmount > order.total ? `, juros de ${formatPrice(order.paidAmount - order.total)}` : ", sem juros"}
+                          </p>
+                        )}
+                      </div>
+                      {order.pending ? (
+                        <Link
+                          href={`/loja/pedido/${order.id}`}
+                          className="rounded-lg bg-green-cs px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-green-dark"
+                        >
+                          Pagar
+                        </Link>
+                      ) : (
+                        <Link
+                          href={`/loja/pedido/${order.id}`}
+                          className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-white/10"
+                        >
+                          Ver
+                        </Link>
+                      )}
                     </div>
                   </div>
 
-                  <span className="text-lg font-bold text-white">
-                    R$ {order.total.toFixed(2).replace(".", ",")}
-                  </span>
+                  {/* Entrega */}
+                  {order.status === "APPROVED" && order.delivery.items.length > 0 && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/5 pt-3 text-xs text-[#A0A0A0]">
+                      <span>Entrega no servidor:</span>
+                      {order.delivery.items.map((d, j) => (
+                        <span key={`${d.name}-${j}`} className="inline-flex items-center gap-1.5">
+                          {order.delivery.items.length > 1 && <span className="text-[#E0E0E0]">{d.name}</span>}
+                          <DeliveryBadge status={d.status} requiresOnline={d.requiresOnline} />
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </motion.div>
               );
             })}
@@ -253,13 +315,11 @@ export function ComprasContent() {
                 <ShoppingBag size={40} className="mx-auto mb-4 opacity-30" />
                 <p className="text-lg font-medium">Nenhuma compra encontrada</p>
                 <p className="text-sm">
-                  {filterStatus !== "todos"
-                    ? "Ajuste os filtros ou visite a loja."
-                    : "Visite a loja para adquirir produtos."}
+                  {filterStatus !== "todos" ? "Ajuste o filtro ou visite a loja." : "Visite a loja para apoiar o projeto."}
                 </p>
                 <Link
                   href="/loja"
-                  className="mt-4 inline-block rounded-lg bg-green-cs px-6 py-2 text-sm font-bold text-white transition-colors hover:bg-green-hover"
+                  className="mt-4 inline-block rounded-lg bg-green-cs px-6 py-2 text-sm font-bold text-white transition-colors hover:bg-green-dark"
                 >
                   Ir para a Loja
                 </Link>
@@ -268,13 +328,8 @@ export function ComprasContent() {
           </div>
         )}
 
-        {/* Paginação */}
         {!loading && pagination && pagination.totalPages > 1 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="mt-6 flex items-center justify-center gap-2"
-          >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-6 flex items-center justify-center gap-2">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1}

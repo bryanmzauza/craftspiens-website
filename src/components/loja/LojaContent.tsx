@@ -1,178 +1,210 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { motion } from "framer-motion";
 import {
-  Crown,
-  Star,
-  Sparkles,
-  Coins,
-  Package,
-  ShoppingCart,
   Check,
   X,
+  Crown,
+  Sparkles,
   Loader2,
+  Package,
+  QrCode,
+  Zap,
+  Server,
+  ChevronDown,
+  Smartphone,
+  Monitor,
 } from "lucide-react";
-import Link from "next/link";
-import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { PageHero } from "@/components/ui/PageHero";
 import { SectionTitle } from "@/components/ui/SectionTitle";
-import type { PublicProduct } from "@/lib/products";
-
-type ProductCategory = PublicProduct["category"];
+import { formatPrice, type PublicProduct } from "@/lib/products";
+import { comboBaseSlug, comboSlug, cosmeticIcon, isCombo, planFamily, type PlanFamily } from "@/components/loja/catalog-ui";
+import moedaSapiens from "@/assets/brand/moeda-sapiens.webp";
 
 const DEFAULT_COLOR = "#4CAF50";
+const MONTHS_IN_YEAR = 12;
 
-const CATEGORY_ICONS: Record<ProductCategory, typeof Crown> = {
-  VIP: Crown,
-  RANK: Star,
-  COSMETICO: Sparkles,
-  MOEDA: Coins,
-  KIT: Package,
-};
+type Billing = "mensal" | "anual";
 
-const CATEGORY_LABELS: Record<ProductCategory, string> = {
-  VIP: "VIP/Premium",
-  RANK: "Ranks",
-  COSMETICO: "Cosméticos",
-  MOEDA: "Moedas",
-  KIT: "Kits",
-};
-
-const CATEGORIES: (ProductCategory | "todos")[] = ["todos", "RANK", "COSMETICO", "MOEDA", "KIT"];
-
-function formatPrice(value: number): string {
-  return `R$ ${value.toFixed(2).replace(".", ",")}`;
+function isAnnual(product: PublicProduct): boolean {
+  return (product.durationDays ?? 0) >= 360;
 }
 
+const STEPS = [
+  {
+    icon: QrCode,
+    title: "Escolha e pague com Pix",
+    text: "O QR Code aparece aqui no site. Também dá para pagar com cartão, à vista ou em até 3x com juros.",
+  },
+  {
+    icon: Zap,
+    title: "Aprovação em segundos",
+    text: "O Pix é confirmado na hora e o pedido muda sozinho para aprovado.",
+  },
+  {
+    icon: Server,
+    title: "Entrega em toda a rede",
+    text: "VIP, Premium e cosméticos valem em todos os servidores, no Java e no Bedrock.",
+  },
+];
+
+const FAQ = [
+  {
+    q: "Como recebo o que comprei?",
+    a: "A entrega é automática. Planos e cosméticos são aplicados em até um minuto, mesmo com você offline. Sapiens caem na sua conta assim que você estiver online no servidor.",
+  },
+  {
+    q: "Funciona no Bedrock (celular, tablet, console e Windows)?",
+    a: "Sim. Os planos, os Sapiens e os cosméticos desta loja foram escolhidos para funcionar nas duas edições. Basta ter o nick vinculado à sua conta do site.",
+  },
+  {
+    q: "O que acontece se eu renovar antes de acabar?",
+    a: "O tempo soma. Se faltam 10 dias de VIP e você compra mais 30, ficam 40 dias.",
+  },
+  {
+    q: "Posso pagar com cartão?",
+    a: "Sim, pelo Mercado Pago, à vista ou em até 3 parcelas. O parcelamento tem juros do Mercado Pago, e a página de compra mostra o valor de cada parcela, os juros e o total antes de você pagar. O Pix é a opção recomendada: sem juros e aprovação imediata.",
+  },
+  {
+    q: "Tenho menos de 16 anos, posso comprar?",
+    a: "A compra precisa ser feita por um responsável, com o CPF dele. Veja os Termos e Condições.",
+  },
+];
+
 export function LojaContent() {
-  const { data: session } = useSession();
-  const router = useRouter();
-  const [categoriaAtiva, setCategoriaAtiva] = useState<ProductCategory | "todos">("todos");
-  const [cartItemCount, setCartItemCount] = useState(0);
-  const [cartTotal, setCartTotal] = useState(0);
-  const [addingId, setAddingId] = useState<string | null>(null);
   const [products, setProducts] = useState<PublicProduct[]>([]);
-  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [billing, setBilling] = useState<Billing>("mensal");
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   useEffect(() => {
-    async function fetchProducts() {
-      try {
-        const res = await fetch("/api/loja/produtos");
-        if (res.ok) {
-          const data = await res.json();
-          setProducts(data.products ?? []);
-        }
-      } catch {
-        // silently fail — mostra estado vazio
-      } finally {
-        setLoadingProducts(false);
-      }
-    }
-    fetchProducts();
-  }, []);
-
-  const vipProducts = useMemo(
-    () => products.filter((p) => p.category === "VIP"),
-    [products]
-  );
-
-  const otherProducts = useMemo(
-    () => products.filter((p) => p.category !== "VIP"),
-    [products]
-  );
-
-  const filteredProducts = useMemo(() => {
-    if (categoriaAtiva === "todos") return otherProducts;
-    return otherProducts.filter((p) => p.category === categoriaAtiva);
-  }, [categoriaAtiva, otherProducts]);
-
-  const fetchCartSummary = useCallback(async () => {
-    try {
-      const res = await fetch("/api/carrinho");
-      if (res.ok) {
-        const data = await res.json();
-        setCartItemCount(data.itemCount);
-        setCartTotal(data.subtotal);
-      }
-    } catch {
-      // silently fail
-    }
-  }, []);
-
-  useEffect(() => {
-    if (session) fetchCartSummary();
-  }, [session, fetchCartSummary]);
-
-  /** Adiciona ao carrinho; retorna true se o item foi adicionado */
-  const addToCart = async (productId: string): Promise<boolean> => {
-    if (!session) {
-      router.push("/login?redirect=/loja");
-      return false;
-    }
-    // Conta sem e-mail confirmado: confirma primeiro e volta para a loja
-    if (!session.user.emailConfirmed) {
-      router.push("/confirmar-email?redirect=/loja");
-      return false;
-    }
-    setAddingId(productId);
-    try {
-      const res = await fetch("/api/carrinho", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId }),
+    let active = true;
+    fetch("/api/loja/produtos")
+      .then((res) => (res.ok ? res.json() : { products: [] }))
+      .then((data) => {
+        if (active) setProducts(data.products ?? []);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) setLoading(false);
       });
-      if (res.ok) await fetchCartSummary();
-      return res.ok;
-    } catch {
-      // silently fail
-      return false;
-    } finally {
-      setAddingId(null);
-    }
-  };
+    return () => {
+      active = false;
+    };
+  }, []);
 
-  // VIP: adiciona ao carrinho e segue direto para o carrinho
-  const buyVip = async (productId: string) => {
-    if (await addToCart(productId)) router.push("/loja/carrinho");
-  };
+  const plans = useMemo(() => products.filter((p) => p.category === "VIP" && !isCombo(p.slug)), [products]);
+  // Combo com cosméticos, oferecido no card do plano mensal correspondente
+  const combosByPlan = useMemo(() => {
+    const map = new Map<string, PublicProduct>();
+    for (const p of products) if (isCombo(p.slug)) map.set(comboBaseSlug(p.slug), p);
+    return map;
+  }, [products]);
+  const hasAnnual = useMemo(() => plans.some(isAnnual), [plans]);
+  const visiblePlans = useMemo(() => {
+    const wanted = billing === "anual" && hasAnnual;
+    const list = plans.filter((p) => isAnnual(p) === wanted);
+    const order: PlanFamily[] = ["vip", "premium"];
+    return list.sort((a, b) => order.indexOf(planFamily(a.slug)) - order.indexOf(planFamily(b.slug)));
+  }, [plans, billing, hasAnnual]);
+  const monthlyBySlugFamily = useMemo(() => {
+    const map = new Map<PlanFamily, number>();
+    for (const plan of plans) if (!isAnnual(plan)) map.set(planFamily(plan.slug), plan.price);
+    return map;
+  }, [plans]);
+
+  const sapiens = useMemo(() => products.filter((p) => p.category === "MOEDA"), [products]);
+  const cosmetics = useMemo(() => products.filter((p) => p.category === "COSMETICO"), [products]);
+  const others = useMemo(
+    () => products.filter((p) => !["VIP", "MOEDA", "COSMETICO"].includes(p.category)),
+    [products]
+  );
 
   return (
     <>
       <PageHero
         title="LOJA"
-        subtitle="Itens exclusivos e planos Premium para turbinar sua experiência."
+        subtitle="Apoie o projeto e receba no jogo na hora: planos, Sapiens e cosméticos para Java e Bedrock."
         breadcrumbs={[{ label: "Home", href: "/" }, { label: "Loja" }]}
       />
 
-      <div className="mx-auto max-w-7xl px-4 pb-16 lg:px-6">
-        {loadingProducts ? (
+      <div className="mx-auto max-w-7xl px-4 pb-20 lg:px-6">
+        {/* Como funciona */}
+        <section className="mb-16 grid gap-4 md:grid-cols-3">
+          {STEPS.map((step, i) => (
+            <motion.div
+              key={step.title}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.08 }}
+              className="flex gap-4 rounded-2xl border border-white/10 bg-bg-card/50 p-5"
+            >
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-cs/15 text-green-cs">
+                <step.icon size={22} />
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-green-cs">Passo {i + 1}</p>
+                <h3 className="mt-0.5 font-bold text-white">{step.title}</h3>
+                <p className="mt-1 text-sm text-[#A0A0A0]">{step.text}</p>
+              </div>
+            </motion.div>
+          ))}
+        </section>
+
+        {loading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-green-cs" />
           </div>
         ) : products.length === 0 ? (
           <div className="rounded-2xl border border-white/10 bg-bg-card/50 p-12 text-center">
             <Package size={40} className="mx-auto mb-3 text-[#A0A0A0] opacity-40" />
-            <p className="text-[#A0A0A0]">Nenhum produto disponível no momento. Volte em breve!</p>
+            <p className="text-[#A0A0A0]">Nenhum produto disponível no momento. Volte em breve.</p>
           </div>
         ) : (
           <>
-            {/* Planos VIP */}
-            {vipProducts.length > 0 && (
-              <section className="mb-16">
+            {/* Planos */}
+            {plans.length > 0 && (
+              <section id="planos" className="mb-20 scroll-mt-24">
                 <div className="mb-8 text-center">
-                  <SectionTitle>PLANOS VIP / PREMIUM</SectionTitle>
+                  <SectionTitle>PLANOS</SectionTitle>
                   <p className="mt-3 text-[#A0A0A0]">
-                    Escolha o plano ideal e turbine sua experiência no servidor.
+                    Benefícios em todos os servidores da rede. Renovou antes de acabar? O tempo soma.
                   </p>
+
+                  {hasAnnual && (
+                    <div className="mt-6 inline-flex items-center rounded-xl border border-white/10 bg-bg-card/60 p-1">
+                      {(["mensal", "anual"] as Billing[]).map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          onClick={() => setBilling(option)}
+                          className={`relative rounded-lg px-5 py-2 text-sm font-bold uppercase transition-all ${
+                            billing === option ? "bg-green-cs text-white" : "text-[#A0A0A0] hover:text-white"
+                          }`}
+                        >
+                          {option === "mensal" ? "Mensal" : "Anual"}
+                          {option === "anual" && (
+                            <span className="ml-2 rounded bg-premium px-1.5 py-0.5 text-[10px] text-black">
+                              2 meses grátis
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
-                <div className="grid gap-6 md:grid-cols-3">
-                  {vipProducts.map((plan, i) => {
-                    const cor = plan.color || DEFAULT_COLOR;
-                    const destaque = plan.featured;
-                    const adding = addingId === plan.id;
+                <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-2">
+                  {visiblePlans.map((plan, i) => {
+                    const color = plan.color || DEFAULT_COLOR;
+                    const annual = isAnnual(plan);
+                    const monthly = monthlyBySlugFamily.get(planFamily(plan.slug));
+                    const savings = annual && monthly ? monthly * MONTHS_IN_YEAR - plan.price : 0;
+                    const combo = combosByPlan.get(plan.slug);
                     return (
                       <motion.div
                         key={plan.id}
@@ -180,95 +212,206 @@ export function LojaContent() {
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ delay: i * 0.1 }}
-                        className={`relative overflow-hidden rounded-2xl border p-6 ${
-                          destaque
-                            ? "border-2 bg-bg-card/80"
-                            : "border-white/10 bg-bg-card/50"
+                        className={`relative flex flex-col overflow-hidden rounded-2xl border p-6 ${
+                          plan.featured ? "border-2 bg-bg-card/80" : "border-white/10 bg-bg-card/50"
                         }`}
-                        style={destaque ? { borderColor: cor } : {}}
+                        style={plan.featured ? { borderColor: color } : undefined}
                       >
-                        {destaque && (
+                        {plan.featured && plan.badge && (
                           <div
-                            className="absolute left-0 right-0 top-0 py-1 text-center text-xs font-bold uppercase text-white"
-                            style={{ backgroundColor: cor }}
+                            className="absolute left-0 right-0 top-0 py-1 text-center text-xs font-bold uppercase text-black"
+                            style={{ backgroundColor: color }}
                           >
-                            {plan.badge || "Mais popular"}
+                            {plan.badge}
                           </div>
                         )}
 
-                        <div className={destaque ? "mt-6" : ""}>
+                        <div className={`flex items-center gap-3 ${plan.featured ? "mt-5" : ""}`}>
                           <div
-                            className="mb-4 inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl"
-                            style={{ backgroundColor: `${cor}20` }}
+                            className="flex h-12 w-12 items-center justify-center rounded-xl"
+                            style={{ backgroundColor: `${color}22` }}
                           >
-                            {plan.imageUrl ? (
-                              // eslint-disable-next-line @next/next/no-img-element -- imagem de produto com host arbitrário
-                              <img src={plan.imageUrl} alt={plan.name} className="h-full w-full object-cover" />
-                            ) : (
-                              <Crown size={24} style={{ color: cor }} />
-                            )}
+                            <Crown size={24} style={{ color }} />
                           </div>
-
-                          {!destaque && plan.badge && (
-                            <span
-                              className="mb-2 ml-2 inline-block rounded px-2 py-0.5 align-top text-[10px] font-bold uppercase text-white"
-                              style={{ backgroundColor: cor }}
-                            >
-                              {plan.badge}
-                            </span>
-                          )}
-
-                          <h3 className="text-xl font-bold text-white">{plan.name}</h3>
-                          <div className="mt-2 flex items-baseline gap-1">
-                            <span className="text-3xl font-bold" style={{ color: cor }}>
-                              {formatPrice(plan.price)}
-                            </span>
-                            {!!plan.durationDays && (
-                              <span className="text-sm text-[#A0A0A0]">/{plan.durationDays} dias</span>
-                            )}
-                          </div>
-                          {!!plan.originalPrice && (
-                            <span className="text-xs text-[#A0A0A0] line-through">
-                              {formatPrice(plan.originalPrice)}
-                            </span>
-                          )}
-
-                          {plan.benefits.length > 0 ? (
-                            <ul className="mt-6 space-y-3">
-                              {plan.benefits.map((feat) => (
-                                <li key={feat.label} className="flex items-center gap-2 text-sm">
-                                  {feat.included ? (
-                                    <Check size={16} className="shrink-0 text-green-cs" />
-                                  ) : (
-                                    <X size={16} className="shrink-0 text-[#A0A0A0]/40" />
-                                  )}
-                                  <span className={feat.included ? "text-[#E0E0E0]" : "text-[#A0A0A0]/50"}>
-                                    {feat.label}
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p className="mt-6 text-sm text-[#E0E0E0]">
-                              {plan.shortDescription || plan.description}
+                          <div>
+                            <h3 className="text-xl font-bold text-white">{plan.name}</h3>
+                            <p className="text-xs text-[#A0A0A0]">
+                              {annual ? "365 dias de acesso" : `${plan.durationDays ?? 30} dias de acesso`}
                             </p>
-                          )}
+                          </div>
+                        </div>
 
-                          <button
-                            onClick={() => buyVip(plan.id)}
-                            disabled={adding || !plan.inStock}
-                            className="mt-6 flex w-full items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-bold uppercase text-white transition-all hover:shadow-lg disabled:opacity-60"
-                            style={{ backgroundColor: cor }}
+                        <div className="mt-5 flex items-baseline gap-1">
+                          <span className="text-3xl font-bold" style={{ color }}>
+                            {formatPrice(plan.price)}
+                          </span>
+                          <span className="text-sm text-[#A0A0A0]">{annual ? "/ano" : "/mês"}</span>
+                        </div>
+                        {annual && plan.monthlyPrice != null && (
+                          <p className="mt-1 text-xs text-[#A0A0A0]">
+                            Equivale a {formatPrice(plan.monthlyPrice)} por mês
+                            {savings > 0 && (
+                              <span className="ml-2 rounded bg-green-cs/15 px-1.5 py-0.5 font-bold text-green-cs">
+                                Economize {formatPrice(savings)}
+                              </span>
+                            )}
+                          </p>
+                        )}
+                        {!annual && plan.originalPrice != null && (
+                          <span className="text-xs text-[#A0A0A0] line-through">{formatPrice(plan.originalPrice)}</span>
+                        )}
+
+                        <ul className="mt-6 flex-1 space-y-2.5">
+                          {plan.benefits.map((benefit) => (
+                            <li key={benefit.label} className="flex items-start gap-2 text-sm">
+                              {benefit.included ? (
+                                <Check size={16} className="mt-0.5 shrink-0 text-green-cs" />
+                              ) : (
+                                <X size={16} className="mt-0.5 shrink-0 text-[#A0A0A0]/40" />
+                              )}
+                              <span className={benefit.included ? "text-[#E0E0E0]" : "text-[#A0A0A0]/50"}>
+                                {benefit.label}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+
+                        <Link
+                          href={`/loja/comprar/${plan.slug}`}
+                          className="mt-6 flex w-full items-center justify-center rounded-xl py-3 text-sm font-bold uppercase text-white transition-all hover:brightness-110 hover:shadow-lg"
+                          style={{ backgroundColor: color }}
+                        >
+                          {annual ? "Assinar por 1 ano" : "Assinar"}
+                        </Link>
+
+                        {combo && (
+                          <Link
+                            href={`/loja/comprar/${comboSlug(plan.slug)}`}
+                            className="mt-3 flex items-center gap-3 rounded-xl border border-dashed p-3 text-left transition-colors hover:bg-white/5"
+                            style={{ borderColor: `${color}66` }}
                           >
-                            {adding && <Loader2 size={16} className="animate-spin" />}
-                            {!plan.inStock
-                              ? "Esgotado"
-                              : adding
-                              ? "Adicionando..."
-                              : plan.durationDays
-                              ? `Comprar (${plan.durationDays} dias)`
-                              : "Comprar"}
-                          </button>
+                            <Sparkles size={20} className="shrink-0" style={{ color }} />
+                            <span className="text-xs text-[#A0A0A0]">
+                              <strong className="block text-sm text-white">
+                                Combo com cosméticos: + {formatPrice(combo.price - plan.price)}
+                              </strong>
+                              Os 4 rastros e a Entrada Épica por 30 dias, junto com o {plan.name}.
+                            </span>
+                          </Link>
+                        )}
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {/* Sapiens */}
+            {sapiens.length > 0 && (
+              <section id="sapiens" className="mb-20 scroll-mt-24">
+                <div className="mb-8 text-center">
+                  <SectionTitle>SAPIENS</SectionTitle>
+                  <p className="mt-3 text-[#A0A0A0]">
+                    A moeda do servidor. Creditada na sua conta assim que você estiver online.
+                  </p>
+                </div>
+                <div className="mx-auto grid max-w-4xl gap-5 sm:grid-cols-3">
+                  {sapiens.map((pack, i) => {
+                    const color = pack.color || DEFAULT_COLOR;
+                    return (
+                      <motion.div
+                        key={pack.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: i * 0.08 }}
+                        className={`relative flex flex-col items-center rounded-2xl border p-6 text-center ${
+                          pack.featured ? "border-2 bg-bg-card/80" : "border-white/10 bg-bg-card/50"
+                        }`}
+                        style={pack.featured ? { borderColor: color } : undefined}
+                      >
+                        {pack.badge && (
+                          <span
+                            className="absolute right-4 top-4 rounded px-2 py-0.5 text-[10px] font-bold uppercase text-black"
+                            style={{ backgroundColor: color }}
+                          >
+                            {pack.badge}
+                          </span>
+                        )}
+                        <Image src={moedaSapiens} alt="" width={72} height={72} className="h-16 w-16 object-contain" />
+                        <h3 className="mt-4 text-lg font-bold text-white">{pack.name}</h3>
+                        <p className="mt-1 text-xs text-[#A0A0A0]">{pack.shortDescription}</p>
+                        <p className="mt-4 text-2xl font-bold" style={{ color }}>
+                          {formatPrice(pack.price)}
+                        </p>
+                        {pack.originalPrice != null && (
+                          <span className="text-xs text-[#A0A0A0] line-through">{formatPrice(pack.originalPrice)}</span>
+                        )}
+                        <Link
+                          href={`/loja/comprar/${pack.slug}`}
+                          className="mt-5 w-full rounded-xl bg-green-cs/10 py-2.5 text-sm font-bold uppercase text-green-cs transition-all hover:bg-green-cs hover:text-white"
+                        >
+                          Comprar
+                        </Link>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {/* Cosméticos */}
+            {cosmetics.length > 0 && (
+              <section id="cosmeticos" className="mb-20 scroll-mt-24">
+                <div className="mb-8 text-center">
+                  <SectionTitle>COSMÉTICOS</SectionTitle>
+                  <p className="mt-3 flex flex-wrap items-center justify-center gap-2 text-[#A0A0A0]">
+                    Permanentes e visíveis em todos os servidores.
+                    <span className="inline-flex items-center gap-1 rounded border border-white/10 px-2 py-0.5 text-xs">
+                      <Monitor size={12} /> Java
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded border border-white/10 px-2 py-0.5 text-xs">
+                      <Smartphone size={12} /> Bedrock
+                    </span>
+                  </p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  {cosmetics.map((item, i) => {
+                    const color = item.color || DEFAULT_COLOR;
+                    const Icon = cosmeticIcon(item.slug);
+                    return (
+                      <motion.div
+                        key={item.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: i * 0.05 }}
+                        className="group flex flex-col rounded-xl border border-white/10 bg-bg-card/50 p-4 transition-all hover:border-white/20 hover:shadow-lg"
+                      >
+                        <div
+                          className="mb-3 flex aspect-[4/3] items-center justify-center rounded-lg"
+                          style={{ backgroundColor: `${color}14` }}
+                        >
+                          <Icon size={44} style={{ color }} className="transition-transform group-hover:scale-110" />
+                        </div>
+                        {item.badge && (
+                          <span
+                            className="mb-2 inline-block self-start rounded px-2 py-0.5 text-[10px] font-bold uppercase text-black"
+                            style={{ backgroundColor: color }}
+                          >
+                            {item.badge}
+                          </span>
+                        )}
+                        <h3 className="font-bold text-white">{item.name}</h3>
+                        <p className="mt-1 flex-1 text-xs text-[#A0A0A0]">{item.shortDescription || item.description}</p>
+                        <div className="mt-3 flex items-center justify-between">
+                          <span className="text-lg font-bold text-green-cs">{formatPrice(item.price)}</span>
+                          <Link
+                            href={`/loja/comprar/${item.slug}`}
+                            className="rounded-lg bg-green-cs/10 px-4 py-2 text-sm font-bold text-green-cs transition-all hover:bg-green-cs hover:text-white"
+                          >
+                            Comprar
+                          </Link>
                         </div>
                       </motion.div>
                     );
@@ -277,139 +420,83 @@ export function LojaContent() {
               </section>
             )}
 
-            {/* Produtos */}
-            {otherProducts.length > 0 && (
-              <section>
+            {/* Outros produtos (categorias antigas ainda ativas) */}
+            {others.length > 0 && (
+              <section className="mb-20">
                 <div className="mb-8">
-                  <SectionTitle>PRODUTOS</SectionTitle>
+                  <SectionTitle>OUTROS</SectionTitle>
                 </div>
-
-                {/* Categorias (apenas as que têm produtos) */}
-                <div className="mb-6 flex flex-wrap gap-2">
-                  {CATEGORIES.filter(
-                    (cat) => cat === "todos" || otherProducts.some((p) => p.category === cat)
-                  ).map((cat) => {
-                    const label = cat === "todos" ? "Todos" : CATEGORY_LABELS[cat];
-                    return (
-                      <button
-                        key={cat}
-                        onClick={() => setCategoriaAtiva(cat)}
-                        className={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${
-                          categoriaAtiva === cat
-                            ? "bg-green-cs/20 text-green-cs"
-                            : "text-[#A0A0A0] hover:text-white"
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Grid de produtos */}
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  {filteredProducts.map((product, i) => {
-                    const CatIcon = CATEGORY_ICONS[product.category];
-                    const cor = product.color || DEFAULT_COLOR;
-                    const adding = addingId === product.id;
-                    return (
-                      <motion.div
-                        key={product.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ delay: i * 0.05 }}
-                        className="group overflow-hidden rounded-xl border border-white/10 bg-bg-card/50 p-4 transition-all hover:border-white/20 hover:shadow-lg"
-                      >
-                        {/* Imagem do produto (ícone da categoria quando não houver) */}
-                        <div
-                          className="mb-3 flex aspect-square items-center justify-center overflow-hidden rounded-lg"
-                          style={{ backgroundColor: `${cor}10` }}
+                  {others.map((item) => (
+                    <div key={item.id} className="flex flex-col rounded-xl border border-white/10 bg-bg-card/50 p-4">
+                      <Sparkles size={28} className="mb-3 text-green-cs" />
+                      <h3 className="font-bold text-white">{item.name}</h3>
+                      <p className="mt-1 flex-1 text-xs text-[#A0A0A0]">{item.shortDescription || item.description}</p>
+                      <div className="mt-3 flex items-center justify-between">
+                        <span className="text-lg font-bold text-green-cs">{formatPrice(item.price)}</span>
+                        <Link
+                          href={`/loja/comprar/${item.slug}`}
+                          className="rounded-lg bg-green-cs/10 px-4 py-2 text-sm font-bold text-green-cs transition-all hover:bg-green-cs hover:text-white"
                         >
-                          {product.imageUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element -- imagem de produto com host arbitrário
-                            <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" />
-                          ) : (
-                            <CatIcon size={40} style={{ color: cor }} className="opacity-40" />
-                          )}
-                        </div>
-
-                        {/* Badges */}
-                        {product.badge && (
-                          <span
-                            className="mb-2 inline-block rounded px-2 py-0.5 text-[10px] font-bold uppercase text-white"
-                            style={{ backgroundColor: cor }}
-                          >
-                            {product.badge}
-                          </span>
-                        )}
-
-                        <h3 className="font-bold text-white">{product.name}</h3>
-                        <p className="mt-1 text-xs text-[#A0A0A0] line-clamp-2">
-                          {product.shortDescription || product.description}
-                        </p>
-
-                        <div className="mt-3 flex items-baseline gap-2">
-                          <span className="text-lg font-bold text-green-cs">
-                            {formatPrice(product.price)}
-                          </span>
-                          {!!product.originalPrice && (
-                            <span className="text-xs text-[#A0A0A0] line-through">
-                              {formatPrice(product.originalPrice)}
-                            </span>
-                          )}
-                        </div>
-
-                        <button
-                          onClick={() => addToCart(product.id)}
-                          disabled={adding || !product.inStock}
-                          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-green-cs/10 py-2 text-sm font-bold text-green-cs transition-all hover:bg-green-cs hover:text-white disabled:opacity-60"
-                        >
-                          {adding ? (
-                            <Loader2 size={16} className="animate-spin" />
-                          ) : (
-                            <ShoppingCart size={16} />
-                          )}
-                          {!product.inStock ? "Esgotado" : adding ? "Adicionando..." : "Adicionar"}
-                        </button>
-                      </motion.div>
-                    );
-                  })}
+                          Comprar
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </section>
             )}
           </>
         )}
 
-        {/* Floating Cart Bar */}
-        <AnimatePresence>
-          {cartItemCount > 0 && (
-            <motion.div
-              initial={{ y: 100, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 100, opacity: 0 }}
-              className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2"
-            >
-              <Link
-                href="/loja/carrinho"
-                className="flex items-center gap-4 rounded-2xl border border-green-cs/30 bg-bg-primary/95 px-6 py-3 shadow-2xl backdrop-blur-xl transition-all hover:border-green-cs/60"
-              >
-                <div className="relative">
-                  <ShoppingCart size={20} className="text-green-cs" />
-                  <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-green-cs text-[10px] font-bold text-white">
-                    {cartItemCount}
-                  </span>
+        {/* Perguntas frequentes */}
+        <section className="mx-auto max-w-3xl">
+          <div className="mb-6 text-center">
+            <SectionTitle className="!text-xl sm:!text-2xl">PERGUNTAS FREQUENTES</SectionTitle>
+          </div>
+          <div className="divide-y divide-white/10 rounded-2xl border border-white/10 bg-bg-card/40">
+            {FAQ.map((item, i) => {
+              const open = openFaq === i;
+              return (
+                <div key={item.q}>
+                  <button
+                    type="button"
+                    onClick={() => setOpenFaq(open ? null : i)}
+                    aria-expanded={open}
+                    className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
+                  >
+                    <span className="font-medium text-white">{item.q}</span>
+                    <ChevronDown
+                      size={18}
+                      className={`shrink-0 text-[#A0A0A0] transition-transform ${open ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                  {open && (
+                    <p className="px-5 pb-5 text-sm leading-relaxed text-[#A0A0A0]">
+                      {item.a}
+                      {item.q.includes("16 anos") && (
+                        <>
+                          {" "}
+                          <Link href="/termos" className="text-green-cs hover:underline">
+                            Ler os termos
+                          </Link>
+                          .
+                        </>
+                      )}
+                    </p>
+                  )}
                 </div>
-                <span className="text-sm text-white">
-                  {formatPrice(cartTotal)}
-                </span>
-                <span className="rounded-lg bg-green-cs px-4 py-1.5 text-sm font-bold text-white">
-                  Ver Carrinho
-                </span>
-              </Link>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              );
+            })}
+          </div>
+          <p className="mt-6 text-center text-xs text-[#A0A0A0]">
+            A contribuição é espontânea e ajuda a manter o servidor. Benefícios podem mudar com aviso de 7 dias, conforme os{" "}
+            <Link href="/termos" className="text-green-cs hover:underline">
+              Termos e Condições
+            </Link>
+            .
+          </p>
+        </section>
       </div>
     </>
   );

@@ -11,7 +11,7 @@
 Site oficial da CraftSapiens, plataforma de ensino gamificado no Minecraft. É o portal para alunos, pais e a comunidade e reúne:
 
 - Autenticação integrada com o servidor Minecraft (nLogin + NextAuth.js)
-- Loja própria para planos VIP/Premium e itens in-game
+- Loja própria: planos VIP e Premium (mensal e anual), Sapiens e cosméticos, com Pix no site e entrega automática no servidor
 - Fórum da comunidade com categorias, posts e reputação
 - Grade curricular e cronograma de aulas interativo
 - Status do servidor em tempo real
@@ -33,7 +33,7 @@ Site oficial da CraftSapiens, plataforma de ensino gamificado no Minecraft. É o
 | **PostgreSQL** | 17 | Dados do site (usuários, loja, fórum, blog, aulas) |
 | **MariaDB** | — | Somente a tabela `nlogin` do servidor Minecraft |
 | **NextAuth.js** | 5 (beta) | Autenticação (JWT + Credentials) |
-| **MercadoPago** | SDK 2 | Pagamentos da loja |
+| **MercadoPago** | SDK 2 | Pix pela API de pagamentos e cartão pelo Checkout Pro |
 | **Lucide React** | — | Ícones |
 
 ---
@@ -55,7 +55,7 @@ cd craftspiens-website
 
 # Configurar variáveis de ambiente
 cp .env.example .env
-# Preencher POSTGRES_URL, DATABASE_URL, AUTH_SECRET, AUTH_URL, SMTP_*, MERCADOPAGO_*
+# Preencher POSTGRES_URL, DATABASE_URL, AUTH_SECRET, AUTH_URL, SMTP_*, MERCADOPAGO_*, DELIVERY_API_TOKEN
 
 # Subir o PostgreSQL local (porta 5454)
 docker compose up -d
@@ -104,13 +104,13 @@ O site estará disponível em [http://localhost:3000](http://localhost:3000).
 
 ## Produção
 
-O site roda em uma VPS dedicada, atrás da Cloudflare. Os bancos de dados (PostgreSQL do site e MariaDB do nLogin) ficam no servidor físico, acessados por um túnel WireGuard.
+O site (Next.js) e os bancos de dados (PostgreSQL do site e MariaDB do nLogin) rodam no servidor físico. Uma VPS pequena com nginx recebe o tráfego da Cloudflare e o repassa ao servidor físico por um túnel WireGuard.
 
 ```
-Visitante → Cloudflare → VPS do site (nginx → Next.js) ──WireGuard──▶ servidor físico (PostgreSQL + MariaDB)
+Visitante → Cloudflare → VPS de entrada (nginx) ──WireGuard──▶ servidor físico (Next.js + PostgreSQL + MariaDB)
 ```
 
-Instalação, configuração de rede, Cloudflare, backup e operação estão em [docs/arquitetura-producao.md](./docs/arquitetura-producao.md).
+Instalação, configuração de rede, Cloudflare, backup e operação estão em [docs/arquitetura-producao.md](./docs/arquitetura-producao.md). Credenciais e webhook do Mercado Pago em [docs/mercadopago.md](./docs/mercadopago.md).
 
 ---
 
@@ -127,7 +127,7 @@ src/
 │   ├── cronograma/       # Cronograma de aulas
 │   ├── login/            # Login
 │   ├── registro/         # Registro
-│   ├── loja/             # Loja
+│   ├── loja/             # Loja (vitrine, compra e pedido com Pix)
 │   ├── perfil/           # Perfil do jogador
 │   ├── sobre/            # Sobre a CraftSapiens
 │   ├── status/           # Status do servidor
@@ -145,8 +145,8 @@ prisma/
 ├── schema.prisma         # MariaDB — tabela nlogin (servidor Minecraft)
 └── schema.pg.prisma      # PostgreSQL — dados do site
 
-scripts/                  # Seeds, sincronização com o YouTube e migração única MariaDB → PostgreSQL
-docs/                     # Documentação do projeto
+scripts/                  # Seeds (catálogo da loja em seed-loja.mjs), sincronização com o YouTube e migração única
+docs/                     # Documentação do projeto (plugin de entregas em docs/plugin-entregas.md)
 ```
 
 ---

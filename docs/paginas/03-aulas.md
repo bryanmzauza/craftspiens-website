@@ -70,7 +70,7 @@
   - Lives publicadas com título genérico ("[LIVE] Aula no Minecraft") usam o título transcrito da miniatura do vídeo (`scripts/lib/youtube-titulos.mjs`), que traz a matéria e quase sempre o tema; esse título é exibido no site e usado na classificação. Das 168 lives nessa situação, 158 foram transcritas; as 10 com miniatura sem texto ficam em "Outras Aulas"
   - Tutoriais, eventos e gameplay vão para "Servidor e Comunidade"
   - `OVERRIDES` corrige ou completa a classificação de um vídeo pelo id: `{ "<id>": ["quimica"] }` soma a disciplina; `{ "<id>": ["=servidor-comunidade"] }` substitui a classificação
-- Para atualizar o site com vídeos novos: `npm run aulas:atualizar` (sync e seed em sequência). Em produção, um timer do systemd roda esse comando a cada 3 horas (ver `docs/arquitetura-producao.md`, seção 6.6); a lista é gravada no arquivo de `AULAS_YOUTUBE_FILE`, fora do repositório
+- Para atualizar o site com vídeos novos: `npm run aulas:atualizar` (sync e seed em sequência). Em produção, um timer do systemd roda esse comando a cada 3 horas (ver `docs/arquitetura-producao.md`, seção 6.5); a lista é gravada no arquivo de `AULAS_YOUTUBE_FILE`, fora do repositório
 - Proteções do sync: lives em andamento ou agendadas são ignoradas; se a lista vier com menos de 80% dos vídeos anteriores, nada é gravado (use `--forcar` para aceitar); se a data de um vídeo novo não puder ser consultada, ele entra com a data da sincronização e é consultado de novo na próxima
 
 ---

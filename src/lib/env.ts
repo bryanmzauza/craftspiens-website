@@ -26,6 +26,16 @@ const envSchema = z.object({
   // MercadoPago
   MERCADOPAGO_ACCESS_TOKEN: z.string().min(1),
   MERCADOPAGO_WEBHOOK_SECRET: z.string().min(1),
+  // Só em desenvolvimento: com credenciais de teste o pagador precisa ser uma
+  // conta de teste compradora; este e-mail substitui o do aluno nos pagamentos
+  MERCADOPAGO_TEST_PAYER_EMAIL: optionalEmail,
+
+  // Token do plugin da loja (GET/POST /api/loja/entregas). Sem ele, a API de
+  // entregas responde 503 e os pedidos aprovados ficam na fila.
+  DELIVERY_API_TOKEN: z.preprocess(
+    (v) => (v === "" ? undefined : v),
+    z.string().min(32, "deve ter pelo menos 32 caracteres (openssl rand -hex 32)").optional()
+  ),
 
   // SMTP
   SMTP_HOST: z.string().min(1),

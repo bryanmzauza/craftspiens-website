@@ -28,19 +28,27 @@ export function parseBenefits(text: string | null): Benefit[] {
   }
 }
 
-/** Dados do produto que podem ir para o navegador (nunca inclui o serverCommand) */
+/** Valor por mês de um plano, para comparar mensal e anual */
+export function monthlyEquivalent(price: number, durationDays: number | null): number | null {
+  if (!durationDays || durationDays < 28) return null;
+  return Math.round((price / (durationDays / 30)) * 100) / 100;
+}
+
+/** Dados do produto que vão para o navegador */
 export function toPublicProduct(product: Product) {
+  const price = Number(product.price);
   return {
     id: product.id,
     name: product.name,
     slug: product.slug,
     description: product.description,
     shortDescription: product.shortDescription,
-    price: Number(product.price),
+    price,
     originalPrice: product.originalPrice ? Number(product.originalPrice) : null,
     category: product.category,
     imageUrl: product.imageUrl,
     durationDays: product.durationDays,
+    monthlyPrice: monthlyEquivalent(price, product.durationDays),
     benefits: parseBenefits(product.benefits),
     inStock: isUnlimitedStock(product.stock) || product.stock > 0,
     featured: product.featured,
@@ -50,3 +58,7 @@ export function toPublicProduct(product: Product) {
 }
 
 export type PublicProduct = ReturnType<typeof toPublicProduct>;
+
+export function formatPrice(value: number): string {
+  return `R$ ${value.toFixed(2).replace(".", ",")}`;
+}
