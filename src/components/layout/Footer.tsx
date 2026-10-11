@@ -3,8 +3,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import logo from "@/assets/brand/logo.webp";
-import { useState } from "react";
-import { Copy, Check, Mail, Phone, Monitor, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Copy, Check, Mail, Phone, Monitor, ArrowUpRight } from "lucide-react";
 import {
   SITE_DESCRIPTION,
   SERVER_IP,
@@ -15,7 +15,7 @@ import {
   DISCLAIMER,
   COPYRIGHT,
 } from "@/lib/constants";
-import { SocialIcons } from "@/components/ui/SocialIcons";
+import { SocialIcons, DISCORD_ICON_PATH } from "@/components/ui/SocialIcons";
 
 const INSTITUTIONAL_LINKS = [
   { label: "Sobre", href: "/sobre" },
@@ -34,10 +34,20 @@ const SUPPORT_LINKS = [
 
 export function Footer() {
   const [copied, setCopied] = useState(false);
-  const [newsletterEmail, setNewsletterEmail] = useState("");
-  const [newsletterLoading, setNewsletterLoading] = useState(false);
-  const [newsletterMsg, setNewsletterMsg] = useState("");
-  const [newsletterError, setNewsletterError] = useState("");
+  const [discord, setDiscord] = useState<{ members: number | null; online: number | null } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/discord")
+      .then((res) => res.json())
+      .then((data) => {
+        if (active) setDiscord(data);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const copyIp = async () => {
     await navigator.clipboard.writeText(SERVER_IP);
@@ -45,76 +55,39 @@ export function Footer() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleNewsletterSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setNewsletterMsg("");
-    setNewsletterError("");
-    setNewsletterLoading(true);
-
-    try {
-      const res = await fetch("/api/newsletter", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: newsletterEmail.trim() }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setNewsletterError(data.error || "Erro ao inscrever.");
-        return;
-      }
-
-      setNewsletterMsg(data.message);
-      setNewsletterEmail("");
-    } catch {
-      setNewsletterError("Erro ao conectar com o servidor.");
-    } finally {
-      setNewsletterLoading(false);
-    }
-  };
-
   return (
     <footer className="relative z-[1] border-t border-white/5 bg-bg-footer">
-      {/* Newsletter Bar */}
+      {/* Faixa do Discord: novidades e avisos da comunidade */}
       <div className="border-b border-white/10 bg-bg-card/50">
-        <div className="mx-auto flex max-w-7xl flex-col items-center gap-4 px-4 py-8 sm:flex-row sm:justify-between lg:px-6">
-          <p className="text-lg font-semibold">
-            Fique por dentro das novidades
-          </p>
-          <div className="w-full max-w-md">
-            <form
-              onSubmit={handleNewsletterSubmit}
-              className="flex w-full gap-2"
-            >
-              <input
-                type="email"
-                value={newsletterEmail}
-                onChange={(e) => setNewsletterEmail(e.target.value)}
-                placeholder="Seu melhor e-mail"
-                className="flex-1 rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/40 focus:border-green-cs focus:outline-none"
-                required
-                disabled={newsletterLoading}
-              />
-              <button
-                type="submit"
-                disabled={newsletterLoading || !newsletterEmail.trim()}
-                className="flex items-center gap-2 rounded-lg bg-green-cs px-6 py-2.5 text-sm font-bold uppercase text-white transition-colors hover:bg-green-dark disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {newsletterLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  "Inscrever"
-                )}
-              </button>
-            </form>
-            {newsletterMsg && (
-              <p className="mt-2 text-xs text-green-cs">{newsletterMsg}</p>
-            )}
-            {newsletterError && (
-              <p className="mt-2 text-xs text-red-400">{newsletterError}</p>
-            )}
+        <div className="mx-auto flex max-w-7xl flex-col items-start gap-5 px-4 py-8 sm:flex-row sm:items-center sm:justify-between lg:px-6">
+          <div className="flex items-center gap-4">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#5865F2]/15 text-[#8891F7]">
+              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor" aria-hidden="true">
+                <path d={DISCORD_ICON_PATH} />
+              </svg>
+            </span>
+            <div>
+              <p className="text-lg font-semibold text-white">Fique por dentro das novidades</p>
+              <p className="mt-0.5 text-sm text-[#A0A0A0]">
+                Avisos de aulas, eventos e atualizações saem primeiro no nosso Discord.
+                {discord?.members ? (
+                  <span className="mt-1 block font-[family-name:var(--font-jetbrains-mono)] text-xs text-[#E0E0E0]">
+                    {discord.members.toLocaleString("pt-BR")} membros
+                    {discord.online ? ` · ${discord.online.toLocaleString("pt-BR")} online` : ""}
+                  </span>
+                ) : null}
+              </p>
+            </div>
           </div>
+          <a
+            href={SOCIAL_LINKS.discord}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-[#5865F2] px-6 py-2.5 text-sm font-bold uppercase text-white transition-colors hover:bg-[#4752C4]"
+          >
+            Entrar no Discord
+            <ArrowUpRight size={16} aria-hidden="true" />
+          </a>
         </div>
       </div>
 

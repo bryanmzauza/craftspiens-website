@@ -111,6 +111,11 @@ export function LojaContent() {
       router.push("/login?redirect=/loja");
       return false;
     }
+    // Conta sem e-mail confirmado: confirma primeiro e volta para a loja
+    if (!session.user.emailConfirmed) {
+      router.push("/confirmar-email?redirect=/loja");
+      return false;
+    }
     setAddingId(productId);
     try {
       const res = await fetch("/api/carrinho", {

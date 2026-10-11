@@ -20,6 +20,9 @@ export async function GET(
           description: true,
           order: true,
           duration: true,
+          youtubeId: true,
+          format: true,
+          publishedAt: true,
         },
       },
     },
@@ -41,7 +44,7 @@ export async function GET(
     icon: discipline.icon,
     color: discipline.color,
     banner: discipline.banner,
-    levels: JSON.parse(discipline.levels),
+    area: discipline.area,
     lessons: discipline.lessons,
     lessonsCount: discipline.lessons.length,
   };

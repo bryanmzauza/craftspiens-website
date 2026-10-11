@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getNloginsByIds } from "@/lib/nlogin";
+import { getNloginMap } from "@/lib/nlogin";
 
 
 export async function GET(
@@ -67,10 +67,9 @@ export async function GET(
     ...(post.author ? [post.author.nloginId] : []),
     ...related.filter((r) => r.author).map((r) => r.author!.nloginId),
   ];
-  const nlogins = await getNloginsByIds([...new Set(authorNloginIds)]);
-  const nloginMap = new Map(nlogins.map((n) => [n.id, n]));
+  const nloginMap = await getNloginMap([...new Set(authorNloginIds)]);
 
-  const resolveAuthor = (author: { id: string; nloginId: number } | null) => {
+  const resolveAuthor = (author: { id: string; nloginId: number | null } | null) => {
     if (!author) return null;
     const n = nloginMap.get(author.nloginId);
     return { username: n?.last_name ?? "Unknown", uuid: n?.unique_id ?? null };

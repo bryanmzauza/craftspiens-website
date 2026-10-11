@@ -1,6 +1,6 @@
 {
   "name": "craftsapiens-website",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "private": true,
   "engines": {
     "node": ">=20.9.0"
@@ -19,7 +19,10 @@
     "db:seed:blog": "node scripts/seed-blog.mjs",
     "db:seed:forum": "node scripts/seed-forum.mjs",
     "db:seed:loja": "node scripts/seed-loja.mjs",
-    "db:migrate-v13": "node scripts/migrate-v13.mjs"
+    "db:migrate-v13": "node scripts/migrate-v13.mjs",
+    "aulas:youtube": "node scripts/youtube-sync.mjs",
+    "aulas:atualizar": "npm run aulas:youtube && npm run db:seed:aulas",
+    "email:test": "node scripts/email-test.mjs"
   },
   "dependencies": {
     "@prisma/adapter-mariadb": "^7.5.0",

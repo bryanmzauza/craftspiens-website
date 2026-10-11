@@ -15,27 +15,13 @@ import {
   Target,
   Loader2,
   GraduationCap,
-  Calculator,
-  Microscope,
-  Globe,
-  Palette,
-  Code,
-  Languages,
-  Dumbbell,
+  CalendarDays,
+  ExternalLink,
 } from "lucide-react";
 import { PageHero } from "@/components/ui/PageHero";
 import { Button } from "@/components/ui/Button";
-
-const ICON_MAP: Record<string, typeof Calculator> = {
-  Calculator,
-  Microscope,
-  Globe,
-  BookOpen,
-  Palette,
-  Code,
-  Languages,
-  Dumbbell,
-};
+import { getDisciplineIcon } from "@/lib/discipline-icons";
+import { FORMAT_LABELS, formatDate, formatDuration, youtubeWatchUrl } from "@/lib/aulas";
 
 interface LessonData {
   id: string;
@@ -44,6 +30,9 @@ interface LessonData {
   description: string;
   content: string | null;
   videoUrl: string | null;
+  youtubeId: string | null;
+  format: string | null;
+  publishedAt: string | null;
   objectives: string[];
   order: number;
   duration: number | null;
@@ -146,13 +135,18 @@ export function LessonContent({
     );
   }
 
-  const Icon = ICON_MAP[discipline.icon] || GraduationCap;
+  const Icon = getDisciplineIcon(discipline.icon);
+  const formatLabel = lesson.format ? FORMAT_LABELS[lesson.format] ?? lesson.format : null;
+  const subtitle =
+    formatLabel && lesson.publishedAt
+      ? `${discipline.name} · ${formatLabel} de ${formatDate(lesson.publishedAt)}`
+      : `${discipline.name} · Aula ${String(lesson.order).padStart(2, "0")} de ${totalLessons}`;
 
   return (
     <>
       <PageHero
         title={lesson.title.toUpperCase()}
-        subtitle={`${discipline.name} · Aula ${String(lesson.order).padStart(2, "0")} de ${totalLessons}`}
+        subtitle={subtitle}
         breadcrumbs={[
           { label: "Home", href: "/" },
           { label: "Aulas", href: "/aulas" },
@@ -212,6 +206,17 @@ export function LessonContent({
             >
               <h2 className="mb-4 text-lg font-bold text-white">Sobre esta aula</h2>
               <p className="leading-relaxed text-[#E0E0E0]">{lesson.description}</p>
+              {lesson.youtubeId && (
+                <a
+                  href={youtubeWatchUrl(lesson.youtubeId)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-green-cs hover:underline"
+                >
+                  Assistir no YouTube
+                  <ExternalLink size={14} aria-hidden="true" />
+                </a>
+              )}
             </motion.div>
 
             {/* Conteúdo detalhado */}
@@ -318,12 +323,23 @@ export function LessonContent({
                 </div>
               </div>
 
-              {lesson.duration && (
-                <div className="flex items-center gap-2 text-sm text-[#A0A0A0]">
-                  <Clock size={16} style={{ color: discipline.color }} />
-                  <span>Duração: {lesson.duration}min</span>
-                </div>
-              )}
+              <div className="space-y-2">
+                {lesson.publishedAt && (
+                  <div className="flex items-center gap-2 text-sm text-[#A0A0A0]">
+                    <CalendarDays size={16} style={{ color: discipline.color }} />
+                    <span>
+                      {lesson.format === "live" ? "Transmitida em" : "Publicada em"}{" "}
+                      {formatDate(lesson.publishedAt)}
+                    </span>
+                  </div>
+                )}
+                {lesson.duration && (
+                  <div className="flex items-center gap-2 text-sm text-[#A0A0A0]">
+                    <Clock size={16} style={{ color: discipline.color }} />
+                    <span>Duração: {formatDuration(lesson.duration)}</span>
+                  </div>
+                )}
+              </div>
 
               <div className="mt-4">
                 <Button href={`/aulas/${discipline.slug}`} variant="secondary" fullWidth>

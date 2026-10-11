@@ -18,8 +18,8 @@ export async function DELETE(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const { confirmation, password } = body as { confirmation?: unknown; password?: unknown };
 
-  if (typeof confirmation !== "string" || typeof password !== "string" || !confirmation || !password) {
-    return NextResponse.json({ error: "Confirmação e senha são obrigatórios." }, { status: 400 });
+  if (typeof confirmation !== "string" || !confirmation) {
+    return NextResponse.json({ error: "A confirmação é obrigatória." }, { status: 400 });
   }
 
   const user = await prisma.user.findUnique({
@@ -29,6 +29,23 @@ export async function DELETE(request: NextRequest) {
 
   if (!user) {
     return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });
+  }
+
+  // Conta sem nick (criada pelo Google): não há senha do jogo para conferir,
+  // então basta a confirmação por texto na sessão já autenticada
+  if (user.nloginId == null) {
+    if (confirmation !== "EXCLUIR") {
+      return NextResponse.json({ error: "Texto de confirmação incorreto." }, { status: 400 });
+    }
+    await prisma.$transaction([
+      prisma.profile.deleteMany({ where: { userId: user.id } }),
+      prisma.user.delete({ where: { id: user.id } }),
+    ]);
+    return NextResponse.json({ message: "Conta excluída com sucesso." });
+  }
+
+  if (typeof password !== "string" || !password) {
+    return NextResponse.json({ error: "Confirmação e senha são obrigatórios." }, { status: 400 });
   }
 
   const nlogin = await prismaMariaDb.nlogin.findFirst({

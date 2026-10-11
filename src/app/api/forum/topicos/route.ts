@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit";
-import { getNloginsByIds } from "@/lib/nlogin";
+import { getNloginMap } from "@/lib/nlogin";
 
 function slugify(text: string): string {
   return text
@@ -66,8 +66,7 @@ export async function GET(request: NextRequest) {
 
   // Batch fetch nlogin data for topic authors
   const nloginIds = [...new Set(topics.map((t) => t.author.nloginId))];
-  const nlogins = await getNloginsByIds(nloginIds);
-  const nloginMap = new Map(nlogins.map((n) => [n.id, n]));
+  const nloginMap = await getNloginMap(nloginIds);
 
   return NextResponse.json({
     category,
@@ -105,6 +104,14 @@ export async function POST(request: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  }
+
+  // No fórum o autor aparece pelo nick: exige um nick do Minecraft vinculado
+  if (session.user.nloginId == null) {
+    return NextResponse.json(
+      { error: "Vincule seu nick do Minecraft em Configurações > Contas vinculadas para participar do fórum.", code: "SemNick" },
+      { status: 403 }
+    );
   }
 
   // Rate limit: 5 tópicos/hora por usuário (RN-FORUM-05)

@@ -475,6 +475,74 @@ sudo ufw status numbered
 
 Assim, mesmo que alguém descubra o IP da VPS, não consegue acessar o site sem passar pela Cloudflare.
 
+### 6.6 Atualização automática das aulas (YouTube)
+
+A página `/aulas` lista os vídeos e lives públicos do canal da Craftsapiens no YouTube. Um timer roda `npm run aulas:atualizar` a cada 3 horas: lista o canal com o yt-dlp e grava as aulas novas no banco (ver [`docs/paginas/03-aulas.md`](paginas/03-aulas.md)).
+
+A lista fica em `/var/lib/craftsapiens/`, fora do repositório, para não alterar arquivos versionados e travar o `git pull` do deploy. Na primeira execução, o script parte do `scripts/data/youtube-videos.json` do repositório e só consulta os vídeos novos.
+
+Instalar o yt-dlp (binário único, sem Python) e criar a pasta:
+
+```bash
+sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux -o /usr/local/bin/yt-dlp
+sudo chmod a+rx /usr/local/bin/yt-dlp
+sudo mkdir -p /var/lib/craftsapiens
+sudo chown craftsapiens: /var/lib/craftsapiens
+```
+
+No `.env`:
+
+```env
+AULAS_YOUTUBE_FILE="/var/lib/craftsapiens/youtube-videos.json"
+```
+
+`/etc/systemd/system/craftsapiens-aulas.service`:
+
+```ini
+[Unit]
+Description=CraftSapiens — atualização das aulas com os vídeos do YouTube
+After=network-online.target wg-quick@wg-site.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=craftsapiens
+WorkingDirectory=/opt/craftsapiens/site
+# O YouTube muda com frequência: atualiza o yt-dlp antes ("+" roda como root, "-" ignora falhas)
+ExecStartPre=-+/usr/local/bin/yt-dlp -U
+ExecStart=/usr/bin/npm run aulas:atualizar
+```
+
+`/etc/systemd/system/craftsapiens-aulas.timer`:
+
+```ini
+[Unit]
+Description=Atualização das aulas a cada 3 horas
+
+[Timer]
+OnCalendar=*-*-* 00/3:15
+Persistent=true
+RandomizedDelaySec=5m
+
+[Install]
+WantedBy=timers.target
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now craftsapiens-aulas.timer
+sudo systemctl start craftsapiens-aulas.service      # primeira execução imediata
+sudo journalctl -u craftsapiens-aulas -n 30
+```
+
+Comportamento em falhas:
+
+- Se a listagem falhar ou vier com menos de 80% dos vídeos da execução anterior, nada é gravado e o site continua com a lista atual. Uma redução real (vídeos apagados ou privados) exige rodar uma vez à mão com `npm run aulas:youtube -- --forcar` e depois `npm run db:seed:aulas`.
+- Se a data de um vídeo novo não puder ser consultada, ele entra com a data da execução e é consultado de novo na próxima.
+- O YouTube às vezes pede login ("Sign in to confirm you're not a bot") para IPs de datacenter. Se isso aparecer no log, exporte os cookies de uma conta do YouTube em formato Netscape para `/var/lib/craftsapiens/cookies.txt` (dono `craftsapiens`, permissão `600`) e defina `YTDLP="/usr/local/bin/yt-dlp --cookies /var/lib/craftsapiens/cookies.txt"` no `.env`.
+
+Lives novas com título genérico ("Aula no Minecraft") entram em "Outras Aulas". Para classificá-las, transcreva o título da miniatura em `scripts/lib/youtube-titulos.mjs` e publique a versão.
+
 ---
 
 ## 7. Cloudflare
@@ -512,17 +580,26 @@ AUTH_SECRET="<openssl rand -base64 32>"
 MERCADOPAGO_ACCESS_TOKEN="APP_USR-..."
 MERCADOPAGO_WEBHOOK_SECRET="<assinatura secreta do painel>"
 
-# SMTP
-SMTP_HOST="..."
-SMTP_PORT=587
-SMTP_SECURE="false"
-SMTP_USER="..."
-SMTP_PASS="..."
-SMTP_FROM="noreply@craftsapiens.com.br"
+# E-mail: SMTP do Gmail com senha de app (ver docs/email.md)
+SMTP_HOST="smtp.gmail.com"
+SMTP_PORT=465
+SMTP_SECURE="true"
+SMTP_USER="<Gmail da equipe>"
+SMTP_PASS="<senha de app>"
+SMTP_FROM="nao-responda@craftsapiens.com.br"
+SMTP_FROM_NAME="CraftSapiens"
+SMTP_REPLY_TO="contato@craftsapiens.com.br"
+CONTACT_INBOX="contato@craftsapiens.com.br"
+
+# Login externo (opcional; ver docs/login-externo.md)
+AUTH_GOOGLE_ID="..."
+AUTH_GOOGLE_SECRET="..."
+AUTH_MICROSOFT_ID="..."
+AUTH_MICROSOFT_SECRET="..."
 
 # Servidor Minecraft (opcional)
 MINECRAFT_SERVER_HOST="jogar.craftsapiens.com.br"
-MINECRAFT_SERVER_PORT=25565
+# MINECRAFT_SERVER_PORT: deixe sem definir; a porta vem do registro SRV do domínio
 ```
 
 > Senhas com caracteres especiais (`@`, `:`, `/`, `#`) precisam ser codificadas na URL (`@` → `%40`). Gerar senhas só com letras e números evita o problema.
@@ -553,7 +630,7 @@ MINECRAFT_SERVER_PORT=25565
    sudo -u craftsapiens npm run db:seed
    ```
    Revise o catálogo da loja (`scripts/seed-loja.mjs`) antes.
-9. **Serviço, nginx e firewall** ([6.3](#63-serviço-systemd) a [6.5](#65-firewall)).
+9. **Serviço, nginx e firewall** ([6.3](#63-serviço-systemd) a [6.5](#65-firewall)) e **atualização automática das aulas** ([6.6](#66-atualização-automática-das-aulas-youtube)).
 10. **Cloudflare** ([seção 7](#7-cloudflare)) e apontamento do DNS.
 11. **MercadoPago**: no painel, configurar o webhook `https://craftsapiens.com.br/api/loja/webhook` (evento *Pagamentos*) e copiar a assinatura secreta para `MERCADOPAGO_WEBHOOK_SECRET`; reiniciar o site.
 12. **Validação final** ([seção 13](#13-checklist-de-validação)).
@@ -720,6 +797,8 @@ docker exec craftsapiens-postgres dropdb -U craftsapiens restore_teste
 | VPS | `sudo wg show wg-site` | Estado do túnel (último handshake) |
 | VPS | `ping 10.20.0.2` | Latência até o servidor físico |
 | VPS | `sudo tail -f /var/log/nginx/error.log` | Erros do nginx |
+| VPS | `systemctl list-timers craftsapiens-aulas.timer` | Próxima e última atualização das aulas |
+| VPS | `sudo journalctl -u craftsapiens-aulas -n 50` | Resultado da última atualização das aulas |
 | Físico | `docker compose -f /opt/craftsapiens-db/docker-compose.yml ps` | Estado do PostgreSQL |
 | Físico | `systemctl list-timers craftsapiens-backup.timer` | Próximo e último backup |
 | Físico | `sudo journalctl -u craftsapiens-backup -n 50` | Resultado do último backup |
@@ -736,6 +815,7 @@ docker exec craftsapiens-postgres dropdb -U craftsapiens restore_teste
 | Erro 526 na Cloudflare | Certificado de origem inválido ou ausente | Arquivos em `/etc/ssl/cloudflare/` e modo Full (strict) |
 | Pagamento aprovado mas pedido continua pendente | Webhook bloqueado ou com secret errado | Painel do MercadoPago (histórico de notificações) e logs `[webhook]` |
 | Container do PostgreSQL não sobe após reboot | Docker iniciou antes do túnel | Conferir o drop-in `after-wg-site.conf` ([5.1](#51-postgresql-em-docker)) |
+| Vídeos novos do canal não aparecem em `/aulas` | yt-dlp desatualizado ou bloqueado pelo YouTube | `journalctl -u craftsapiens-aulas` ([6.6](#66-atualização-automática-das-aulas-youtube)) |
 
 ### Monitoramento recomendado
 

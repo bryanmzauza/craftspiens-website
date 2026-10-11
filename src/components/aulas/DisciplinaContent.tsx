@@ -1,38 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
-  Calculator,
-  Microscope,
-  Globe,
-  BookOpen,
-  Palette,
-  Code,
-  Languages,
-  Dumbbell,
   Clock,
   GraduationCap,
-  ChevronRight,
   Loader2,
   ArrowLeft,
-  CheckCircle,
+  CalendarDays,
+  Search,
 } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { PageHero } from "@/components/ui/PageHero";
 import { Button } from "@/components/ui/Button";
-
-const ICON_MAP: Record<string, typeof Calculator> = {
-  Calculator,
-  Microscope,
-  Globe,
-  BookOpen,
-  Palette,
-  Code,
-  Languages,
-  Dumbbell,
-};
+import { LessonCard } from "@/components/aulas/LessonCard";
+import { getDisciplineIcon } from "@/lib/discipline-icons";
+import { FORMAT_LABELS, formatHours } from "@/lib/aulas";
 
 interface Lesson {
   id: string;
@@ -41,6 +25,9 @@ interface Lesson {
   description: string;
   order: number;
   duration: number | null;
+  youtubeId: string | null;
+  format: string | null;
+  publishedAt: string | null;
 }
 
 interface Discipline {
@@ -52,20 +39,19 @@ interface Discipline {
   icon: string;
   color: string;
   banner: string | null;
-  levels: string[];
+  area: string;
   lessons: Lesson[];
   lessonsCount: number;
 }
 
-const fadeIn = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
-};
+type Sort = "recentes" | "antigas";
 
-const stagger = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.06 } },
-};
+const PAGE_SIZE = 24;
+
+/** Busca sem diferenciar maiúsculas e acentos */
+function normalize(text: string): string {
+  return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
 
 export function DisciplinaContent({ slug }: { slug: string }) {
   const { data: session } = useSession();
@@ -73,6 +59,10 @@ export function DisciplinaContent({ slug }: { slug: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
+  const [query, setQuery] = useState("");
+  const [format, setFormat] = useState("todos");
+  const [sort, setSort] = useState<Sort>("recentes");
+  const [visible, setVisible] = useState(PAGE_SIZE);
 
   useEffect(() => {
     async function fetchDiscipline() {
@@ -117,6 +107,34 @@ export function DisciplinaContent({ slug }: { slug: string }) {
     fetchProgress();
   }, [session, disciplineId]);
 
+  const lessons = useMemo(() => discipline?.lessons ?? [], [discipline]);
+
+  const stats = useMemo(() => {
+    const formats = new Map<string, number>();
+    const years: number[] = [];
+    let minutes = 0;
+    for (const lesson of lessons) {
+      if (lesson.format) formats.set(lesson.format, (formats.get(lesson.format) ?? 0) + 1);
+      if (lesson.publishedAt) years.push(new Date(lesson.publishedAt).getFullYear());
+      minutes += lesson.duration ?? 0;
+    }
+    return {
+      formats,
+      minutes,
+      firstYear: years.length ? Math.min(...years) : null,
+      lastYear: years.length ? Math.max(...years) : null,
+    };
+  }, [lessons]);
+
+  const filtered = useMemo(() => {
+    const terms = normalize(query.trim());
+    const list = lessons.filter(
+      (l) => (format === "todos" || l.format === format) && (!terms || normalize(l.title).includes(terms))
+    );
+    // A API devolve em ordem cronológica (campo order)
+    return sort === "recentes" ? [...list].reverse() : list;
+  }, [lessons, query, format, sort]);
+
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
@@ -141,11 +159,14 @@ export function DisciplinaContent({ slug }: { slug: string }) {
     );
   }
 
-  const Icon = ICON_MAP[discipline.icon] || GraduationCap;
-  const totalDuration = discipline.lessons.reduce(
-    (acc, l) => acc + (l.duration || 0),
-    0
-  );
+  const Icon = getDisciplineIcon(discipline.icon);
+  const formatOptions = [...stats.formats.keys()];
+  const period =
+    stats.firstYear && stats.lastYear
+      ? stats.firstYear === stats.lastYear
+        ? String(stats.firstYear)
+        : `${stats.firstYear} a ${stats.lastYear}`
+      : null;
 
   return (
     <>
@@ -176,24 +197,23 @@ export function DisciplinaContent({ slug }: { slug: string }) {
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-white">{discipline.name}</h2>
-                <div className="flex gap-2 mt-1">
-                  {discipline.levels.map((level) => (
-                    <span
-                      key={level}
-                      className="rounded-full px-3 py-0.5 text-xs font-medium"
-                      style={{
-                        backgroundColor: `${discipline.color}20`,
-                        color: discipline.color,
-                      }}
-                    >
-                      {level}
-                    </span>
-                  ))}
-                </div>
+                <span
+                  className="mt-1 inline-block rounded-full px-3 py-0.5 text-xs font-medium"
+                  style={{
+                    backgroundColor: `${discipline.color}20`,
+                    color: discipline.color,
+                  }}
+                >
+                  {discipline.area}
+                </span>
               </div>
             </div>
 
             <p className="text-[#E0E0E0] leading-relaxed">{discipline.description}</p>
+            <p className="mt-4 text-sm text-[#A0A0A0]">
+              As aulas foram transmitidas ao vivo dentro do servidor e estão gravadas no canal da
+              Craftsapiens no YouTube.
+            </p>
           </div>
 
           {/* Stats sidebar */}
@@ -206,31 +226,36 @@ export function DisciplinaContent({ slug }: { slug: string }) {
                 <GraduationCap size={18} style={{ color: discipline.color }} />
                 <div>
                   <p className="text-sm text-[#A0A0A0]">Aulas disponíveis</p>
-                  <p className="font-bold text-white">{discipline.lessonsCount}</p>
-                </div>
-              </div>
-              {totalDuration > 0 && (
-                <div className="flex items-center gap-3">
-                  <Clock size={18} style={{ color: discipline.color }} />
-                  <div>
-                    <p className="text-sm text-[#A0A0A0]">Duração total</p>
-                    <p className="font-bold text-white">
-                      {Math.floor(totalDuration / 60) > 0 &&
-                        `${Math.floor(totalDuration / 60)}h `}
-                      {totalDuration % 60}min
-                    </p>
-                  </div>
-                </div>
-              )}
-              <div className="flex items-center gap-3">
-                <Icon size={18} style={{ color: discipline.color }} />
-                <div>
-                  <p className="text-sm text-[#A0A0A0]">Níveis</p>
                   <p className="font-bold text-white">
-                    {discipline.levels.join(", ")}
+                    {discipline.lessonsCount}
+                    {formatOptions.length > 1 && (
+                      <span className="ml-2 text-xs font-normal text-[#A0A0A0]">
+                        {formatOptions
+                          .map((f) => `${stats.formats.get(f)} ${(FORMAT_LABELS[f] ?? f).toLowerCase()}${(stats.formats.get(f) ?? 0) > 1 ? "s" : ""}`)
+                          .join(", ")}
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
+              {stats.minutes > 0 && (
+                <div className="flex items-center gap-3">
+                  <Clock size={18} style={{ color: discipline.color }} />
+                  <div>
+                    <p className="text-sm text-[#A0A0A0]">Conteúdo gravado</p>
+                    <p className="font-bold text-white">{formatHours(stats.minutes)}</p>
+                  </div>
+                </div>
+              )}
+              {period && (
+                <div className="flex items-center gap-3">
+                  <CalendarDays size={18} style={{ color: discipline.color }} />
+                  <div>
+                    <p className="text-sm text-[#A0A0A0]">Período</p>
+                    <p className="font-bold text-white">{period}</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Barra de progresso */}
@@ -267,76 +292,100 @@ export function DisciplinaContent({ slug }: { slug: string }) {
           </div>
         </motion.div>
 
-        {/* Conteúdo Programático */}
+        {/* Aulas gravadas */}
         <section>
-          <h3 className="mb-6 text-lg font-bold text-white">
-            CONTEÚDO PROGRAMÁTICO
-          </h3>
+          <h3 className="mb-6 text-lg font-bold text-white">AULAS GRAVADAS</h3>
 
-          {discipline.lessons.length === 0 ? (
+          {lessons.length === 0 ? (
             <div className="rounded-xl border border-white/10 bg-white/5 p-8 text-center">
               <GraduationCap className="mx-auto h-12 w-12 text-[#A0A0A0]" />
               <p className="mt-3 text-[#A0A0A0]">
-                O conteúdo programático será publicado em breve.
+                As aulas desta disciplina serão publicadas em breve.
               </p>
             </div>
           ) : (
-            <motion.div
-              variants={stagger}
-              initial="hidden"
-              animate="visible"
-              className="space-y-3"
-            >
-              {discipline.lessons.map((lesson, index) => {
-                const isCompleted = completedLessons.has(lesson.id);
-                return (
-                  <motion.div key={lesson.id} variants={fadeIn}>
-                    <Link
-                      href={`/aulas/${discipline.slug}/${lesson.slug}`}
-                      className={`group flex items-center gap-4 rounded-xl border p-4 transition-all hover:bg-white/[0.08] ${
-                        isCompleted
-                          ? "border-green-cs/30 bg-green-cs/5 hover:border-green-cs/50"
-                          : "border-white/10 bg-white/5 hover:border-white/20"
-                      }`}
-                    >
-                      <div
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-sm font-bold"
-                        style={{
-                          backgroundColor: isCompleted ? "rgba(76,175,80,0.2)" : `${discipline.color}20`,
-                          color: isCompleted ? "#4CAF50" : discipline.color,
+            <>
+              {/* Filtros */}
+              <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="relative w-full lg:max-w-sm">
+                  <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A0A0A0]" />
+                  <input
+                    type="search"
+                    value={query}
+                    onChange={(e) => {
+                      setQuery(e.target.value);
+                      setVisible(PAGE_SIZE);
+                    }}
+                    placeholder="Buscar pelo título..."
+                    aria-label="Buscar aula pelo título"
+                    className="w-full rounded-lg border border-white/20 bg-white/5 py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-white/40 focus:border-green-cs focus:outline-none"
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {formatOptions.length > 1 &&
+                    ["todos", ...formatOptions].map((f) => (
+                      <button
+                        key={f}
+                        onClick={() => {
+                          setFormat(f);
+                          setVisible(PAGE_SIZE);
                         }}
+                        className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                          format === f
+                            ? "bg-green-cs text-white"
+                            : "bg-white/5 text-[#A0A0A0] hover:bg-white/10 hover:text-white"
+                        }`}
                       >
-                        {isCompleted ? (
-                          <CheckCircle size={20} />
-                        ) : (
-                          String(index + 1).padStart(2, "0")
-                        )}
-                      </div>
+                        {f === "todos" ? "Todos" : FORMAT_LABELS[f] ?? f}
+                      </button>
+                    ))}
+                  <select
+                    value={sort}
+                    onChange={(e) => setSort(e.target.value as Sort)}
+                    aria-label="Ordenar aulas"
+                    className="rounded-lg border border-white/20 bg-bg-card px-3 py-2 text-sm text-white focus:border-green-cs focus:outline-none"
+                  >
+                    <option value="recentes">Mais recentes</option>
+                    <option value="antigas">Mais antigas</option>
+                  </select>
+                </div>
+              </div>
 
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-white">{lesson.title}</h4>
-                        <p className="mt-0.5 text-sm text-[#A0A0A0] line-clamp-1">
-                          {lesson.description}
-                        </p>
-                      </div>
+              <p className="mb-4 text-sm text-[#A0A0A0]">
+                {filtered.length} {filtered.length === 1 ? "aula" : "aulas"}
+                {filtered.length !== lessons.length && ` de ${lessons.length}`}
+              </p>
 
-                      {lesson.duration && (
-                        <div className="hidden items-center gap-1 text-xs text-[#A0A0A0] sm:flex">
-                          <Clock size={14} />
-                          {lesson.duration}min
-                        </div>
-                      )}
+              {filtered.length === 0 ? (
+                <p className="py-12 text-center text-[#A0A0A0]">
+                  Nenhuma aula encontrada com esses filtros.
+                </p>
+              ) : (
+                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {filtered.slice(0, visible).map((lesson) => (
+                    <LessonCard
+                      key={lesson.id}
+                      href={`/aulas/${discipline.slug}/${lesson.slug}`}
+                      title={lesson.title}
+                      youtubeId={lesson.youtubeId}
+                      format={lesson.format}
+                      publishedAt={lesson.publishedAt}
+                      duration={lesson.duration}
+                      completed={completedLessons.has(lesson.id)}
+                    />
+                  ))}
+                </div>
+              )}
 
-                      <ChevronRight
-                        size={18}
-                        className="shrink-0 text-[#A0A0A0] transition-transform group-hover:translate-x-1"
-                        style={{ color: discipline.color }}
-                      />
-                    </Link>
-                  </motion.div>
-                );
-              })}
-            </motion.div>
+              {visible < filtered.length && (
+                <div className="mt-8 flex justify-center">
+                  <Button variant="secondary" onClick={() => setVisible((v) => v + PAGE_SIZE)}>
+                    MOSTRAR MAIS ({filtered.length - visible})
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </section>
 
@@ -348,10 +397,10 @@ export function DisciplinaContent({ slug }: { slug: string }) {
           className="mt-16 rounded-2xl border border-white/10 bg-gradient-to-r from-green-cs/10 to-transparent p-8 text-center"
         >
           <h3 className="text-xl font-bold text-white">
-            Pronto para aprender {discipline.name}?
+            Quer assistir às próximas aulas ao vivo?
           </h3>
           <p className="mt-2 text-[#A0A0A0]">
-            As aulas acontecem ao vivo dentro do servidor Minecraft com professores especializados.
+            As aulas acontecem dentro do servidor Minecraft, com os professores e a turma em tempo real.
           </p>
           <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             {session ? (

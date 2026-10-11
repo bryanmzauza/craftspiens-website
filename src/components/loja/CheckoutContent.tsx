@@ -17,6 +17,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { PageHero } from "@/components/ui/PageHero";
 import { Button } from "@/components/ui/Button";
+import { formatCpf, isValidCpf, normalizeCpf } from "@/lib/cpf";
 
 interface CartProduct {
   id: string;
@@ -49,6 +50,10 @@ export function CheckoutContent() {
   } | null>(null);
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError, setCouponError] = useState("");
+  // CPF de quem paga: o salvo na conta aparece mascarado; "editingCpf" pede um novo
+  const [savedCpf, setSavedCpf] = useState<string | null>(null);
+  const [editingCpf, setEditingCpf] = useState(false);
+  const [cpf, setCpf] = useState("");
 
   const fetchCart = useCallback(async () => {
     try {
@@ -72,6 +77,28 @@ export function CheckoutContent() {
     if (session) fetchCart();
     else setLoading(false);
   }, [session, fetchCart]);
+
+  useEffect(() => {
+    if (!session) return;
+    let active = true;
+    fetch("/api/perfil", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!active || !data) return;
+        setSavedCpf(data.payerCpf ?? null);
+        setEditingCpf(!data.payerCpf);
+      })
+      .catch(() => {
+        if (active) setEditingCpf(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [session]);
+
+  const cpfDigits = normalizeCpf(cpf);
+  const cpfInvalid = editingCpf && cpfDigits.length === 11 && !isValidCpf(cpfDigits);
+  const cpfReady = editingCpf ? isValidCpf(cpfDigits) : !!savedCpf;
 
   const applyCoupon = async () => {
     if (!couponCode.trim()) return;
@@ -121,12 +148,18 @@ export function CheckoutContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           couponCode: appliedCoupon?.code || "",
+          cpf: editingCpf ? cpfDigits : undefined,
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
+        if (data.code === "EmailNaoVerificado") {
+          router.push("/confirmar-email?redirect=/loja/checkout");
+          return;
+        }
+        if (data.code === "CpfObrigatorio" || data.code === "CpfInvalido") setEditingCpf(true);
         setError(data.error || "Erro ao criar pedido");
         setProcessing(false);
         return;
@@ -331,6 +364,56 @@ export function CheckoutContent() {
                   )}
                 </div>
 
+                {/* CPF de quem paga */}
+                <div className="mt-6">
+                  <label htmlFor="checkout-cpf" className="text-xs font-medium text-[#A0A0A0]">
+                    CPF de quem vai pagar
+                  </label>
+                  {!editingCpf && savedCpf ? (
+                    <div className="mt-1 flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                      <span className="font-[family-name:var(--font-jetbrains-mono)] text-sm text-white">{savedCpf}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingCpf(true);
+                          setCpf("");
+                        }}
+                        className="text-xs text-[#A0A0A0] hover:text-white"
+                      >
+                        Trocar
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <input
+                        id="checkout-cpf"
+                        inputMode="numeric"
+                        autoComplete="off"
+                        value={cpf}
+                        onChange={(e) => setCpf(formatCpf(e.target.value))}
+                        placeholder="000.000.000-00"
+                        className="mt-1 w-full rounded-lg border border-white/20 bg-white/5 py-2 px-3 text-sm text-white placeholder:text-white/40 focus:border-green-cs focus:outline-none"
+                      />
+                      {cpfInvalid && <p className="mt-1 text-xs text-error">CPF inválido. Confira os números.</p>}
+                      {savedCpf && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingCpf(false);
+                            setCpf("");
+                          }}
+                          className="mt-1 text-xs text-[#A0A0A0] hover:text-white"
+                        >
+                          Usar o CPF salvo ({savedCpf})
+                        </button>
+                      )}
+                    </>
+                  )}
+                  <p className="mt-1 text-xs text-[#A0A0A0]">
+                    Pode ser o CPF do aluno ou de um responsável. Ele é enviado ao MercadoPago e fica salvo na sua conta.
+                  </p>
+                </div>
+
                 {/* Totals */}
                 <div className="mt-6 space-y-3 border-t border-white/10 pt-4">
                   <div className="flex justify-between text-sm">
@@ -366,7 +449,7 @@ export function CheckoutContent() {
                 {/* Pay button */}
                 <button
                   onClick={handleCheckout}
-                  disabled={processing || items.length === 0}
+                  disabled={processing || items.length === 0 || !cpfReady}
                   className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-green-cs py-3 text-sm font-bold uppercase text-white transition-all hover:bg-green-dark disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {processing ? (

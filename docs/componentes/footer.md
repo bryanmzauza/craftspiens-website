@@ -52,6 +52,9 @@ Não afiliado à Mojang Studios. Minecraft é marca registrada de Mojang Synergi
 ```
 
 ### RN-FOOTER-02: Newsletter (Opcional)
+
+> Implementação atual (v0.15): a CraftSapiens não usa e-mail para novidades. A faixa acima do rodapé é um convite para o Discord (`discord.gg/craftsapiens`), com botão "Entrar no Discord" e o número de membros e de pessoas online, vindos da API pública de convites do Discord (`/api/discord`).
+
 - Barra acima do footer com:
   - Texto: "Fique por dentro das novidades"
   - Input de email + botão "INSCREVER"
@@ -60,7 +63,7 @@ Não afiliado à Mojang Studios. Minecraft é marca registrada de Mojang Synergi
 ### RN-FOOTER-03: Redes Sociais
 | Rede | Ícone | Link |
 |------|-------|------|
-| Discord | Discord icon | discord.io/craftsapiens |
+| Discord | Discord icon | discord.gg/craftsapiens |
 | YouTube | YouTube icon | youtube.com/channel/UCdea6doNy_AypHr4S2tPUTw |
 | Instagram | Instagram icon | instagram.com/universidadecraftsapiens |
 | TikTok | TikTok icon | tiktok.com/@craftsapiens |

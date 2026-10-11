@@ -100,6 +100,15 @@
   7. Sistema ativa o produto automaticamente
   8. Email de confirmação enviado
 
+#### Requisitos para comprar (v0.16)
+- Nick do Minecraft vinculado (a entrega é no jogo)
+- E-mail confirmado (RN-AUTH-02c em `07-auth.md`)
+- CPF de quem paga, que pode ser o aluno ou um responsável:
+  - Validado pelos dígitos verificadores, no navegador e na API
+  - Fica salvo na conta (`users.payer_cpf`) e aparece mascarado nas próximas compras (ex.: 123.\*\*\*.\*\*\*-09); pode ser trocado em qualquer compra
+  - Enviado ao MercadoPago como identificação do pagador (`payer.identification`), junto com o e-mail confirmado
+  - Sem CPF válido, a API responde 400 com o código `CpfObrigatorio` ou `CpfInvalido`
+
 ### RN-LOJA-08: Ativação de Produtos
 - **VIP/Premium**: Atualiza grupo de permissões do jogador no servidor (via banco de dados ou API do plugin de permissões)
 - **Itens in-game**: Salva na tabela de entregas pendentes. Quando jogador entra no servidor, recebe itens automaticamente

@@ -16,14 +16,13 @@ import { Button } from "@/components/ui/Button";
 import { SERVER_IP } from "@/lib/constants";
 import { HERO_IMAGE } from "@/components/home/hero-image";
 import { HeroMotes } from "@/components/home/HeroMotes";
-
-type ServerStatus = { online: boolean; players: number };
+import { useServerStatus } from "@/lib/use-server-status";
 
 export function HeroSection() {
   const { data: session } = useSession();
   const reduceMotion = useReducedMotion();
   const sectionRef = useRef<HTMLElement>(null);
-  const [status, setStatus] = useState<ServerStatus | null>(null);
+  const status = useServerStatus();
   const [copied, setCopied] = useState(false);
 
   // Parallax de rolagem: a imagem desce mais devagar que a página e o texto
@@ -67,21 +66,6 @@ export function HeroSection() {
       el.removeEventListener("pointerleave", onLeave);
     };
   }, [reduceMotion, pointerX, pointerY]);
-
-  useEffect(() => {
-    let active = true;
-    fetch("/api/server-status")
-      .then((res) => res.json())
-      .then((data) => {
-        if (active) setStatus({ online: !!data.online, players: data.players?.online ?? 0 });
-      })
-      .catch(() => {
-        if (active) setStatus({ online: false, players: 0 });
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   const copyIp = async () => {
     try {
@@ -169,7 +153,7 @@ export function HeroSection() {
                   }`}
                 />
                 {status.online
-                  ? `${status.players} ${status.players === 1 ? "jogador" : "jogadores"} online`
+                  ? `${status.players.online} ${status.players.online === 1 ? "jogador" : "jogadores"} online agora`
                   : "Servidor offline"}
               </span>
             )}

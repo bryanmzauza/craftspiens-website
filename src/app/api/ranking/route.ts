@@ -11,7 +11,8 @@ export async function GET() {
   const grouped = await prisma.userLessonProgress.groupBy({
     by: ["userId"],
     where: {
-      user: { deactivatedAt: null, profile: { perfilPublico: true } },
+      // Só contas com nick do Minecraft vinculado aparecem no ranking
+      user: { deactivatedAt: null, nloginId: { not: null }, profile: { perfilPublico: true } },
     },
     _count: { lessonId: true },
     orderBy: [{ _count: { lessonId: "desc" } }, { userId: "asc" }],

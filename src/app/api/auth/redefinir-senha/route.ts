@@ -78,12 +78,21 @@ export async function POST(request: Request) {
       include: { user: true },
     });
 
+    // Conta sem nick vinculado (criada pelo Google) não tem senha do jogo
+    const nloginId = resetToken.user.nloginId;
+    if (nloginId == null) {
+      return NextResponse.json(
+        { error: "Esta conta entra pelo Google e não tem senha. Use o botão Entrar com Google." },
+        { status: 400 }
+      );
+    }
+
     const newHash = await hashPassword(password);
 
     // Atualizar senha no nLogin (MariaDB); se falhar, libera o token de novo
     try {
       await prismaMariaDb.nlogin.update({
-        where: { id: resetToken.user.nloginId },
+        where: { id: nloginId },
         data: { password: newHash },
       });
     } catch (error) {

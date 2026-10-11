@@ -2,9 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { useServerStatus } from "@/lib/use-server-status";
 
 function AnimatedCounter({ target, duration = 1800 }: { target: number; duration?: number }) {
   const [count, setCount] = useState(0);
+  // Depois da animação inicial, o valor acompanha o alvo (ex.: jogadores online atualizados)
+  const [done, setDone] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
   const hasAnimated = useRef(false);
 
@@ -19,6 +22,7 @@ function AnimatedCounter({ target, duration = 1800 }: { target: number; duration
             const eased = 1 - Math.pow(1 - progress, 3);
             setCount(Math.floor(eased * target));
             if (progress < 1) requestAnimationFrame(animate);
+            else setDone(true);
           };
           requestAnimationFrame(animate);
         }
@@ -29,31 +33,22 @@ function AnimatedCounter({ target, duration = 1800 }: { target: number; duration
     return () => observer.disconnect();
   }, [target, duration]);
 
-  return <span ref={ref}>{count.toLocaleString("pt-BR")}</span>;
+  return <span ref={ref}>{(done ? target : count).toLocaleString("pt-BR")}</span>;
 }
 
 // null = carregando; string = texto fixo (ex.: "Offline")
 type StatValue = number | string | null;
 
 export function StatsSection() {
-  const [jogadoresOnline, setJogadoresOnline] = useState<StatValue>(null);
-  const [serverOnline, setServerOnline] = useState(false);
+  const status = useServerStatus();
+  const serverOnline = !!status?.online;
+  const jogadoresOnline: StatValue =
+    status === null ? null : status.online ? status.players.online : "Offline";
   const [alunos, setAlunos] = useState<StatValue>(null);
   const [aulas, setAulas] = useState<StatValue>(null);
 
   useEffect(() => {
     let active = true;
-
-    fetch("/api/server-status")
-      .then((res) => res.json())
-      .then((data) => {
-        if (!active) return;
-        setServerOnline(!!data.online);
-        setJogadoresOnline(data.online ? data.players?.online ?? 0 : "Offline");
-      })
-      .catch(() => {
-        if (active) setJogadoresOnline("Offline");
-      });
 
     fetch("/api/estatisticas")
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(res.statusText))))

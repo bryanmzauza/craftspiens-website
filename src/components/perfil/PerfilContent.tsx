@@ -18,6 +18,7 @@ import {
   MessagesSquare,
   ShoppingCart,
   Loader2,
+  ShieldCheck,
 } from "lucide-react";
 import { PageHero } from "@/components/ui/PageHero";
 
@@ -28,6 +29,13 @@ type ProfileData = {
   role: string;
   birthDate: string | null;
   createdAt: string;
+  emailConfirmed: boolean;
+  /** Identificador da skin no mc-heads.net (UUID da conta original, textura do Bedrock ou nick) */
+  skin: { id: string; source: "java" | "bedrock" | "nick" } | null;
+  /** Cargo no servidor, do LuckPerms */
+  rank: { group: string; label: string; color: string } | null;
+  /** Tag pelo tempo desde o registro no servidor (nLogin) */
+  seniority: { label: string; since: string } | null;
   nlogin: {
     uuid: string | null;
     lastSeen: string;
@@ -79,14 +87,6 @@ function getRoleLabel(role: string): { label: string; color: string } {
     ALUNO: { label: "Aluno", color: "#4CAF50" },
   };
   return roles[role] || roles.ALUNO;
-}
-
-function getReputationBadge(posts: number, comments: number): { label: string } {
-  const total = posts * 2 + comments;
-  if (total >= 200) return { label: "Lenda" };
-  if (total >= 50) return { label: "Veterano" };
-  if (total >= 10) return { label: "Membro" };
-  return { label: "Novato" };
 }
 
 type ActivityType = "compra" | "topico" | "comentario" | "aula";
@@ -170,14 +170,18 @@ export function PerfilContent() {
   }, [session]);
 
   const username = profile?.username || session?.user?.username || "Jogador";
-  const avatarUrl = profile?.nlogin?.uuid
-    ? `https://mc-heads.net/avatar/${profile.nlogin.uuid}/100`
-    : `https://mc-heads.net/avatar/${username}/100`;
-  const roleInfo = getRoleLabel(profile?.role || session?.user?.role || "ALUNO");
-  const reputation = getReputationBadge(profile?.stats?.posts || 0, profile?.stats?.comments || 0);
-  const memberSince = profile?.createdAt
-    ? new Date(profile.createdAt).toLocaleDateString("pt-BR", { month: "short", year: "numeric" })
-    : "";
+  // Cabeça da skin do jogo; sem nick vinculado, usa o nome (aparece o Steve)
+  const avatarUrl = `https://mc-heads.net/avatar/${encodeURIComponent(profile?.skin?.id ?? username)}/100`;
+  // Cargo do servidor (LuckPerms); contas sem nick ficam com o papel do site
+  const siteRole = getRoleLabel(profile?.role || session?.user?.role || "ALUNO");
+  const roleInfo = profile?.rank ? { label: profile.rank.label, color: profile.rank.color } : siteRole;
+  const formatMonth = (date: string) =>
+    new Date(date).toLocaleDateString("pt-BR", { month: "short", year: "numeric" });
+  const memberSince = profile?.seniority
+    ? `No servidor desde ${formatMonth(profile.seniority.since)}`
+    : profile?.createdAt
+      ? `Membro desde ${formatMonth(profile.createdAt)}`
+      : "";
   const lastAccess = profile?.nlogin?.lastSeen
     ? formatRelativeDate(profile.nlogin.lastSeen)
     : "";
@@ -187,7 +191,7 @@ export function PerfilContent() {
     { icon: Star, label: "XP Total", value: profile?.profile?.xp?.toLocaleString("pt-BR") || "0", cor: "#9C27B0" },
     { icon: Clock, label: "Tempo Online", value: formatPlaytime(profile?.profile?.playtimeMinutes || 0), cor: "#2196F3" },
     { icon: BookOpen, label: "Aulas Concluídas", value: String(profile?.profile?.aulasConcluidas || 0), cor: "#4CAF50" },
-    { icon: Crown, label: "Plano Atual", value: roleInfo.label, cor: roleInfo.color },
+    { icon: Crown, label: "Cargo", value: roleInfo.label, cor: roleInfo.color },
   ];
 
   const visibleProgress = showAllProgress ? progressData : progressData.slice(0, 4);
@@ -235,18 +239,32 @@ export function PerfilContent() {
             <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
               <h2 className="text-xl font-bold text-white">{username}</h2>
               <span
-                className="rounded px-2 py-0.5 text-xs font-bold text-white"
-                style={{ backgroundColor: roleInfo.color }}
+                className="rounded border px-2 py-0.5 text-xs font-bold"
+                style={{ color: roleInfo.color, backgroundColor: `${roleInfo.color}26`, borderColor: `${roleInfo.color}66` }}
+                title={profile?.rank ? "Cargo no servidor" : undefined}
               >
                 {roleInfo.label}
               </span>
-              <span className="rounded bg-white/10 px-2 py-0.5 text-xs text-[#A0A0A0]">
-                {reputation.label}
-              </span>
+              {profile?.seniority && (
+                <span
+                  className="rounded bg-white/10 px-2 py-0.5 text-xs text-[#A0A0A0]"
+                  title={`Registro no servidor em ${new Date(profile.seniority.since).toLocaleDateString("pt-BR")}`}
+                >
+                  {profile.seniority.label}
+                </span>
+              )}
+              {profile?.emailConfirmed && (
+                <span
+                  className="inline-flex items-center gap-1 rounded border border-green-cs/40 bg-green-cs/10 px-2 py-0.5 text-xs font-semibold text-green-cs"
+                  title="E-mail confirmado"
+                >
+                  <ShieldCheck size={12} /> Verificado
+                </span>
+              )}
             </div>
             <p className="mt-1 text-sm text-[#A0A0A0]">
-              {memberSince && <>Membro desde {memberSince}</>}
-              {lastAccess && <> · Último acesso: {lastAccess}</>}
+              {memberSince}
+              {lastAccess && <>{memberSince && " · "}Último acesso: {lastAccess}</>}
             </p>
           </div>
 

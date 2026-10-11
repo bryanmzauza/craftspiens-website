@@ -15,16 +15,25 @@ datasource db {
 }
 
 model User {
-  id             String    @id @default(cuid())
-  nloginId       Int       @unique @map("nlogin_id")
-  email          String    @unique
-  role           Role      @default(ALUNO)
-  birthDate      DateTime? @map("birth_date") @db.Date
-  deactivatedAt  DateTime? @map("deactivated_at")
+  id              String    @id @default(cuid())
+  // Conta do jogo (tabela nlogin no MariaDB). Nulo em contas criadas pelo Google
+  // que ainda não vincularam um nick do Minecraft.
+  nloginId        Int?      @unique @map("nlogin_id")
+  // Nome exibido enquanto a conta não tem nick vinculado (ex.: nome da conta Google)
+  displayName     String?   @map("display_name") @db.VarChar(100)
+  email           String    @unique
+  // Preenchido quando o usuário confirma o e-mail com o código enviado (contas do
+  // Google já entram verificadas). Sem verificação, a conta não usa a plataforma.
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  // CPF de quem paga as compras (o aluno ou um responsável), só dígitos
+  payerCpf        String?   @map("payer_cpf") @db.VarChar(11)
+  role            Role      @default(ALUNO)
+  birthDate       DateTime? @map("birth_date") @db.Date
+  deactivatedAt   DateTime? @map("deactivated_at")
   // Incrementado ao trocar/redefinir a senha ou desativar a conta: invalida as sessões abertas
-  sessionVersion Int       @default(0) @map("session_version")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  sessionVersion  Int       @default(0) @map("session_version")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
   profile             Profile?
   orders              Order[]
@@ -35,6 +44,8 @@ model User {
   blogPosts           BlogPost[]
   passwordResetTokens PasswordResetToken[]
   cartItems           CartItem[]
+  linkedAccounts      LinkedAccount[]
+  emailVerifications  EmailVerification[]
   lessonProgress      UserLessonProgress[]
 
   @@map("users")
@@ -337,7 +348,9 @@ model Discipline {
   icon             String   @db.VarChar(50)
   color            String   @db.VarChar(20)
   banner           String?  @db.VarChar(500)
-  levels           String   @db.VarChar(100)
+  levels           String   @default("[]") @db.VarChar(100)
+  // Área do conhecimento usada nos filtros de /aulas (Exatas, Natureza, Humanas, Linguagens, Outras)
+  area             String   @default("Outras") @db.VarChar(40)
   order            Int      @default(0)
   active           Boolean  @default(true)
   createdAt        DateTime @default(now()) @map("created_at")
@@ -349,23 +362,30 @@ model Discipline {
 }
 
 model Lesson {
-  id           String   @id @default(cuid())
-  disciplineId String   @map("discipline_id")
-  title        String   @db.VarChar(200)
-  slug         String   @unique @db.VarChar(200)
-  description  String   @db.Text
-  content      String?  @db.Text
-  videoUrl     String?  @map("video_url") @db.VarChar(500)
-  objectives   String?  @db.Text
-  order        Int      @default(0)
-  duration     Int?     @map("duration_minutes")
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id           String    @id @default(cuid())
+  disciplineId String    @map("discipline_id")
+  title        String    @db.VarChar(200)
+  // Único por disciplina: o mesmo vídeo pode aparecer em mais de uma disciplina
+  slug         String    @db.VarChar(200)
+  description  String    @db.Text
+  content      String?   @db.Text
+  videoUrl     String?   @map("video_url") @db.VarChar(500)
+  youtubeId    String?   @map("youtube_id") @db.VarChar(20)
+  // "live", "video" ou "curto" (vídeos do YouTube); nulo para aulas sem vídeo
+  format       String?   @db.VarChar(10)
+  publishedAt  DateTime? @map("published_at")
+  objectives   String?   @db.Text
+  order        Int       @default(0)
+  duration     Int?      @map("duration_minutes")
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
 
   discipline Discipline           @relation(fields: [disciplineId], references: [id])
   progress   UserLessonProgress[]
 
+  @@unique([disciplineId, slug])
+  @@index([publishedAt])
   @@map("lessons")
 }
 
@@ -405,4 +425,38 @@ model RateLimit {
 
   @@index([resetAt])
   @@map("rate_limits")
+}
+
+// Contas externas vinculadas (login pelo Google). O login pela Microsoft não
+// precisa desta tabela: a conta é encontrada pelo mojang_id/bedrock_id do nLogin.
+model LinkedAccount {
+  id                String   @id @default(cuid())
+  userId            String   @map("user_id")
+  provider          String   @db.VarChar(20)
+  providerAccountId String   @map("provider_account_id") @db.VarChar(255)
+  email             String?  @db.VarChar(255)
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@unique([userId, provider])
+  @@map("linked_accounts")
+}
+
+// Códigos de verificação de e-mail (6 dígitos, guardados só como hash)
+model EmailVerification {
+  id         String    @id @default(cuid())
+  userId     String    @map("user_id")
+  email      String    @db.VarChar(255)
+  codeHash   String    @map("code_hash") @db.VarChar(64)
+  attempts   Int       @default(0)
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("email_verifications")
 }

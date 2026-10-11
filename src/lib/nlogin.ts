@@ -6,24 +6,36 @@ import {
 
 // --- Helpers para consultas cross-database ---
 
+// Contas criadas pelo Google podem ainda não ter nick vinculado (nloginId nulo):
+// todas as funções abaixo aceitam esse caso.
+
 /** Busca dados nLogin por ID (MariaDB) */
-export async function getNloginById(id: number) {
+export async function getNloginById(id: number | null) {
+  if (id == null) return null;
   return prismaMariaDb.nlogin.findFirst({ where: { id } });
 }
 
 /** Busca múltiplos nLogins por IDs — para batch enrichment */
-export async function getNloginsByIds(ids: number[]) {
-  if (ids.length === 0) return [];
-  return prismaMariaDb.nlogin.findMany({ where: { id: { in: ids } } });
+export async function getNloginsByIds(ids: (number | null)[]) {
+  const valid = [...new Set(ids.filter((id): id is number => id != null))];
+  if (valid.length === 0) return [];
+  return prismaMariaDb.nlogin.findMany({ where: { id: { in: valid } } });
+}
+
+/** Mapa nloginId → registro do nLogin, para resolver vários autores de uma vez */
+export async function getNloginMap(ids: Iterable<number | null>) {
+  const nlogins = await getNloginsByIds([...ids]);
+  const map = new Map(nlogins.map((n) => [n.id, n]));
+  return {
+    get: (id: number | null | undefined) => (id == null ? undefined : map.get(id)),
+  };
 }
 
 /** Enriquece um user (ou array) com dados nLogin do MariaDB */
-export async function enrichUsersWithNlogin<T extends { nloginId: number }>(
+export async function enrichUsersWithNlogin<T extends { nloginId: number | null }>(
   users: T[]
 ): Promise<(T & { nlogin: { last_name: string; unique_id: string | null } })[]> {
-  const ids = [...new Set(users.map((u) => u.nloginId))];
-  const nlogins = await getNloginsByIds(ids);
-  const nloginMap = new Map(nlogins.map((n) => [n.id, n]));
+  const nloginMap = await getNloginMap(users.map((u) => u.nloginId));
   return users.map((u) => ({
     ...u,
     nlogin: nloginMap.get(u.nloginId) ?? { last_name: "Unknown", unique_id: null },
@@ -61,10 +73,8 @@ export async function findUserByEmail(email: string) {
   });
   if (!user) return null;
 
-  // Buscar nlogin separadamente (cross-database)
-  const nlogin = await prismaMariaDb.nlogin.findFirst({
-    where: { id: user.nloginId },
-  });
+  // Buscar nlogin separadamente (cross-database); nulo se a conta não tem nick
+  const nlogin = await getNloginById(user.nloginId);
 
   return { ...user, nlogin };
 }

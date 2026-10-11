@@ -6,8 +6,9 @@ declare module "next-auth" {
     username: string;
     email: string;
     role: "ALUNO" | "PROFESSOR" | "MODERADOR" | "ADMIN";
-    nloginId: number;
+    nloginId: number | null;
     sessionVersion: number;
+    emailConfirmed: boolean;
   }
 
   interface Session {
@@ -16,7 +17,8 @@ declare module "next-auth" {
       username: string;
       email: string;
       role: "ALUNO" | "PROFESSOR" | "MODERADOR" | "ADMIN";
-      nloginId: number;
+      nloginId: number | null;
+      emailConfirmed: boolean;
     };
   }
 }
@@ -27,8 +29,9 @@ declare module "next-auth/jwt" {
     username: string;
     email: string;
     role: "ALUNO" | "PROFESSOR" | "MODERADOR" | "ADMIN";
-    nloginId: number;
+    nloginId: number | null;
     sessionVersion: number;
     checkedAt?: number;
+    emailConfirmed?: boolean;
   }
 }

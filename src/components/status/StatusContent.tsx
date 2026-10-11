@@ -3,17 +3,15 @@
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
-  Wifi,
   WifiOff,
   Users,
   Server,
-  Copy,
-  Check,
+  MonitorSmartphone,
   RefreshCw,
 } from "lucide-react";
 import { PageHero } from "@/components/ui/PageHero";
 import { SectionTitle } from "@/components/ui/SectionTitle";
-import { SERVER_IP } from "@/lib/constants";
+import { HowToConnect } from "@/components/status/HowToConnect";
 
 interface ServerStatus {
   online: boolean;
@@ -32,7 +30,6 @@ interface RankingEntry {
 export function StatusContent() {
   const [status, setStatus] = useState<ServerStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [copied, setCopied] = useState(false);
   const [ranking, setRanking] = useState<RankingEntry[]>([]);
   const [rankingLoading, setRankingLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
@@ -72,12 +69,6 @@ export function StatusContent() {
     }
     fetchRanking();
   }, []);
-
-  const copyIp = async () => {
-    await navigator.clipboard.writeText(SERVER_IP);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   return (
     <>
@@ -132,7 +123,7 @@ export function StatusContent() {
                 </div>
 
                 {/* Stats Grid */}
-                <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="mt-8 grid gap-4 sm:grid-cols-3">
                   <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-center">
                     <Users className="mx-auto h-6 w-6 text-green-cs" />
                     <p className="mt-2 text-2xl font-bold text-white">
@@ -149,32 +140,13 @@ export function StatusContent() {
                     <p className="mt-2 text-lg font-bold text-white">
                       {status?.version || "—"}
                     </p>
-                    <p className="text-xs text-[#A0A0A0]">Versão</p>
+                    <p className="text-xs text-[#A0A0A0]">Versões (Java)</p>
                   </div>
 
                   <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-center">
-                    <Wifi className="mx-auto h-6 w-6 text-green-cs" />
-                    <p className="mt-2 text-lg font-bold text-white">
-                      {status?.motd || "—"}
-                    </p>
-                    <p className="text-xs text-[#A0A0A0]">MOTD</p>
-                  </div>
-
-                  <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-center">
-                    <button
-                      onClick={copyIp}
-                      className="mx-auto flex items-center gap-2 transition-colors hover:text-green-cs"
-                    >
-                      <span className="font-[family-name:var(--font-jetbrains-mono)] text-sm text-white">
-                        {SERVER_IP}
-                      </span>
-                      {copied ? (
-                        <Check size={14} className="text-green-cs" />
-                      ) : (
-                        <Copy size={14} className="text-[#A0A0A0]" />
-                      )}
-                    </button>
-                    <p className="mt-2 text-xs text-[#A0A0A0]">IP do Servidor</p>
+                    <MonitorSmartphone className="mx-auto h-6 w-6 text-green-cs" />
+                    <p className="mt-2 text-lg font-bold text-white">Java e Bedrock</p>
+                    <p className="text-xs text-[#A0A0A0]">Edições aceitas</p>
                   </div>
                 </div>
               </>
@@ -182,6 +154,8 @@ export function StatusContent() {
           </motion.div>
         </div>
       </section>
+
+      <HowToConnect />
 
       {/* Ranking de aulas */}
       {rankingLoading ? (

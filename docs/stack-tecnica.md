@@ -50,7 +50,7 @@ O vínculo entre os bancos é o campo `users.nlogin_id` (PostgreSQL), que guarda
 
 ## Autenticação — Integração nLogin
 
-O plugin nLogin é usado no servidor Minecraft para autenticação de jogadores. O novo site compartilha o mesmo banco de credenciais.
+O plugin nLogin é usado no servidor Minecraft para autenticação de jogadores. A nova plataforma compartilha o mesmo banco de credenciais.
 
 ### Fluxo de Registro (Site → Servidor)
 
@@ -120,10 +120,12 @@ O plugin nLogin é usado no servidor Minecraft para autenticação de jogadores.
 
 | Config | Valor |
 |--------|-------|
-| **Provider** | Credentials (custom) |
-| **Session Strategy** | JWT |
-| **Adapter** | Custom Prisma adapter (lê/escreve na tabela nlogin) |
+| **Providers** | Credentials (nick ou e-mail e senha do nLogin), Google e Microsoft (Minecraft Java original e Bedrock) |
+| **Session Strategy** | JWT, sem adapter |
+| **Contas externas** | Google na tabela `linked_accounts`; Microsoft pelo `mojang_id`/`bedrock_id` do nLogin |
 | **Cookies** | HTTP-only, Secure, SameSite=Lax |
+
+Detalhes e configuração do login externo: [Login com Microsoft e Google](./login-externo.md).
 
 ---
 
@@ -165,7 +167,12 @@ O plugin nLogin é usado no servidor Minecraft para autenticação de jogadores.
 
 ## Status do Servidor — Minecraft Query Protocol
 
-O site consulta o status do servidor Minecraft pela API pública mcsrvstat.us (`/api/server-status`). A consulta direta via Minecraft Server List Ping (TCP na porta 25565) fica para uma versão futura.
+O site consulta o servidor Minecraft diretamente pelo protocolo Server List Ping (`src/lib/minecraft-status.ts`, exposto em `/api/server-status`):
+
+- O endereço vem do registro SRV `_minecraft._tcp.jogar.craftsapiens.com.br` (hoje `backend.craftsapiens.com.br:25576`). Não defina `MINECRAFT_SERVER_PORT` enquanto o SRV existir.
+- Se a consulta direta falhar, usa a API pública mcsrvstat.us como reserva.
+- Jogadores do Bedrock (celular, tablet e Windows) entram pelo mesmo endereço na porta UDP 19132 (constante `BEDROCK_PORT`). O Bedrock não usa registro SRV, por isso a porta aparece no site.
+- O resultado fica em cache por 15 s no servidor; no navegador, os componentes compartilham uma consulta repetida a cada 30 s.
 
 ### Dados Disponíveis
 
@@ -247,15 +254,18 @@ MERCADOPAGO_WEBHOOK_SECRET="..."
 
 # Minecraft Server (opcional)
 MINECRAFT_SERVER_HOST="jogar.craftsapiens.com.br"
-MINECRAFT_SERVER_PORT=25565
+# MINECRAFT_SERVER_PORT: deixe sem definir; a porta vem do registro SRV do domínio
 
 # Email
-SMTP_HOST="..."
-SMTP_PORT=587
-SMTP_SECURE="false"
-SMTP_USER="..."
+# SMTP do Gmail com senha de app (ver docs/email.md)
+SMTP_HOST="smtp.gmail.com"
+SMTP_PORT=465
+SMTP_SECURE="true"
+SMTP_USER="<Gmail da equipe>"
 SMTP_PASS="..."
-SMTP_FROM="noreply@craftsapiens.com.br"
+SMTP_FROM="nao-responda@craftsapiens.com.br"
+SMTP_REPLY_TO="contato@craftsapiens.com.br"
+CONTACT_INBOX="contato@craftsapiens.com.br"
 ```
 
 ---

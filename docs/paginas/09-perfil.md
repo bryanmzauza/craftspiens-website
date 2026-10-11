@@ -11,11 +11,21 @@
 ### RN-PERFIL-01: Dashboard Principal (`/perfil`)
 
 #### Header do Perfil
-- Avatar: Skin do Minecraft renderizada (via API `mc-heads.net` usando UUID)
+- Avatar: cabeça da skin do jogo, renderizada pelo `mc-heads.net` (v0.16, `src/lib/player-profile.ts`):
+  1. Conta original (Java): pelo `mojang_id` do nLogin, a skin oficial da conta
+  2. Bedrock: pela textura que o Geyser publica (`api.geysermc.org/v2/skin/<XUID>`, com o XUID tirado do `bedrock_id`)
+  3. Demais contas: pelo nick; sem conta original com o mesmo nick, aparece o Steve
+  - O `unique_id` do nLogin não serve: é o UUID offline do jogo e não tem skin
 - Username (nick do Minecraft)
-- Badge de cargo/rank (Aluno, VIP, VIP+, Premium, Professor, Moderador, Admin)
-- Badge de reputação do fórum
-- Data de registro
+- Badge de cargo, vindo do LuckPerms (v0.16, `src/lib/luckperms.ts`):
+  - O jogador é encontrado pelo `unique_id` do nLogin com hífens
+  - Vale o grupo de maior peso (`weight`) entre os grupos do jogador, sem os temporários vencidos; a coluna `primary_group` não é usada porque fica desatualizada
+  - Nome e cor vêm do prefixo do grupo no jogo (ex.: `&b[Dev]&f` vira "Dev" em ciano), depois do `displayname` e do nome do grupo
+  - Só o grupo `default`: aparece "Jogador". Conta sem nick: mostra o papel no site
+  - Leitura somente, com cache de 1 minuto
+- Tag pelo tempo desde o registro no servidor (`creation_date` do nLogin): Novato (menos de 30 dias), Membro (menos de 1 ano), Veterano (menos de 3 anos) e Lenda
+- Selo "Verificado" quando o e-mail da conta está confirmado
+- "No servidor desde", pela data de registro no nLogin (contas sem nick: "Membro desde", pela criação da conta no site)
 - Último acesso no servidor
 - Botão "Editar Perfil"
 
@@ -28,7 +38,7 @@ Exibir 4-6 cards com métricas principais:
 | **Tempo Online** | Horas jogadas | Tabela de playtime |
 | **Aulas Concluídas** | Quantidade | Tabela de progresso |
 | **Ranking Geral** | Posição no ranking | Cálculo baseado em XP |
-| **Plano Atual** | Gratuito/VIP/Premium + expiração | Tabela de permissões |
+| **Cargo** | Cargo no servidor | LuckPerms (mesmo critério do badge) |
 
 #### Atividade Recente
 
@@ -63,7 +73,7 @@ Exibir 4-6 cards com métricas principais:
 ### RN-PERFIL-03: Configurações da Conta (`/perfil/configuracoes`)
 
 #### Dados Pessoais
-- Email (editável, requer confirmação por email)
+- Email: exibido em modo leitura; "Alterar e-mail" abre a confirmação por código de 6 dígitos (`/confirmar-email?alterar=1`). O novo e-mail só vale depois de confirmado (RN-AUTH-02c em `07-auth.md`)
 - Bio (texto livre, máx 500 caracteres)
 - Data de nascimento (não editável após registro)
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getNloginsByIds } from "@/lib/nlogin";
+import { getNloginMap } from "@/lib/nlogin";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -34,8 +34,7 @@ export async function GET(request: NextRequest) {
   ]);
 
   const nloginIds = [...new Set(posts.filter((p) => p.author).map((p) => p.author!.nloginId))];
-  const nlogins = await getNloginsByIds(nloginIds);
-  const nloginMap = new Map(nlogins.map((n) => [n.id, n]));
+  const nloginMap = await getNloginMap(nloginIds);
 
   return NextResponse.json({
     posts: posts.map((p) => ({

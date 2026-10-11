@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/client-ip";
-import { sendContactConfirmationEmail } from "@/lib/email";
+import { sendContactConfirmationEmail, sendContactToTeam } from "@/lib/email";
 
 const VALID_CATEGORIES = [
   "Dúvidas sobre aulas",
@@ -33,6 +33,17 @@ export async function POST(request: Request) {
     if (!name || !email || !category || !subject || !message) {
       return NextResponse.json(
         { error: "Todos os campos são obrigatórios." },
+        { status: 400 }
+      );
+    }
+
+    if ([name, email, category, subject, message].some((field) => typeof field !== "string")) {
+      return NextResponse.json({ error: "Requisição inválida." }, { status: 400 });
+    }
+
+    if (subject.trim().length < 3 || subject.length > 150) {
+      return NextResponse.json(
+        { error: "Assunto deve ter entre 3 e 150 caracteres." },
         { status: 400 }
       );
     }
@@ -75,6 +86,11 @@ export async function POST(request: Request) {
         message,
       },
     });
+
+    // Cópia para a caixa da equipe (CONTACT_INBOX), com resposta direta ao remetente
+    sendContactToTeam({ name, email, category, subject, message }).catch((err) =>
+      console.error("Erro ao encaminhar mensagem de contato para a equipe:", err)
+    );
 
     // Email de confirmação para o remetente (fire-and-forget)
     sendContactConfirmationEmail(email, name).catch((err) =>

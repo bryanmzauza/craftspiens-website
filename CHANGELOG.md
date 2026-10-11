@@ -7,6 +7,110 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.16] — 10/10/2026 — Aulas do YouTube, login externo e status do servidor
+
+### Adicionado
+
+- **Login pela conta Microsoft** (Minecraft Java original e Bedrock), em `src/lib/minecraft-auth.ts`:
+  - Fluxo oficial dos launchers: conta Microsoft, Xbox Live (XUID e gamertag) e API do Minecraft (UUID e nick do Java)
+  - A conta do jogo é encontrada pelo identificador oficial no nLogin: `mojang_id` (Java original) ou `bedrock_id` (UUID do Floodgate gerado a partir do XUID)
+  - Só entra quem já tem conta no servidor; não cria contas do jogo. A conta do site é criada no primeiro acesso, como no login por senha
+  - A etapa do Java depende de a Mojang aprovar o app do Azure para a API do Minecraft; até lá, o login funciona para Bedrock
+- **Login e cadastro pelo Google**: cria uma conta no site sem nick. O e-mail do Google precisa estar verificado, e se o e-mail já pertence a uma conta com e-mail confirmado, o Google é vinculado a ela automaticamente; com e-mail ainda não confirmado, o dono entra com nick e senha e confirma o e-mail antes
+- **Aba "Contas vinculadas"** em Configurações (`perfil/ContasVinculadas.tsx`):
+  - Vincular nick do Minecraft confirmando a senha do servidor (`POST /api/perfil/vinculos/nick`); nick de conta original é recusado e vinculado pela Microsoft
+  - Vincular e desvincular o Google; desvincular só é permitido se a conta tiver outra forma de entrar
+  - Vínculo pela Microsoft para quem joga com conta original ou Bedrock
+  - Intenção de vínculo em cookie assinado, válido por 10 minutos (`src/lib/link-intent.ts`)
+- **Confirmação de e-mail obrigatória** (`/confirmar-email`, `src/lib/email-verification.ts`):
+  - Toda conta sem e-mail confirmado precisa informar um e-mail e confirmar com um código de 6 dígitos antes de usar a plataforma; as páginas públicas continuam abertas
+  - Vale para login por nick e senha, cadastro pelo site e Microsoft; contas do Google já entram confirmadas, e contas com e-mail provisório (`@craftsapiens.temp`) precisam informar um e-mail real
+  - Alternativa ao código: **Confirmar com Google**, que vincula o Google à conta e adota o e-mail dele como confirmado (não vale para troca de e-mail nem para e-mail que já pertence a outra conta)
+  - Código válido por 15 minutos, com 5 tentativas; só o hash do código fica no banco; pedir um novo código invalida os anteriores
+  - Rotas `GET /api/conta/email`, `POST /api/conta/email/enviar` e `POST /api/conta/email/confirmar`, com limites de 5 códigos e 10 tentativas a cada 15 minutos
+  - O `proxy.ts` leva páginas que exigem conta para a confirmação e bloqueia as APIs de escrita (perfil, carrinho, checkout, cupons, fórum e progresso das aulas) com o código `EmailNaoVerificado`
+  - E-mail com o código (`sendEmailVerificationCode`); em desenvolvimento, se o SMTP falhar, o código aparece no terminal
+- **CPF de quem paga no checkout** (`src/lib/cpf.ts`): obrigatório para comprar, pode ser do aluno ou de um responsável, validado pelos dígitos verificadores, salvo na conta e enviado ao MercadoPago como identificação do pagador
+- **Envio de e-mails pelo Gmail com o domínio próprio** (guia em `docs/email.md`):
+  - Envio pelo SMTP do Gmail (`smtp.gmail.com:465`, senha de app), com remetente `nao-responda@craftsapiens.com.br` cadastrado em "Enviar e-mail como"
+  - Recebimento pelo Cloudflare Email Routing, encaminhando `contato@` e `nao-responda@craftsapiens.com.br` para o Gmail da equipe, que responde como `contato@`
+  - O e-mail do domínio deixa de usar a hospedagem antiga; o guia lista os registros de DNS a remover e mantém o DMARC em `p=none` enquanto o envio for pelo Gmail
+  - Variáveis `SMTP_FROM_NAME`, `SMTP_REPLY_TO` (para onde vão as respostas aos e-mails automáticos) e `CONTACT_INBOX` (caixa da equipe)
+  - Mensagens do formulário de contato encaminhadas para `CONTACT_INBOX`, com resposta direta para quem escreveu
+  - Script `npm run email:test` para conferir conexão, autenticação e entrega
+- Tabela `email_verifications` e campos `users.email_verified_at` e `users.payer_cpf`
+- Tabela `linked_accounts` e campos `users.display_name`; `users.nlogin_id` passa a aceitar nulo (conta criada pelo Google, ainda sem nick)
+- Variáveis opcionais `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `AUTH_MICROSOFT_ID` e `AUTH_MICROSOFT_SECRET`; sem elas, os botões correspondentes não aparecem
+- **Status do servidor ao vivo** (`src/lib/minecraft-status.ts`):
+  - Consulta direta ao servidor pelo protocolo Server List Ping, resolvendo o registro SRV do domínio (o servidor está na porta 25576, não na 25565); se o DNS do sistema não responder à consulta SRV, usa DNS públicos
+  - API pública mcsrvstat.us como reserva, agora com User-Agent (sem ele a API responde 403)
+  - Cache de 15 s no servidor; o navegador atualiza a cada 30 s com uma única consulta compartilhada entre os componentes (`src/lib/use-server-status.ts`) e pausa quando a aba não está visível
+  - Versão exibida como faixa de versões aceitas (ex.: "1.7.2 – 26.3"), sem o nome do proxy
+- **Indicador de jogadores online na navbar** (`ServerStatusBadge`), em todas as páginas, com link para `/status`
+- **Acesso Java e Bedrock na página de status** (`status/HowToConnect.tsx`): seção "Como entrar" com o endereço do servidor para as duas edições, a porta do Bedrock (19132, constante `BEDROCK_PORT`), botões de copiar e o passo a passo de cada edição; o painel de status passa a indicar "Java e Bedrock" como edições aceitas
+- **Faixa do Discord no rodapé**, no lugar da inscrição na newsletter por e-mail: convite para o servidor do Discord com o número de membros e de pessoas online, vindos da API pública de convites do Discord (`/api/discord`, cache de 10 min)
+- **Página Sobre refeita** (`sobre/SobreContent.tsx`, conteúdo em `src/content/sobre.ts`):
+  - Hero com a imagem do campus e números reais (início em 2020, média de alunos por aula e membros no Discord ao vivo)
+  - Linha do tempo com marcos confirmados pela imprensa, no lugar dos marcos genéricos
+  - Seção "Na imprensa" com 8 matérias clicáveis e conferidas, com destaque para a reportagem da Folha de S.Paulo (20/03/2026); saíram os itens sem link verificável
+  - Equipe agrupada em Direção, Professores e Equipe, pronta para receber fotos (`public/equipe/`), com os membros citados pela Folha incluídos
+  - Hierarquia em formato de pirâmide, com os professores à parte da cadeia de moderação
+  - Convite para entrar na equipe pelo Discord
+
+- **Perfil com dados do servidor:**
+  - Foto do perfil com a skin do jogo: conta original pelo UUID da Mojang, Bedrock pela textura publicada pelo Geyser e as demais pelo nick (`src/lib/player-profile.ts`)
+  - Cargo vindo do LuckPerms: grupo de maior peso, com nome e cor do prefixo do jogo (`src/lib/luckperms.ts`, somente leitura)
+  - Tag Novato, Membro, Veterano ou Lenda pela data de registro no nLogin, e "No servidor desde" no lugar de "Membro desde"
+  - Selo "Verificado" no perfil e no campo de e-mail de Configurações; o campo mostra "Não confirmado" e o link para confirmar quando falta
+- **Google e Microsoft confirmam o e-mail:** entrar ou vincular pelo Google confirma o e-mail da conta Google, inclusive para vínculos feitos antes; a Microsoft passa a pedir os escopos `openid email` e confirma o e-mail de contas pessoais. O vínculo pela Microsoft fica registrado em `linked_accounts`, e Contas vinculadas mostra "Verificado pela Microsoft" e "Verificado pelo Google"
+- **Aulas com os vídeos do canal no YouTube:** a página `/aulas` passa a listar os 1013 vídeos e lives públicos do canal (938 lives, 25 vídeos e 50 vídeos curtos, de 2021 a 2026), separados em 26 disciplinas:
+  - `npm run aulas:youtube` (`scripts/youtube-sync.mjs`) lista as abas Vídeos e Ao vivo do canal com o yt-dlp e grava `scripts/data/youtube-videos.json`; só os vídeos novos são consultados um a um para obter a data de publicação
+  - A matéria vem do título do vídeo (`scripts/lib/youtube-aulas.mjs`), inclusive com os erros de digitação que aparecem no canal; um vídeo pode entrar em mais de uma disciplina (ex.: "Inglês/Espanhol", "Química - ENEM"). O conteúdo que não é aula (tutoriais, eventos, Survival Geopolítico) fica em "Servidor e Comunidade"; a lista `OVERRIDES` permite reclassificar vídeos pelo id
+  - Lives com título genérico ("[LIVE] Aula no Minecraft"): 158 das 168 receberam o título transcrito da miniatura, com matéria e tema (`scripts/lib/youtube-titulos.mjs`), exibido no site e usado na classificação; as 10 com miniatura sem texto ficam em "Outras Aulas"
+  - `npm run aulas:atualizar` (sync e seed em sequência), com timer do systemd a cada 3 horas em produção (`docs/arquitetura-producao.md`, seção 6.6). A lista pode ser gravada fora do repositório (`AULAS_YOUTUBE_FILE`) para não travar o `git pull`; lives em andamento ou agendadas são ignoradas, nada é gravado se a lista vier com menos de 80% dos vídeos anteriores (`--forcar` para aceitar) e vídeos sem data consultável entram com a data da sincronização
+  - `npm run db:seed:aulas` grava disciplinas e aulas a partir desse arquivo, insere as novas em lote e atualiza só as que mudaram
+  - Página da disciplina com grade de vídeos (miniatura, formato, duração e data), busca pelo título, filtro por formato, ordem por data e carregamento em blocos de 24
+  - Página da aula com o vídeo incorporado (`youtube-nocookie.com`), data de transmissão e link para o YouTube
+  - Seção "Aulas recentes" em `/aulas` (`GET /api/aulas/recentes`), sem repetir vídeos que estão em mais de uma disciplina
+  - Campos `lessons.youtube_id`, `lessons.format`, `lessons.published_at` e `disciplines.area`
+
+### Alterado
+
+- Contas sem nick vinculado não compram na loja (a entrega é no jogo) nem publicam no fórum (o autor aparece pelo nick); a API responde com o código `SemNick` e a orientação para vincular
+- Contas sem nick: a troca e a redefinição de senha orientam a vincular um nick; a exclusão de conta é confirmada digitando EXCLUIR
+- A sessão é revalidada quando o cliente chama `update()` e passa a atualizar o nick vinculado; ela também carrega se o e-mail está confirmado (`emailConfirmed`)
+- A troca de e-mail em Configurações passa pela confirmação por código; `PUT /api/perfil` não altera mais o e-mail
+- E-mails automáticos passam a ter versão em texto, `Reply-To` e nova tentativa em falhas temporárias do SMTP; o rodapé convida a responder quando há `SMTP_REPLY_TO`
+- Remetente padrão passa de `noreply@` para `nao-responda@craftsapiens.com.br`
+- O assunto do formulário de contato passa a ter limite de 3 a 150 caracteres
+- Card "Plano Atual" do perfil passa a ser "Cargo"; a tag de reputação do fórum sai do cabeçalho do perfil
+- O checkout exige e-mail confirmado, e o botão de adicionar ao carrinho leva à confirmação quando falta
+- Contas sem nick não aparecem no ranking de aulas
+- `getNloginById`, `getNloginsByIds` e o novo `getNloginMap` aceitam contas sem nick; as rotas do blog e do fórum usam `getNloginMap` para resolver autores
+- `MINECRAFT_SERVER_PORT` passa a ser opcional e não deve ser definida quando o domínio tem registro SRV
+- O fundo global de partículas também não é montado na página Sobre
+- Aulas: o filtro por nível (Fundamental/Médio) dá lugar ao filtro por área (Exatas, Natureza, Humanas, Linguagens, Outras); os cards de disciplina mostram a área e as horas de conteúdo, inclusive na home. A busca de disciplinas deixa de diferenciar maiúsculas
+- O slug da aula passa a ser único por disciplina (`@@unique([disciplineId, slug])`). O `npm run db:push:pg` avisa sobre a nova restrição e pede `--accept-data-loss`; não há perda de dados, porque os slugs já eram únicos
+- Ícones das disciplinas centralizados em `src/lib/discipline-icons.ts` (as páginas de aulas tinham cópias próprias), com ícones para as novas disciplinas
+
+### Corrigido
+
+- Página de confirmação de e-mail presa depois do código certo: o `update()` sem argumento só relia a sessão, sem revalidar no servidor, e o proxy devolvia para a confirmação por até 1 minuto. Contas sem e-mail confirmado agora são revalidadas a cada requisição. O mesmo atraso afetava o nick vinculado em Contas vinculadas
+- Avatar do perfil mostrava o Steve para todos: usava o `unique_id` do nLogin, que é o UUID offline do jogo e não tem skin
+- Status do servidor sempre "offline": a rota forçava a porta 25565, ignorando o registro SRV, e a API externa recusava a requisição sem User-Agent
+- Contador da faixa de números não acompanhava as atualizações depois da animação inicial
+- Links do Discord quebrados em todo o site e nos e-mails: o encurtador discord.io encerrou o serviço; o link passa a ser o convite oficial `discord.gg/craftsapiens`
+- Ícone do Discord incompleto (sem os olhos) nos ícones sociais
+- IP do servidor ultrapassando a caixa na página de status
+
+### Removido
+
+- Formulário de inscrição na newsletter no rodapé (as rotas `/api/newsletter` e a página de confirmação continuam no código, sem uso na interface)
+- Cartão de MOTD no painel da página de status
+- As 25 aulas de exemplo do seed e a disciplina Educação Física, sem vídeos no canal (o seed as desativa, sem apagar progresso)
+
+---
+
 ## [v0.15] — 09/10/2026 — Nova página inicial
 
 ### Adicionado

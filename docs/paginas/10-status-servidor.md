@@ -14,6 +14,7 @@
 - Breadcrumb: Home > Status
 
 ### RN-STATUS-02: Status do Servidor (Tempo Real)
+> Implementação atual (v0.15): o painel mostra status, jogadores (atual/máximo), faixa de versões Java aceitas e as edições aceitas. Logo abaixo, a seção "Como entrar" traz o acesso para Java Edition (`jogar.craftsapiens.com.br`, porta resolvida pelo registro SRV) e Bedrock Edition (mesmo endereço, porta 19132), com botões de copiar e o passo a passo de cada edição. O status é consultado diretamente no servidor (Server List Ping) e atualizado a cada 15 s nesta página.
 - Painel principal exibindo:
   | Dado | Fonte | Atualização |
   |------|-------|-------------|

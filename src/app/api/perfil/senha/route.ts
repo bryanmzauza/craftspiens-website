@@ -53,6 +53,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Erro ao verificar conta." }, { status: 400 })
   }
 
+  if (user.nloginId == null) {
+    return NextResponse.json(
+      { error: "Sua conta ainda não tem um nick do Minecraft vinculado. Vincule em Contas vinculadas." },
+      { status: 400 }
+    )
+  }
+
   const nlogin = await prismaMariaDb.nlogin.findFirst({
     where: { id: user.nloginId },
     select: { id: true, password: true },

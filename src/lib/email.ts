@@ -2,7 +2,9 @@ import nodemailer, { type Transporter } from "nodemailer";
 import { getEnv, siteUrl } from "@/lib/env";
 import { CONTACT_WHATSAPP_URL, SERVER_IP, SOCIAL_LINKS } from "@/lib/constants";
 
-const FROM_NAME = "CraftSapiens";
+// Envio por SMTP. Em produção é o SMTP do Gmail (smtp.gmail.com:465, senha de
+// app), com nao-responda@craftsapiens.com.br cadastrado em "Enviar e-mail como".
+// Qualquer outro SMTP funciona com as mesmas variáveis. Guia em docs/email.md.
 
 let transporter: Transporter | undefined;
 
@@ -19,21 +21,89 @@ function getTransporter(): Transporter {
         user: env.SMTP_USER,
         pass: env.SMTP_PASS,
       },
+      connectionTimeout: 15_000,
+      greetingTimeout: 15_000,
+      socketTimeout: 30_000,
     });
   }
   return transporter;
 }
 
-async function send(to: string, subject: string, content: string): Promise<void> {
-  await getTransporter().sendMail({
-    from: `"${FROM_NAME}" <${getEnv().SMTP_FROM}>`,
-    to,
-    subject,
-    html: baseTemplate(content),
-  });
+interface SendOptions {
+  /** Endereço para respostas; sem ele, usa SMTP_REPLY_TO */
+  replyTo?: string;
+  /** Rodapé do modelo: "auto" para e-mails ao usuário, "equipe" para avisos internos */
+  footer?: "auto" | "equipe";
 }
 
-function baseTemplate(content: string): string {
+// Falhas temporárias (servidor ocupado, conexão caiu) valem uma nova tentativa
+const TRANSIENT_CODES = new Set(["ECONNECTION", "ETIMEDOUT", "ESOCKET", "ECONNRESET", "EDNS"]);
+const RETRY_DELAYS_MS = [1_000, 4_000];
+
+function isTransient(error: unknown): boolean {
+  const err = error as { code?: string; responseCode?: number };
+  if (err.responseCode && err.responseCode >= 400 && err.responseCode < 500) return true;
+  return !!err.code && TRANSIENT_CODES.has(err.code);
+}
+
+async function send(to: string, subject: string, content: string, options: SendOptions = {}): Promise<void> {
+  const env = getEnv();
+  const replyTo = options.replyTo ?? env.SMTP_REPLY_TO;
+  const html = baseTemplate(content, options.footer ?? "auto", !!env.SMTP_REPLY_TO);
+
+  const message = {
+    from: { name: env.SMTP_FROM_NAME, address: env.SMTP_FROM },
+    to,
+    subject,
+    html,
+    // Versão em texto: alguns clientes só mostram texto e os filtros de spam
+    // desconfiam de e-mails só com HTML
+    text: htmlToText(content),
+    ...(replyTo ? { replyTo } : {}),
+    headers: { "Auto-Submitted": "auto-generated" },
+  };
+
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await getTransporter().sendMail(message);
+      return;
+    } catch (error) {
+      if (attempt >= RETRY_DELAYS_MS.length || !isTransient(error)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAYS_MS[attempt]));
+    }
+  }
+}
+
+/** Converte o conteúdo HTML dos modelos em texto simples */
+function htmlToText(html: string): string {
+  return html
+    .replace(/<a [^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, (_, href: string, label: string) => {
+      const text = label.replace(/<[^>]+>/g, "").trim();
+      return text && text !== href ? `${text} (${href})` : href;
+    })
+    .replace(/<li[^>]*>/gi, "- ")
+    .replace(/<\/(p|h\d|li|tr|div|ol|ul|table)>|<br\s*\/?>|<hr[^>]*>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+    .split("\n")
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function baseTemplate(content: string, footer: "auto" | "equipe", hasReplyTo: boolean): string {
+  const footerNote =
+    footer === "equipe"
+      ? "Aviso interno da plataforma CraftSapiens."
+      : hasReplyTo
+        ? "Este e-mail foi enviado automaticamente. Se precisar de ajuda, basta responder."
+        : "Este e-mail foi enviado automaticamente. Não responda.";
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -47,7 +117,7 @@ function baseTemplate(content: string): string {
         <tr><td style="padding:32px">${content}</td></tr>
         <tr><td style="padding:16px 32px;border-top:1px solid rgba(255,255,255,0.1);text-align:center">
           <p style="color:#888;font-size:12px;margin:0">© ${new Date().getFullYear()} CraftSapiens — O Maior Metaverso Educacional do Mundo</p>
-          <p style="color:#666;font-size:11px;margin:4px 0 0">Este email foi enviado automaticamente. Não responda.</p>
+          <p style="color:#666;font-size:11px;margin:4px 0 0">${footerNote}</p>
         </td></tr>
       </table>
     </td></tr>
@@ -260,4 +330,67 @@ function maskEmail(email: string): string {
   const [local, domain] = email.split("@");
   if (!domain) return email;
   return `${local.slice(0, 2)}${"*".repeat(Math.max(local.length - 2, 1))}@${domain}`;
+}
+
+export async function sendEmailVerificationCode(
+  to: string,
+  username: string,
+  code: string
+): Promise<void> {
+  const content = `
+    <h2 style="color:#fff;margin:0 0 16px;font-size:22px">Confirme seu e-mail</h2>
+    <p style="color:#E0E0E0;font-size:15px;line-height:1.6;margin:0 0 16px">
+      Olá <strong style="color:#4CAF50">${escapeHtml(username)}</strong>,
+    </p>
+    <p style="color:#E0E0E0;font-size:15px;line-height:1.6;margin:0 0 24px">
+      Use o código abaixo para confirmar este e-mail na sua conta CraftSapiens:
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:8px 0 24px">
+      <span style="display:inline-block;background:rgba(76,175,80,0.15);border:1px solid rgba(76,175,80,0.4);color:#fff;font-family:'Courier New',monospace;font-size:32px;font-weight:bold;letter-spacing:10px;padding:16px 28px;border-radius:8px">
+        ${escapeHtml(code)}
+      </span>
+    </td></tr></table>
+    <p style="color:#aaa;font-size:13px;line-height:1.5;margin:0">
+      O código vale por <strong>15 minutos</strong>. Se você não pediu este código, ignore este e-mail.
+    </p>`;
+
+  await send(to, `${code} é o seu código de confirmação — CraftSapiens`, content);
+}
+
+/** Encaminha uma mensagem do formulário de contato para a caixa da equipe */
+export async function sendContactToTeam(message: {
+  name: string;
+  email: string;
+  category: string;
+  subject: string;
+  message: string;
+}): Promise<boolean> {
+  const inbox = getEnv().CONTACT_INBOX;
+  if (!inbox) return false;
+
+  const row = (label: string, value: string) =>
+    `<tr><td style="color:#aaa;font-size:13px;padding:4px 12px 4px 0;vertical-align:top;white-space:nowrap">${label}</td>` +
+    `<td style="color:#fff;font-size:13px;padding:4px 0">${escapeHtml(value)}</td></tr>`;
+
+  const content = `
+    <h2 style="color:#fff;margin:0 0 16px;font-size:22px">Nova mensagem pelo site</h2>
+    <table style="border-collapse:collapse;margin:0 0 16px">
+      ${row("Nome", message.name)}
+      ${row("E-mail", message.email)}
+      ${row("Categoria", message.category)}
+      ${row("Assunto", message.subject)}
+    </table>
+    <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:16px;margin:0 0 16px">
+      <p style="color:#E0E0E0;font-size:14px;line-height:1.6;margin:0;white-space:pre-wrap">${escapeHtml(message.message)}</p>
+    </div>
+    <p style="color:#aaa;font-size:13px;line-height:1.5;margin:0">
+      Responda este e-mail para falar direto com quem enviou.
+    </p>`;
+
+  // Assunto sem quebras de linha (evita injeção de cabeçalhos)
+  const title =
+    message.subject === message.category ? message.category : `${message.category}: ${message.subject}`;
+  const subject = `[Contato] ${title} - ${message.name}`.replace(/[\r\n]+/g, " ").slice(0, 200);
+  await send(inbox, subject, content, { replyTo: message.email, footer: "equipe" });
+  return true;
 }

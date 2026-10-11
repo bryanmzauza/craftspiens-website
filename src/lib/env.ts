@@ -7,6 +7,9 @@
 import { z } from "zod";
 import { SERVER_IP } from "@/lib/constants";
 
+// Vazio no .env conta como "não definido"
+const optionalEmail = z.preprocess((v) => (v === "" ? undefined : v), z.email().optional());
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 
@@ -33,11 +36,23 @@ const envSchema = z.object({
     .transform((v) => v === "true"),
   SMTP_USER: z.string().min(1),
   SMTP_PASS: z.string().min(1),
-  SMTP_FROM: z.email().default("noreply@craftsapiens.com.br"),
+  SMTP_FROM: z.email().default("nao-responda@craftsapiens.com.br"),
+  SMTP_FROM_NAME: z.string().min(1).default("CraftSapiens"),
+  // Respostas aos e-mails automáticos vão para este endereço (ex.: contato@, encaminhado ao Gmail)
+  SMTP_REPLY_TO: optionalEmail,
+  // Caixa da equipe que recebe as mensagens do formulário de contato
+  CONTACT_INBOX: optionalEmail,
+
+  // Login externo (opcional: sem as credenciais, o botão correspondente não aparece)
+  AUTH_GOOGLE_ID: z.string().min(1).optional(),
+  AUTH_GOOGLE_SECRET: z.string().min(1).optional(),
+  AUTH_MICROSOFT_ID: z.string().min(1).optional(),
+  AUTH_MICROSOFT_SECRET: z.string().min(1).optional(),
 
   // Servidor Minecraft
   MINECRAFT_SERVER_HOST: z.string().min(1).default(SERVER_IP),
-  MINECRAFT_SERVER_PORT: z.coerce.number().int().positive().default(25565),
+  // Opcional: sem ela, a porta vem do registro SRV do domínio (_minecraft._tcp)
+  MINECRAFT_SERVER_PORT: z.coerce.number().int().positive().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

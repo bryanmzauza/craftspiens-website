@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { getNloginById, verifyPassword } from "@/lib/nlogin"
-import { Prisma } from "@/generated/prisma-pg"
+import { getNloginById } from "@/lib/nlogin"
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit"
-import { sendEmailChangedNotice } from "@/lib/email"
+import { isPlaceholderEmail } from "@/lib/email-verification"
+import { maskCpf } from "@/lib/cpf"
+import { getPlayerRank } from "@/lib/luckperms"
+import { getPlayerSkin, getSeniority } from "@/lib/player-profile"
 
 export async function GET() {
   const session = await auth()
@@ -32,14 +34,32 @@ export async function GET() {
 
   const nlogin = await getNloginById(user.nloginId)
 
+  // Dados do servidor: skin, cargo no LuckPerms e tempo desde o registro no nLogin.
+  // Uma falha aqui não derruba o perfil; a tela usa os valores padrão.
+  const [skin, rank] = nlogin
+    ? await Promise.all([
+        getPlayerSkin(nlogin).catch(() => null),
+        getPlayerRank(nlogin.unique_id).catch((error) => {
+          console.error("[perfil] Erro ao ler o cargo no LuckPerms:", error)
+          return null
+        }),
+      ])
+    : [null, null]
+
   return NextResponse.json({
     id: user.id,
-    username: nlogin?.last_name ?? "Unknown",
+    username: nlogin?.last_name ?? user.displayName ?? "Aluno",
+    hasNick: !!nlogin,
     email: user.email,
+    emailConfirmed: !!user.emailVerifiedAt && !isPlaceholderEmail(user.email),
+    payerCpf: user.payerCpf ? maskCpf(user.payerCpf) : null,
     role: user.role,
     birthDate: user.birthDate,
     createdAt: user.createdAt,
     deactivatedAt: user.deactivatedAt,
+    skin,
+    rank,
+    seniority: nlogin ? getSeniority(nlogin.creation_date) : null,
     nlogin: {
       uuid: nlogin?.unique_id ?? null,
       lastSeen: nlogin?.last_seen ?? null,
@@ -84,60 +104,17 @@ export async function PUT(request: Request) {
   if (!body || typeof body !== "object") {
     return NextResponse.json({ error: "Requisição inválida." }, { status: 400 })
   }
-  const { bio, currentPassword } = body
+  const { bio } = body
 
-  if (body.email !== undefined && typeof body.email !== "string") {
-    return NextResponse.json({ error: "Email inválido." }, { status: 400 })
+  // A troca de e-mail é feita com confirmação por código (/confirmar-email?alterar=1)
+  if (body.email !== undefined) {
+    return NextResponse.json(
+      { error: "Para alterar o e-mail, use a opção Alterar e-mail, que envia um código de confirmação." },
+      { status: 400 }
+    )
   }
   if (bio !== undefined && (typeof bio !== "string" || bio.length > 500)) {
     return NextResponse.json({ error: "Bio deve ter no máximo 500 caracteres." }, { status: 400 })
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { email: true, nloginId: true },
-  })
-  if (!user) {
-    return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 })
-  }
-
-  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : undefined
-  const emailChanged = email !== undefined && email !== user.email
-
-  if (emailChanged) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      return NextResponse.json({ error: "Email inválido." }, { status: 400 })
-    }
-
-    // Trocar o email permite recuperar a senha por ele: exige a senha atual
-    if (typeof currentPassword !== "string" || !currentPassword) {
-      return NextResponse.json(
-        { error: "Informe sua senha atual para alterar o email." },
-        { status: 400 }
-      )
-    }
-    const nlogin = await getNloginById(user.nloginId)
-    if (!nlogin?.password || !(await verifyPassword(currentPassword, nlogin.password))) {
-      return NextResponse.json({ error: "Senha atual incorreta." }, { status: 403 })
-    }
-
-    try {
-      await prisma.user.update({
-        where: { id: session.user.id },
-        data: { email },
-      })
-    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-        return NextResponse.json({ error: "Este email já está em uso." }, { status: 409 })
-      }
-      throw error
-    }
-
-    // Avisa o endereço antigo (fire-and-forget)
-    sendEmailChangedNotice(user.email, nlogin.last_name, email).catch((err) =>
-      console.error("Erro ao enviar aviso de troca de email:", err)
-    )
   }
 
   const profileUpdates: Record<string, unknown> = {}

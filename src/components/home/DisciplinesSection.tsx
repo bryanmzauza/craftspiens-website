@@ -13,7 +13,7 @@ interface Discipline {
   shortDescription: string;
   icon: string;
   color: string;
-  levels: string[];
+  area: string;
   lessonsCount: number;
 }
 
@@ -98,7 +98,7 @@ export function DisciplinesSection() {
                         <span className="font-[family-name:var(--font-jetbrains-mono)]">
                           {discipline.lessonsCount} {discipline.lessonsCount === 1 ? "aula" : "aulas"}
                         </span>
-                        <span className="truncate">{discipline.levels.join(" · ")}</span>
+                        <span className="truncate">{discipline.area}</span>
                       </div>
                     </Link>
                   </motion.div>

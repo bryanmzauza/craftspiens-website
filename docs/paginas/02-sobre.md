@@ -6,6 +6,31 @@
 
 ---
 
+## Implementação atual (v0.15)
+
+A página foi refeita na v0.15. O conteúdo editável fica em `src/content/sobre.ts`; o layout, em `src/components/sobre/SobreContent.tsx`.
+
+| Seção | Conteúdo |
+|-------|----------|
+| Hero | Imagem do campus com escurecimento, título, texto de apresentação e três números: início em 2020, 40 a 60 alunos por aula em média (Folha, 2026) e membros no Discord (ao vivo, via `/api/discord`) |
+| Nossa história | Texto sobre a origem do projeto, citação do fundador e linha do tempo (`TIMELINE`) com marcos confirmados pela imprensa |
+| Quem somos | Como as aulas funcionam: servidor e Discord, quadros e minijogos, Minecraft sem mods |
+| Missão, visão e valores | Missão e visão em destaque e os cinco valores numerados |
+| Na imprensa | Matéria em destaque (Folha de S.Paulo) e lista das demais (`PRESS`), todas com link para o original em nova aba |
+| Nossa equipe | Membros agrupados em Direção, Professores e Equipe (`TEAM`); cada cartão mostra a foto ou, sem foto, as iniciais |
+| Hierarquia | Pirâmide com os cinco cargos da moderação (`HIERARCHY`) e os professores à parte (`TEACHING_ROLE`) |
+| CTA | Convite para entrar na equipe pelo Discord |
+
+Como atualizar:
+
+- **Foto de um membro:** salve a imagem em `public/equipe/` (quadrada, mínimo 600 x 600) e preencha `photo: "/equipe/arquivo.jpg"` no membro correspondente em `TEAM`.
+- **Novo membro:** adicione um item em `TEAM` com `name`, `role` e `group`.
+- **Nova matéria:** adicione um item em `PRESS` com veículo, título, data (AAAA-MM-DD), link e formato. Só inclua links conferidos.
+
+O fundo de partículas global não é montado nesta página, como na home.
+
+---
+
 ## Regras de Negócio
 
 ### RN-SOBRE-01: Hero da Página

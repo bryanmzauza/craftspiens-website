@@ -8,6 +8,7 @@ import { useState, useEffect, useRef } from "react";
 import { Menu, X, User, ShoppingBag, Settings, LogOut, ChevronDown } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 import { NAV_LINKS } from "@/lib/constants";
+import { ServerStatusBadge } from "@/components/ui/ServerStatusBadge";
 
 export function Navbar() {
   const pathname = usePathname();
@@ -92,6 +93,7 @@ export function Navbar() {
 
         {/* Desktop Auth */}
         <div className="hidden lg:flex items-center gap-3">
+          <ServerStatusBadge className="mr-3 hidden xl:inline-flex" />
           {session?.user ? (
             <div ref={dropdownRef} className="relative">
               <button
@@ -183,6 +185,7 @@ export function Navbar() {
         }`}
       >
         <div className="flex flex-col gap-2 p-6">
+          <ServerStatusBadge className="mb-2 px-4 py-2" />
           {NAV_LINKS.map((link) => (
             <Link
               key={link.href}

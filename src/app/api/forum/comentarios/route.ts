@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit";
-import { getNloginsByIds, getNloginById } from "@/lib/nlogin";
+import { getNloginMap, getNloginById } from "@/lib/nlogin";
 
 // GET /api/forum/comentarios?topicoId=xxx&page=1&limit=30
 export async function GET(request: NextRequest) {
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
   ]);
 
   // Batch fetch nlogin data for all authors
-  const allNloginIds = new Set<number>();
+  const allNloginIds = new Set<number | null>();
   for (const c of comments) {
     allNloginIds.add(c.author.nloginId);
     if ("replies" in c) {
@@ -64,8 +64,7 @@ export async function GET(request: NextRequest) {
       }
     }
   }
-  const nlogins = await getNloginsByIds([...allNloginIds]);
-  const nloginMap = new Map(nlogins.map((n) => [n.id, n]));
+  const nloginMap = await getNloginMap([...allNloginIds]);
 
   function mapComment(c: typeof comments[number]) {
     const likes = c.reactions.filter((r) => r.type === "LIKE").length;
@@ -122,6 +121,14 @@ export async function POST(request: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  }
+
+  // No fórum o autor aparece pelo nick: exige um nick do Minecraft vinculado
+  if (session.user.nloginId == null) {
+    return NextResponse.json(
+      { error: "Vincule seu nick do Minecraft em Configurações > Contas vinculadas para participar do fórum.", code: "SemNick" },
+      { status: 403 }
+    );
   }
 
   // Rate limit: 10 comentários/15min

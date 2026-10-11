@@ -3,36 +3,22 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
-  Calculator,
-  Microscope,
-  Globe,
-  BookOpen,
-  Palette,
-  Code,
-  Languages,
-  Dumbbell,
   GraduationCap,
   Search,
   Users,
   Clock,
   BarChart3,
   Loader2,
+  ExternalLink,
 } from "lucide-react";
 import Link from "next/link";
 import { PageHero } from "@/components/ui/PageHero";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { Button } from "@/components/ui/Button";
-
-const ICON_MAP: Record<string, typeof Calculator> = {
-  Calculator,
-  Microscope,
-  Globe,
-  BookOpen,
-  Palette,
-  Code,
-  Languages,
-  Dumbbell,
-};
+import { LessonCard } from "@/components/aulas/LessonCard";
+import { getDisciplineIcon } from "@/lib/discipline-icons";
+import { AREAS, formatHours } from "@/lib/aulas";
+import { SOCIAL_LINKS } from "@/lib/constants";
 
 interface DisciplineData {
   id: string;
@@ -42,8 +28,20 @@ interface DisciplineData {
   shortDescription: string;
   icon: string;
   color: string;
-  levels: string[];
+  area: string;
   lessonsCount: number;
+  totalMinutes: number;
+}
+
+interface RecentLesson {
+  id: string;
+  title: string;
+  slug: string;
+  youtubeId: string | null;
+  format: string | null;
+  publishedAt: string | null;
+  duration: number | null;
+  discipline: { name: string; slug: string; color: string };
 }
 
 const HOW_IT_WORKS = [
@@ -64,16 +62,16 @@ const HOW_IT_WORKS = [
   },
   {
     icon: Clock,
-    title: "Construções Temáticas",
-    description: "Aulas de campo em cenários 3D: visite o Egito Antigo, explore o corpo humano, entre em um átomo.",
+    title: "Aulas Gravadas",
+    description: "As lives ficam gravadas no canal do YouTube e organizadas por disciplina aqui no site.",
   },
 ];
 
-const LEVELS = ["Todos", "Fundamental", "Médio"] as const;
+const AREA_FILTERS = ["Todas", ...AREAS] as const;
 
 const stagger = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.08 } },
+  visible: { transition: { staggerChildren: 0.05 } },
 };
 
 const fadeIn = {
@@ -83,16 +81,17 @@ const fadeIn = {
 
 export function AulasContent() {
   const [search, setSearch] = useState("");
-  const [level, setLevel] = useState<string>("Todos");
+  const [area, setArea] = useState<string>("Todas");
   const [disciplines, setDisciplines] = useState<DisciplineData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [recent, setRecent] = useState<RecentLesson[]>([]);
 
   const fetchDisciplines = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
       if (search) params.set("busca", search);
-      if (level !== "Todos") params.set("nivel", level);
+      if (area !== "Todas") params.set("area", area);
       const res = await fetch(`/api/aulas?${params}`);
       if (res.ok) {
         const data = await res.json();
@@ -103,12 +102,27 @@ export function AulasContent() {
     } finally {
       setLoading(false);
     }
-  }, [search, level]);
+  }, [search, area]);
 
   useEffect(() => {
     const timer = setTimeout(fetchDisciplines, 300);
     return () => clearTimeout(timer);
   }, [fetchDisciplines]);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/aulas/recentes?limite=8")
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(res.statusText))))
+      .then((data) => {
+        if (active) setRecent(data.lessons ?? []);
+      })
+      .catch(() => {
+        // sem a vitrine de recentes
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <>
@@ -146,13 +160,48 @@ export function AulasContent() {
         </div>
       </section>
 
+      {/* Aulas recentes */}
+      {recent.length > 0 && (
+        <section className="pb-20">
+          <div className="mx-auto max-w-7xl px-4 lg:px-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <SectionTitle>AULAS RECENTES</SectionTitle>
+              <a
+                href={SOCIAL_LINKS.youtube}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-sm font-semibold text-green-cs hover:underline"
+              >
+                Canal no YouTube
+                <ExternalLink size={14} aria-hidden="true" />
+              </a>
+            </div>
+            <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {recent.map((lesson) => (
+                <LessonCard
+                  key={lesson.id}
+                  href={`/aulas/${lesson.discipline.slug}/${lesson.slug}`}
+                  title={lesson.title}
+                  youtubeId={lesson.youtubeId}
+                  format={lesson.format}
+                  publishedAt={lesson.publishedAt}
+                  duration={lesson.duration}
+                  label={lesson.discipline.name}
+                  color={lesson.discipline.color}
+                />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Catálogo de Disciplinas */}
       <section className="pb-24">
         <div className="mx-auto max-w-7xl px-4 lg:px-6">
           <SectionTitle className="text-center">DISCIPLINAS</SectionTitle>
 
           {/* Filters */}
-          <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="relative flex-1 max-w-md">
               <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A0A0A0]" />
               <input
@@ -164,18 +213,18 @@ export function AulasContent() {
               />
             </div>
 
-            <div className="flex gap-2">
-              {LEVELS.map((l) => (
+            <div className="flex flex-wrap gap-2">
+              {AREA_FILTERS.map((a) => (
                 <button
-                  key={l}
-                  onClick={() => setLevel(l)}
+                  key={a}
+                  onClick={() => setArea(a)}
                   className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                    level === l
+                    area === a
                       ? "bg-green-cs text-white"
                       : "bg-white/5 text-[#A0A0A0] hover:bg-white/10 hover:text-white"
                   }`}
                 >
-                  {l}
+                  {a}
                 </button>
               ))}
             </div>
@@ -188,18 +237,18 @@ export function AulasContent() {
             </div>
           ) : (
             <motion.div
+              key={`${area}-${search}`}
               variants={stagger}
               initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
+              animate="visible"
               className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
             >
               {disciplines.map((discipline) => {
-                const Icon = ICON_MAP[discipline.icon] || GraduationCap;
+                const Icon = getDisciplineIcon(discipline.icon);
                 return (
                   <motion.div key={discipline.slug} variants={fadeIn}>
-                    <Link href={`/aulas/${discipline.slug}`} className="block">
-                      <div className="group rounded-xl border border-white/10 bg-white/5 p-6 backdrop-blur transition-all hover:border-green-cs hover:scale-[1.02] hover:shadow-[0_4px_24px_rgba(0,0,0,0.3)]">
+                    <Link href={`/aulas/${discipline.slug}`} className="block h-full">
+                      <div className="group flex h-full flex-col rounded-xl border border-white/10 bg-white/5 p-6 backdrop-blur transition-all hover:border-green-cs hover:scale-[1.02] hover:shadow-[0_4px_24px_rgba(0,0,0,0.3)]">
                         <div
                           className="flex h-12 w-12 items-center justify-center rounded-xl"
                           style={{ backgroundColor: `${discipline.color}20`, borderColor: `${discipline.color}40`, borderWidth: 1 }}
@@ -212,24 +261,21 @@ export function AulasContent() {
                           {discipline.shortDescription}
                         </p>
 
-                        <div className="mt-4 flex flex-wrap gap-1.5">
-                          {discipline.levels.map((l) => (
-                            <span
-                              key={l}
-                              className="rounded-full px-2.5 py-0.5 text-xs font-medium"
-                              style={{
-                                backgroundColor: `${discipline.color}20`,
-                                color: discipline.color,
-                              }}
-                            >
-                              {l}
-                            </span>
-                          ))}
+                        <div className="mt-auto pt-4">
+                          <span
+                            className="rounded-full px-2.5 py-0.5 text-xs font-medium"
+                            style={{
+                              backgroundColor: `${discipline.color}20`,
+                              color: discipline.color,
+                            }}
+                          >
+                            {discipline.area}
+                          </span>
+                          <p className="mt-3 text-xs text-[#A0A0A0]">
+                            {discipline.lessonsCount} {discipline.lessonsCount === 1 ? "aula" : "aulas"}
+                            {discipline.totalMinutes > 0 && ` · ${formatHours(discipline.totalMinutes)} de conteúdo`}
+                          </p>
                         </div>
-
-                        <p className="mt-3 text-xs text-[#A0A0A0]">
-                          {discipline.lessonsCount} aulas disponíveis
-                        </p>
                       </div>
                     </Link>
                   </motion.div>
@@ -260,11 +306,11 @@ export function AulasContent() {
               ENEM & REFORÇO
             </h3>
             <p className="mt-4 text-[#E0E0E0]">
-              Preparação para provas e vestibulares com método gamificado. Simulados interativos, 
-              resolução de questões em grupo e revisões temáticas — tudo dentro do servidor.
+              Revisões para o ENEM, simulados feitos dentro do Minecraft, o Sábado Militar com
+              preparação para ITA, IME e EsPCEx e aulas para a Olimpíada Brasileira de Astronomia.
             </p>
             <div className="mt-8">
-              <Button href="/registro">Começar Agora</Button>
+              <Button href="/aulas/enem-vestibulares">Ver aulas de ENEM e vestibulares</Button>
             </div>
           </motion.div>
         </div>
@@ -305,6 +351,13 @@ export function AulasContent() {
                 </p>
               </div>
             </div>
+            <p className="mt-8 text-center text-sm text-[#A0A0A0]">
+              Há também lives de educação positiva para pais em{" "}
+              <Link href="/aulas/educacao-socioemocional" className="text-green-cs hover:underline">
+                Educação Socioemocional
+              </Link>
+              .
+            </p>
           </motion.div>
         </div>
       </section>

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Check, X, Pickaxe, Loader2 } from "lucide-react";
 import { signIn } from "next-auth/react";
+import { ExternalLoginButtons } from "@/components/auth/ExternalLoginButtons";
 
 function getPasswordStrength(pw: string) {
   let score = 0;
@@ -186,7 +187,18 @@ export function RegistroContent() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+        <div className="mt-8">
+          <ExternalLoginButtons redirectTo="/perfil/configuracoes?aba=vinculos" only={["google"]} mode="register" />
+          <p className="-mt-1 mb-1 text-center text-xs leading-relaxed text-[#A0A0A0]">
+            Ao continuar com o Google, você confirma ter pelo menos 13 anos e aceita os{" "}
+            <a href="/termos" className="text-green-cs hover:underline">
+              Termos
+            </a>
+            . Depois, vincule seu nick do Minecraft para jogar e comprar.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           {/* Username */}
           <div>
             <label htmlFor="reg-username" className="block text-sm font-medium text-white">

@@ -96,6 +96,8 @@ O site estará disponível em [http://localhost:3000](http://localhost:3000).
 | `npm run db:generate` | Gera os Prisma Clients (PostgreSQL e MariaDB) em `src/generated/` |
 | `npm run db:push:pg` | Aplica `prisma/schema.pg.prisma` no PostgreSQL |
 | `npm run db:seed` | Executa todos os seeds (`db:seed:aulas`, `:blog`, `:forum`, `:loja`) |
+| `npm run aulas:youtube` | Atualiza a lista de vídeos e lives do canal no YouTube (`scripts/data/youtube-videos.json`, requer o yt-dlp) |
+| `npm run aulas:atualizar` | `aulas:youtube` seguido de `db:seed:aulas`; usado pela atualização automática em produção |
 | `npm run db:migrate-v13` | Migração única dos dados antigos do MariaDB para o PostgreSQL (use `-- --dry-run` antes) |
 
 ---
@@ -143,7 +145,7 @@ prisma/
 ├── schema.prisma         # MariaDB — tabela nlogin (servidor Minecraft)
 └── schema.pg.prisma      # PostgreSQL — dados do site
 
-scripts/                  # Seeds e migração única MariaDB → PostgreSQL
+scripts/                  # Seeds, sincronização com o YouTube e migração única MariaDB → PostgreSQL
 docs/                     # Documentação do projeto
 ```
 
@@ -157,6 +159,8 @@ A documentação detalhada do projeto está em [`docs/`](./docs/README.md), incl
 - [Design System](./docs/design-system.md) — Paleta de cores, tipografia e componentes
 - [Padrão de Commits](./docs/padrao-de-commits.md) — Formato das mensagens, versionamento e checklist
 - [Arquitetura de Produção](./docs/arquitetura-producao.md) — Infraestrutura, deploy, backup e operação
+- [Login com Microsoft e Google](./docs/login-externo.md) — Login externo e vínculo de contas
+- [E-mail](./docs/email.md) — Envio automático pelo Cloudflare e atendimento pelo Gmail
 - Especificações de cada página e componente
 
 ---
@@ -167,7 +171,7 @@ A documentação detalhada do projeto está em [`docs/`](./docs/README.md), incl
 |---|---|
 | **IP do Servidor** | `jogar.craftsapiens.com.br` |
 | **E-mail** | contato@craftsapiens.com.br |
-| **Discord** | discord.io/craftsapiens |
+| **Discord** | discord.gg/craftsapiens |
 | **YouTube** | youtube.com/channel/UCdea6doNy_AypHr4S2tPUTw |
 | **Instagram** | @universidadecraftsapiens |
 | **TikTok** | @craftsapiens |

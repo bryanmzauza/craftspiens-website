@@ -77,6 +77,8 @@ function initParticles(w: number, h: number, count: number): Particle[] {
   return particles;
 }
 
+const PAGES_WITHOUT_PARTICLES = new Set(["/", "/sobre"]);
+
 export function AnimatedBackground() {
   const pathname = usePathname();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -185,8 +187,8 @@ export function AnimatedBackground() {
     };
   }, [draw]);
 
-  // A home tem o próprio fundo (imagem do hero), então o canvas não é montado nela
-  if (pathname === "/") return null;
+  // Páginas com fundo próprio (imagem no topo e fundo liso), sem o canvas de partículas
+  if (PAGES_WITHOUT_PARTICLES.has(pathname)) return null;
 
   return (
     <canvas

@@ -63,6 +63,36 @@
    - Mensagem genérica: "Username/email ou senha incorretos" (não revelar qual está errado)
    - Após 5 tentativas falhas em 15 minutos: bloquear por 30 minutos (rate limit por IP + username)
 
+### RN-AUTH-02b: Login externo (Microsoft e Google)
+
+> Implementação atual (v0.16). Detalhes em [docs/login-externo.md](../login-externo.md).
+
+- **Entrar com Microsoft**: para quem já tem conta no servidor com conta original (Java) ou pelo Bedrock. O jogador é encontrado pelo `mojang_id` ou `bedrock_id` do nLogin; não cria contas do jogo.
+- **Entrar com Google / Criar conta com Google**: cria uma conta no site sem nick. O nick é vinculado depois, em Configurações > Contas vinculadas, com a senha do servidor (ou pela Microsoft, para contas originais).
+- Contas sem nick não compram na loja nem publicam no fórum.
+- Se o e-mail do Google já pertence a uma conta com e-mail confirmado, o Google é vinculado a ela automaticamente e o login segue. Se o e-mail da conta ainda não foi confirmado, o login pelo Google é recusado: o dono entra com nick e senha e confirma o e-mail (ou vincula o Google em Configurações > Contas vinculadas).
+- Os botões só aparecem quando as credenciais do provedor estão configuradas.
+
+### RN-AUTH-02c: Confirmação de e-mail (`/confirmar-email`)
+
+> Implementação atual (v0.16).
+
+- Toda conta precisa de um e-mail confirmado para usar a plataforma: perfil, carrinho, compras, fórum e progresso das aulas. As páginas públicas continuam abertas.
+- Vale para qualquer forma de entrar: nick e senha, cadastro pelo site e Microsoft. Contas criadas pelo Google já entram confirmadas, porque o Google verificou o e-mail.
+- Contas com e-mail provisório (`@craftsapiens.temp`, criadas no primeiro acesso de quem não tinha e-mail no nLogin) precisam informar um e-mail real.
+- Fluxo:
+  1. Ao acessar uma página que exige confirmação, a conta vai para `/confirmar-email?redirect=<página>`
+  2. O usuário informa o e-mail e recebe um código de 6 dígitos (`POST /api/conta/email/enviar`)
+  3. Ao digitar o código (`POST /api/conta/email/confirmar`), o e-mail é gravado como confirmado e a sessão é atualizada
+  4. O usuário volta para a página em que estava
+- Alternativa ao código: **Confirmar com Google**. O botão vincula o Google à conta logada (`POST /api/perfil/vinculos/iniciar`, liberada mesmo sem e-mail confirmado) e, no retorno, o e-mail da conta Google passa a ser o e-mail confirmado da conta. Não vale para troca de e-mail, nem quando o e-mail do Google já pertence a outra conta; nesses casos, o usuário confirma pelo código.
+- O código vale por 15 minutos e aceita 5 tentativas. Pedir um código novo invalida os anteriores. No banco fica só o hash do código (HMAC com `AUTH_SECRET`).
+- Limites: 5 códigos e 10 tentativas de confirmação por conta a cada 15 minutos.
+- O e-mail não pode pertencer a outra conta.
+- Troca de e-mail: em Configurações, "Alterar e-mail" abre `/confirmar-email?alterar=1`. Se a conta já tem e-mail confirmado e senha no servidor, a troca pede a senha atual. O novo e-mail só passa a valer depois de confirmado, e o e-mail antigo recebe um aviso.
+- As APIs que alteram dados respondem 403 com o código `EmailNaoVerificado` para contas sem e-mail confirmado; as consultas de leitura continuam liberadas.
+- Em desenvolvimento, se o envio por SMTP falhar, o código aparece no terminal do servidor.
+
 ### RN-AUTH-03: Recuperação de Senha (`/recuperar-senha`)
 
 #### Fluxo
@@ -92,6 +122,7 @@
   - `/loja/carrinho` e checkout
   - Criar tópico/comentário no fórum
 - Ao acessar rota protegida sem login: redireciona para `/login?redirect=/rota-original`
+- Logado sem e-mail confirmado: redireciona para `/confirmar-email?redirect=/rota-original` (RN-AUTH-02c)
 - Após login bem-sucedido: redireciona para a URL do `redirect` param
 
 ### RN-AUTH-06: Logout

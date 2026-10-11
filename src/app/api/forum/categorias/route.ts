@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getNloginsByIds } from "@/lib/nlogin";
+import { getNloginMap } from "@/lib/nlogin";
 
 export async function GET() {
   const categories = await prisma.forumCategory.findMany({
@@ -32,8 +32,7 @@ export async function GET() {
       .filter((c) => c.topics[0])
       .map((c) => c.topics[0].author.nloginId)
   )];
-  const nlogins = await getNloginsByIds(nloginIds);
-  const nloginMap = new Map(nlogins.map((n) => [n.id, n]));
+  const nloginMap = await getNloginMap(nloginIds);
 
   const result = categories.map((cat) => {
     const lastTopic = cat.topics[0] ?? null;

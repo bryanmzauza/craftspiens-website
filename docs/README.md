@@ -7,7 +7,7 @@
 
 ## Visão Geral
 
-Este repositório contém o código-fonte do novo site da CraftSapiens, plataforma de ensino gamificado no Minecraft. O site é o portal para alunos, pais e a comunidade e reúne:
+Este repositório contém o código-fonte da nova plataforma da CraftSapiens, plataforma de ensino gamificado no Minecraft. O site é o portal para alunos, pais e a comunidade e reúne:
 
 - Sistema de autenticação integrado com o servidor Minecraft (nLogin)
 - Loja própria para planos VIP/Premium e itens in-game
@@ -42,6 +42,8 @@ Este repositório contém o código-fonte do novo site da CraftSapiens, platafor
 | [Design System](./design-system.md) | Paleta de cores, tipografia, componentes base |
 | [Padrão de Commits](./padrao-de-commits.md) | Formato das mensagens, versionamento e checklist |
 | [Arquitetura de Produção](./arquitetura-producao.md) | Infraestrutura, deploy, backup e operação |
+| [Login com Microsoft e Google](./login-externo.md) | Como funciona e como configurar o login externo |
+| [E-mail](./email.md) | Envio automático pelo Cloudflare e atendimento pelo Gmail |
 
 ### Páginas do Site
 
@@ -74,7 +76,7 @@ Este repositório contém o código-fonte do novo site da CraftSapiens, platafor
 
 | Rede | Link |
 |------|------|
-| Discord | discord.io/craftsapiens |
+| Discord | discord.gg/craftsapiens |
 | YouTube | youtube.com/channel/UCdea6doNy_AypHr4S2tPUTw |
 | Instagram | @universidadecraftsapiens |
 | TikTok | @craftsapiens |

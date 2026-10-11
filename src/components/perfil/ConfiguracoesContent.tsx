@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useSyncExternalStore } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { motion } from "framer-motion";
 import {
@@ -17,13 +17,18 @@ import {
   Trash2,
   Power,
   Loader2,
+  Link2,
+  ShieldCheck,
+  ShieldAlert,
 } from "lucide-react";
 import { PageHero } from "@/components/ui/PageHero";
+import { ContasVinculadas } from "@/components/perfil/ContasVinculadas";
 
-type Tab = "dados" | "senha" | "notificacoes" | "privacidade" | "perigo";
+type Tab = "dados" | "vinculos" | "senha" | "notificacoes" | "privacidade" | "perigo";
 
 const TABS: { id: Tab; label: string; icon: typeof User }[] = [
   { id: "dados", label: "Dados Pessoais", icon: User },
+  { id: "vinculos", label: "Contas Vinculadas", icon: Link2 },
   { id: "senha", label: "Alterar Senha", icon: Lock },
   { id: "notificacoes", label: "Notificações", icon: Bell },
   { id: "privacidade", label: "Privacidade", icon: Eye },
@@ -32,7 +37,9 @@ const TABS: { id: Tab; label: string; icon: typeof User }[] = [
 
 type ProfileData = {
   username: string;
+  hasNick: boolean;
   email: string;
+  emailConfirmed: boolean;
   birthDate: string | null;
   profile: {
     bio: string | null;
@@ -48,7 +55,15 @@ type ProfileData = {
 
 export function ConfiguracoesContent() {
   const { data: session } = useSession();
-  const [activeTab, setActiveTab] = useState<Tab>("dados");
+  // A aba inicial pode vir da URL (?aba=vinculos), por exemplo no retorno de um vínculo
+  const urlTab = useSyncExternalStore(
+    () => () => {},
+    () => new URLSearchParams(window.location.search).get("aba"),
+    () => null
+  );
+  const [chosenTab, setActiveTab] = useState<Tab | null>(null);
+  const activeTab: Tab = chosenTab ?? (urlTab === "vinculos" ? "vinculos" : "dados");
+  const [hasNick, setHasNick] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -57,8 +72,7 @@ export function ConfiguracoesContent() {
   // Profile data
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
-  const [savedEmail, setSavedEmail] = useState("");
-  const [emailSenha, setEmailSenha] = useState("");
+  const [emailConfirmed, setEmailConfirmed] = useState(false);
   const [bio, setBio] = useState("");
   const [birthDate, setBirthDate] = useState("");
 
@@ -96,8 +110,9 @@ export function ConfiguracoesContent() {
         const data: ProfileData = await res.json();
 
         setUsername(data.username);
-        setEmail(data.email);
-        setSavedEmail(data.email);
+        setHasNick(data.hasNick);
+        setEmail(data.email.endsWith("@craftsapiens.temp") ? "" : data.email);
+        setEmailConfirmed(data.emailConfirmed === true);
         setBio(data.profile?.bio || "");
         setBirthDate(
           data.birthDate
@@ -123,13 +138,13 @@ export function ConfiguracoesContent() {
     if (session?.user) fetchProfile();
   }, [session]);
 
+  const deleteConfirmation = hasNick ? `${username} CONFIRMAR` : "EXCLUIR";
+
   const showSaved = useCallback(() => {
     setSaved(true);
     setError("");
     setTimeout(() => setSaved(false), 2000);
   }, []);
-
-  const emailChanged = email.trim().toLowerCase() !== savedEmail;
 
   const handleSaveDados = async () => {
     setSaving(true);
@@ -138,17 +153,13 @@ export function ConfiguracoesContent() {
       const res = await fetch("/api/perfil", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, bio, currentPassword: emailChanged ? emailSenha : undefined }),
+        body: JSON.stringify({ bio }),
       });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || "Erro ao salvar.");
         return;
       }
-      const normalizedEmail = email.trim().toLowerCase();
-      setEmail(normalizedEmail);
-      setSavedEmail(normalizedEmail);
-      setEmailSenha("");
       showSaved();
     } catch {
       setError("Erro de conexão. Tente novamente.");
@@ -323,32 +334,36 @@ export function ConfiguracoesContent() {
                       <Mail size={14} className="mr-1 inline" />
                       Email
                     </label>
-                    <input
-                      id="email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-sm text-white focus:border-green-cs focus:outline-none"
-                    />
-                    <p className="mt-1 text-xs text-[#A0A0A0]">Alterar o email exige sua senha atual.</p>
-                  </div>
-
-                  {emailChanged && (
-                    <div>
-                      <label htmlFor="emailSenha" className="mb-1 block text-sm font-medium text-[#E0E0E0]">
-                        <Lock size={14} className="mr-1 inline" />
-                        Senha atual
-                      </label>
-                      <input
-                        id="emailSenha"
-                        type="password"
-                        autoComplete="current-password"
-                        value={emailSenha}
-                        onChange={(e) => setEmailSenha(e.target.value)}
-                        className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-sm text-white focus:border-green-cs focus:outline-none"
-                      />
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span id="email" className="text-sm text-white">
+                          {email || "Nenhum e-mail informado"}
+                        </span>
+                        {emailConfirmed ? (
+                          <span className="inline-flex items-center gap-1 rounded border border-green-cs/40 bg-green-cs/10 px-2 py-0.5 text-xs font-semibold text-green-cs">
+                            <ShieldCheck size={12} /> Verificado
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded border border-warning/40 bg-warning/10 px-2 py-0.5 text-xs font-semibold text-warning">
+                            <ShieldAlert size={12} /> Não confirmado
+                          </span>
+                        )}
+                      </span>
+                      <a
+                        href={
+                          emailConfirmed
+                            ? "/confirmar-email?alterar=1&redirect=/perfil/configuracoes"
+                            : "/confirmar-email?redirect=/perfil/configuracoes"
+                        }
+                        className="text-sm font-semibold text-green-cs hover:underline"
+                      >
+                        {emailConfirmed ? "Alterar e-mail" : "Confirmar e-mail"}
+                      </a>
                     </div>
-                  )}
+                    <p className="mt-1 text-xs text-[#A0A0A0]">
+                      O novo e-mail passa a valer depois de confirmado com o código enviado para ele.
+                    </p>
+                  </div>
 
                   <div>
                     <label htmlFor="bio" className="mb-1 block text-sm font-medium text-[#E0E0E0]">
@@ -379,7 +394,7 @@ export function ConfiguracoesContent() {
 
                   <button
                     onClick={handleSaveDados}
-                    disabled={saving || (emailChanged && !emailSenha)}
+                    disabled={saving}
                     className="flex items-center gap-1.5 rounded-lg bg-green-cs px-6 py-2.5 text-sm font-bold text-white transition-all hover:bg-green-dark disabled:opacity-40"
                   >
                     {saving ? <Loader2 size={16} className="animate-spin" /> : saved ? <Check size={16} /> : <Save size={16} />}
@@ -388,7 +403,19 @@ export function ConfiguracoesContent() {
                 </div>
               )}
 
-              {activeTab === "senha" && (
+              {activeTab === "vinculos" && <ContasVinculadas />}
+
+              {activeTab === "senha" && !hasNick && (
+                <div className="space-y-3">
+                  <h2 className="text-lg font-bold text-white">Alterar Senha</h2>
+                  <p className="text-sm text-[#A0A0A0]">
+                    Sua conta entra pelo Google e ainda não tem um nick do Minecraft. A senha é a mesma do servidor e
+                    passa a existir quando você vincula um nick em Contas Vinculadas.
+                  </p>
+                </div>
+              )}
+
+              {activeTab === "senha" && hasNick && (
                 <div className="space-y-4">
                   <h2 className="text-lg font-bold text-white">Alterar Senha</h2>
                   <p className="text-sm text-[#A0A0A0]">
@@ -607,6 +634,7 @@ export function ConfiguracoesContent() {
                           Esta ação é irreversível.
                         </p>
                         <div className="mt-3 space-y-3">
+                          {hasNick && (
                           <div>
                             <label htmlFor="deletePassword" className="mb-1 block text-xs text-[#A0A0A0]">
                               Confirme sua senha:
@@ -620,22 +648,25 @@ export function ConfiguracoesContent() {
                               className="w-full rounded-lg border border-error/30 bg-white/5 px-4 py-2 text-sm text-white placeholder:text-white/20 focus:border-error focus:outline-none"
                             />
                           </div>
+                          )}
                           <div>
                             <label htmlFor="confirmDelete" className="mb-1 block text-xs text-[#A0A0A0]">
-                              Digite seu username seguido de CONFIRMAR para prosseguir:
+                              {hasNick
+                                ? "Digite seu username seguido de CONFIRMAR para prosseguir:"
+                                : "Digite EXCLUIR para prosseguir:"}
                             </label>
                             <input
                               id="confirmDelete"
                               type="text"
                               value={confirmDelete}
                               onChange={(e) => setConfirmDelete(e.target.value)}
-                              placeholder={`${username} CONFIRMAR`}
+                              placeholder={deleteConfirmation}
                               className="w-full rounded-lg border border-error/30 bg-white/5 px-4 py-2 text-sm text-white placeholder:text-white/20 focus:border-error focus:outline-none"
                             />
                           </div>
                         </div>
                         <button
-                          disabled={confirmDelete !== `${username} CONFIRMAR` || !deletePassword || deleting}
+                          disabled={confirmDelete !== deleteConfirmation || (hasNick && !deletePassword) || deleting}
                           onClick={async () => {
                             setDangerError("");
                             setDangerSuccess("");

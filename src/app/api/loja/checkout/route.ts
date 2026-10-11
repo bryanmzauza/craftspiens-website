@@ -4,11 +4,28 @@ import { prisma } from "@/lib/prisma";
 import { getPreferenceClient, getMpConfig } from "@/lib/mercadopago";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit";
 import { isUnlimitedStock } from "@/lib/products";
+import { isValidCpf, normalizeCpf } from "@/lib/cpf";
 
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  }
+
+  // Compras são entregues no jogo: exige um nick do Minecraft vinculado
+  if (session.user.nloginId == null) {
+    return NextResponse.json(
+      { error: "Vincule seu nick do Minecraft em Configurações > Contas vinculadas para comprar.", code: "SemNick" },
+      { status: 403 }
+    );
+  }
+
+  // Compras exigem e-mail confirmado (recibos e avisos do pedido vão para ele)
+  if (!session.user.emailConfirmed) {
+    return NextResponse.json(
+      { error: "Confirme seu e-mail para continuar.", code: "EmailNaoVerificado" },
+      { status: 403 }
+    );
   }
 
   const rl = await checkRateLimit(`checkout:${session.user.id}`, RATE_LIMITS.checkout);
@@ -18,6 +35,30 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => ({}));
   const couponCode = typeof body.couponCode === "string" ? body.couponCode.trim().toUpperCase() : "";
+
+  // CPF de quem paga (o aluno ou um responsável). Fica salvo na conta e pode ser
+  // trocado em qualquer compra; sem CPF novo no pedido, usa o salvo.
+  const account = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { email: true, payerCpf: true },
+  });
+  if (!account) {
+    return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });
+  }
+  const informedCpf = typeof body.cpf === "string" ? normalizeCpf(body.cpf) : "";
+  if (informedCpf && !isValidCpf(informedCpf)) {
+    return NextResponse.json({ error: "CPF inválido. Confira os números.", code: "CpfInvalido" }, { status: 400 });
+  }
+  const payerCpf = informedCpf || account.payerCpf;
+  if (!payerCpf || !isValidCpf(payerCpf)) {
+    return NextResponse.json(
+      { error: "Informe o CPF de quem vai pagar para finalizar a compra.", code: "CpfObrigatorio" },
+      { status: 400 }
+    );
+  }
+  if (payerCpf !== account.payerCpf) {
+    await prisma.user.update({ where: { id: session.user.id }, data: { payerCpf } });
+  }
 
   const cartItems = await prisma.cartItem.findMany({
     where: { userId: session.user.id },
@@ -145,7 +186,8 @@ export async function POST(request: Request) {
         statement_descriptor: mpConfig.statementDescriptor,
         external_reference: order.id,
         payer: {
-          email: session.user.email,
+          email: account.email,
+          identification: { type: "CPF", number: payerCpf },
         },
         metadata: {
           order_id: order.id,

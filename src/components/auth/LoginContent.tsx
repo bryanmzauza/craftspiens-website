@@ -6,6 +6,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Gamepad2 } from "lucide-react";
 import { signIn } from "next-auth/react";
+import { ExternalLoginButtons, EXTERNAL_LOGIN_ERRORS } from "@/components/auth/ExternalLoginButtons";
 
 export function LoginContent() {
   const router = useRouter();
@@ -20,6 +21,13 @@ export function LoginContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Erro vindo do retorno de um login externo (Google ou Microsoft)
+  const externalErrorCode = searchParams.get("error");
+  const externalError =
+    externalErrorCode && externalErrorCode !== "CredentialsSignin"
+      ? EXTERNAL_LOGIN_ERRORS[externalErrorCode] ?? EXTERNAL_LOGIN_ERRORS.OAuthCallbackError
+      : "";
+  const shownError = error || externalError;
   const [form, setForm] = useState({ username: "", password: "", remember: false });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -71,13 +79,17 @@ export function LoginContent() {
           Acesse sua conta CraftSapiens
         </p>
 
-        {error && (
+        {shownError && (
           <div className="mt-6 rounded-lg border border-error/20 bg-error/10 px-4 py-3 text-sm text-error">
-            {error}
+            {shownError}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+        <div className="mt-8">
+          <ExternalLoginButtons redirectTo={redirectTo} />
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div>
             <label htmlFor="login-username" className="block text-sm font-medium text-white">
               Username ou Email
