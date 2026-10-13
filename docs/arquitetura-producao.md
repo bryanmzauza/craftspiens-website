@@ -251,6 +251,8 @@ ss -ltnp | grep 5432                    # deve mostrar 127.0.0.1:5432, nunca 0.0
 
 > Se a porta `5432` já estiver em uso no servidor físico, troque só o lado do host (por exemplo `"127.0.0.1:5433:5432"`) e ajuste o `POSTGRES_URL`.
 
+> Se o banco também precisar ser acessado por uma VPN de administração, acrescente uma segunda linha em `ports` com o IP da VPN, mas mantenha a de `127.0.0.1` para o site. Uma porta publicada pelo Docker só no IP de uma interface WireGuard pode não aceitar conexões vindas do próprio servidor: a conexão fica presa e as APIs do site travam até o timeout. O mesmo vale para o MariaDB: use `127.0.0.1` no `DATABASE_URL`.
+
 ### 5.2 MariaDB do Pterodactyl (nLogin)
 
 O MariaDB continua como está: o plugin nLogin e o painel seguem acessando normalmente. O site ganha um usuário próprio, com permissões mínimas, que só entra a partir da própria máquina.
@@ -627,6 +629,231 @@ O `ufw` libera todo o tráfego de saída, o que mantém o acesso aos serviços i
 
 Assim, mesmo que alguém descubra o IP da VPS, não consegue acessar o site sem passar pela Cloudflare.
 
+### 7.5 Endurecimento
+
+A VPS fica exposta à internet, então recebe camadas extras além do firewall. Os arquivos abaixo valem com ou sem a Cloudflare na frente.
+
+**SSH** — `/etc/ssh/sshd_config.d/10-craftsapiens.conf`. O nome começa com `10-` porque no `sshd` vale o primeiro valor encontrado, e a imagem da Oracle traz um `60-cloudimg-settings.conf`.
+
+```
+PermitRootLogin no
+AllowUsers ubuntu
+AuthenticationMethods publickey
+PubkeyAuthentication yes
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitEmptyPasswords no
+
+MaxAuthTries 3
+MaxStartups 10:30:30
+LoginGraceTime 20
+ClientAliveInterval 300
+ClientAliveCountMax 2
+
+X11Forwarding no
+AllowAgentForwarding no
+AllowTcpForwarding no
+AllowStreamLocalForwarding no
+PermitTunnel no
+PermitUserEnvironment no
+GatewayPorts no
+
+KexAlgorithms sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org
+Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com
+MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com
+HostKeyAlgorithms ssh-ed25519,rsa-sha2-512,rsa-sha2-256
+PubkeyAcceptedAlgorithms ssh-ed25519,rsa-sha2-512,rsa-sha2-256
+
+LogLevel VERBOSE
+```
+
+```bash
+sudo sshd -t && sudo systemctl reload ssh
+# Antes de fechar a sessão atual, confira que uma conexão nova entra
+```
+
+> Se o SSH falhar, a entrada que sobra é o *Console Connection* da Oracle, que pede a senha do usuário. Defina uma (`sudo passwd ubuntu`) e guarde no gerenciador de senhas; com `AuthenticationMethods publickey`, ela não vale pelo SSH.
+
+**Kernel e rede** — `/etc/sysctl.d/90-craftsapiens.conf`:
+
+```ini
+net.ipv4.tcp_syncookies = 1
+net.ipv4.tcp_rfc1337 = 1
+net.ipv4.conf.all.rp_filter = 2
+net.ipv4.conf.default.rp_filter = 2
+net.ipv4.conf.all.accept_redirects = 0
+net.ipv4.conf.default.accept_redirects = 0
+net.ipv4.conf.all.secure_redirects = 0
+net.ipv4.conf.default.secure_redirects = 0
+net.ipv4.conf.all.send_redirects = 0
+net.ipv4.conf.default.send_redirects = 0
+net.ipv4.conf.all.accept_source_route = 0
+net.ipv4.conf.default.accept_source_route = 0
+net.ipv6.conf.all.accept_redirects = 0
+net.ipv6.conf.default.accept_redirects = 0
+net.ipv6.conf.all.accept_source_route = 0
+net.ipv6.conf.default.accept_source_route = 0
+net.ipv4.icmp_echo_ignore_broadcasts = 1
+net.ipv4.icmp_ignore_bogus_error_responses = 1
+net.ipv4.conf.all.log_martians = 1
+net.ipv4.conf.default.log_martians = 1
+net.ipv4.ip_forward = 0
+net.ipv6.conf.all.forwarding = 0
+kernel.kptr_restrict = 2
+kernel.dmesg_restrict = 1
+kernel.unprivileged_bpf_disabled = 1
+net.core.bpf_jit_harden = 2
+kernel.yama.ptrace_scope = 2
+kernel.kexec_load_disabled = 1
+kernel.sysrq = 0
+fs.protected_hardlinks = 1
+fs.protected_symlinks = 1
+fs.protected_fifos = 2
+fs.protected_regular = 2
+fs.suid_dumpable = 0
+```
+
+```bash
+sudo sysctl --system
+# O ufw reaplica /etc/ufw/sysctl.conf ao subir, com log_martians=0: ajuste lá também
+sudo sed -i 's|log_martians=0|log_martians=1|' /etc/ufw/sysctl.conf
+```
+
+**nginx** — ajustes globais em `/etc/nginx/conf.d/90-craftsapiens.conf`. No `/etc/nginx/nginx.conf` do Ubuntu, troque `ssl_protocols` para `TLSv1.2 TLSv1.3` e `ssl_prefer_server_ciphers` para `off`; repetir essas diretivas no `conf.d` dá erro de duplicidade.
+
+```nginx
+server_tokens off;
+
+# TLS (perfil "intermediate" da Mozilla)
+ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305;
+ssl_ecdh_curve X25519:prime256v1:secp384r1;
+ssl_session_cache shared:SSL:10m;
+ssl_session_timeout 1d;
+ssl_session_tickets off;
+
+# Conexões lentas (slowloris) são encerradas cedo
+client_header_timeout 10s;
+client_body_timeout 15s;
+send_timeout 30s;
+keepalive_timeout 30s;
+reset_timedout_connection on;
+# Cookies de sessão do Auth.js podem passar de 8 KB
+large_client_header_buffers 4 16k;
+
+# Limites por IP. Folgados: alunos de uma mesma escola saem pelo mesmo IP.
+limit_req_zone  $binary_remote_addr zone=req_por_ip:10m  rate=30r/s;
+limit_req_zone  $binary_remote_addr zone=img_por_ip:10m  rate=10r/s;
+limit_conn_zone $binary_remote_addr zone=conn_por_ip:10m;
+limit_req_status  429;
+limit_conn_status 429;
+limit_req_log_level warn;
+
+# Cache dos arquivos imutáveis do Next.js: poupa o túnel e o upload do servidor físico
+proxy_cache_path /var/cache/nginx/craftsapiens levels=1:2 keys_zone=estaticos:10m max_size=500m inactive=7d use_temp_path=off;
+```
+
+No bloco `server` da porta 443, além do que está em [7.3](#73-nginx):
+
+```nginx
+limit_conn conn_por_ip 100;
+
+if ($request_method !~ ^(GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS)$) {
+    return 405;
+}
+
+# O site não tem arquivos .php nem arquivos ocultos: pedidos assim são de robôs
+location ~* \.php(/|$) { return 404; }
+location ~ /\.(?!well-known/) { return 404; }
+
+# Arquivos imutáveis do build: cache local, sem limite por IP
+location /_next/static/ {
+    include snippets/craftsapiens-proxy.conf;   # as diretivas proxy_* do location / da seção 7.3
+    proxy_cache estaticos;
+    proxy_cache_valid 200 7d;
+    proxy_cache_use_stale error timeout updating;
+    proxy_cache_lock on;
+}
+
+# Otimização de imagens: custa CPU no servidor físico
+location /_next/image {
+    limit_req zone=img_por_ip burst=60 nodelay;
+    include snippets/craftsapiens-proxy.conf;
+}
+
+location / {
+    limit_req zone=req_por_ip burst=200 nodelay;
+    include snippets/craftsapiens-proxy.conf;
+}
+```
+
+> Com a Cloudflare na frente, os limites só funcionam por visitante se o `real_ip` estiver configurado ([7.3](#73-nginx)); sem ele, todos os pedidos parecem vir de poucos IPs da Cloudflare.
+
+**fail2ban** — bane quem procura falhas. Excesso de requisições não gera banimento, para não derrubar uma escola inteira que sai pelo mesmo IP.
+
+`/etc/fail2ban/filter.d/craftsapiens-scanners.conf`:
+
+```ini
+[Definition]
+failregex = ^<HOST> - \S+ \[\] "(?:GET|POST|HEAD|PUT|DELETE|PATCH|OPTIONS) (?:\S*\.php\S*|\S*/\.(?!well-known/)\S*) HTTP/[\d.]+" 404
+ignoreregex =
+datepattern = {^LN-BEG}%%ExY(?P<_sep>[-/.])%%m(?P=_sep)%%d[T ]%%H:%%M:%%S(?:[.,]%%f)?(?:\s*%%z)?
+              ^[^\[]*\[({DATE})
+              {^LN-BEG}
+```
+
+`/etc/fail2ban/jail.d/craftsapiens.local`:
+
+```ini
+[DEFAULT]
+bantime = 1h
+bantime.increment = true
+bantime.maxtime = 1w
+findtime = 10m
+maxretry = 5
+ignoreip = 127.0.0.1/8 ::1 10.20.0.0/24 <SEU_IP_DE_ADMIN>
+
+[sshd]
+enabled = true
+mode = aggressive
+maxretry = 3
+
+[craftsapiens-scanners]
+enabled = true
+backend = auto
+port = http,https
+logpath = /var/log/nginx/access.log
+maxretry = 3
+findtime = 10m
+```
+
+```bash
+sudo apt install -y fail2ban
+sudo fail2ban-client -t && sudo systemctl restart fail2ban
+sudo fail2ban-client status
+```
+
+**Atualizações automáticas** — o `unattended-upgrades` já vem ativo. Para reiniciar de madrugada quando uma atualização exigir, crie `/etc/apt/apt.conf.d/52craftsapiens-unattended`:
+
+```
+Unattended-Upgrade::Automatic-Reboot "true";
+Unattended-Upgrade::Automatic-Reboot-WithUsers "true";
+Unattended-Upgrade::Automatic-Reboot-Time "05:30";
+Unattended-Upgrade::Remove-Unused-Dependencies "true";
+Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+```
+
+```bash
+sudo timedatectl set-timezone America/Sao_Paulo
+```
+
+**Serviços sem uso** na imagem da Oracle:
+
+```bash
+sudo systemctl disable --now rpcbind.socket rpcbind.service ModemManager udisks2 fwupd fwupd-refresh.timer
+```
+
+**Conferência:** `sudo ss -tulpn` deve mostrar abertas para fora só a 22, 80/443 (nginx) e 51820/udp. Reinicie a VPS uma vez e confira que nginx, ufw, fail2ban e o túnel voltam sozinhos.
+
 ---
 
 ## 8. Cloudflare
@@ -699,7 +926,7 @@ MINECRAFT_SERVER_HOST="jogar.craftsapiens.com.br"
 
 ## 10. Primeira instalação — ordem dos passos
 
-1. **VPS de entrada na Oracle**: instância, regras de rede e firewall ([7.1](#71-instância-e-rede-na-oracle), [7.2](#72-preparação) e [7.4](#74-firewall)).
+1. **VPS de entrada na Oracle**: instância, regras de rede, firewall e endurecimento ([7.1](#71-instância-e-rede-na-oracle), [7.2](#72-preparação), [7.4](#74-firewall) e [7.5](#75-endurecimento)).
 2. **WireGuard** entre a VPS de entrada e o servidor físico ([seção 4](#4-wireguard-wg-site)); testar o `ping`.
 3. **PostgreSQL** no servidor físico ([5.1](#51-postgresql-em-docker)); conferir `healthy`.
 4. **Usuário `site_nlogin`** no MariaDB ([5.2](#52-mariadb-do-pterodactyl-nlogin)); testar a conexão.
@@ -954,3 +1181,113 @@ Estes ajustes são recomendados e ainda não foram implementados:
 | Cache de 60 s nas APIs públicas (`/api/loja/produtos`, `/api/ranking`, `/api/estatisticas`) | Menos carga no servidor físico, que divide CPU com os servidores de Minecraft |
 | Página de manutenção do próprio site quando um banco estiver inacessível | O nginx já cobre o Next.js fora do ar; falta o caso do site no ar com o banco parado, que hoje dá erro 500 |
 | Rota de health check (`/api/health`) testando os dois bancos | Monitoramento externo detecta queda de banco, não só do site |
+
+---
+
+## 16. Fase provisória: acesso pelo IP, sem domínio
+
+Enquanto o domínio não aponta para a VPS de entrada, o site pode ser publicado no IP público dela, com HTTPS válido. O resto da arquitetura (túnel, servidor físico, bancos) não muda.
+
+### O que muda
+
+| Item | Com domínio (seções 7 e 8) | Pelo IP |
+|------|----------------------------|---------|
+| Na frente da VPS | Cloudflare | Nada: visitantes chegam direto no nginx |
+| Certificado | Origem da Cloudflare (15 anos) | Let's Encrypt para o IP, perfil `shortlived` (6 dias, renovação automática) |
+| Porta 443 | Só faixas da Cloudflare | Pública |
+| Porta 80 | Fechada | Pública: validação do certificado e redirecionamento para HTTPS |
+| IP do visitante | `CF-Connecting-IP` via `real_ip` | `$remote_addr` direto (sem `cloudflare-realip.conf`) |
+| `AUTH_URL` | `https://craftsapiens.com.br` | `https://<IP_PUBLICO_VPS_ENTRADA>` |
+
+### Certificado para o IP
+
+O Let's Encrypt emite certificados para endereços IP desde janeiro de 2026, sempre com validade de 6 dias, e só por validação HTTP-01 ou TLS-ALPN-01. O certbot do Ubuntu (apt) é antigo; use o do snap.
+
+```bash
+sudo snap install --classic certbot
+sudo mkdir -p /var/www/letsencrypt
+```
+
+Bloco da porta 80 (precisa estar no ar antes de emitir):
+
+```nginx
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt;
+    }
+
+    location / {
+        return 301 https://<IP_PUBLICO_VPS_ENTRADA>$request_uri;
+    }
+}
+```
+
+```bash
+sudo certbot certonly --non-interactive --agree-tos --register-unsafely-without-email   --webroot -w /var/www/letsencrypt --ip-address <IP_PUBLICO_VPS_ENTRADA>   --required-profile shortlived --cert-name craftsapiens-ip
+
+# Recarregar o nginx a cada renovação
+printf '#!/bin/sh
+systemctl reload nginx
+' | sudo tee /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+sudo chmod 755 /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+sudo certbot renew --dry-run
+```
+
+> A renovação depende da porta 80. Se ela for fechada, o certificado vence em até 6 dias e o site fica inacessível.
+
+### Bloco HTTPS
+
+Igual ao da [seção 7.3](#73-nginx), com estas diferenças:
+
+```nginx
+server {
+    # default_server: navegadores não enviam SNI quando o endereço é um IP.
+    # Sem isso, o pedido cai em outro bloco e a conexão é recusada.
+    listen 443 ssl http2 default_server;
+    listen [::]:443 ssl http2 default_server;
+    server_name <IP_PUBLICO_VPS_ENTRADA>;
+
+    # Só aceita o IP como Host (robôs costumam mandar nomes aleatórios)
+    if ($host != "<IP_PUBLICO_VPS_ENTRADA>") {
+        return 444;
+    }
+
+    ssl_certificate     /etc/letsencrypt/live/craftsapiens-ip/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/craftsapiens-ip/privkey.pem;
+
+    # ... resto como em 7.3 e 7.5
+}
+```
+
+- Não use o bloco `default_server` com `return 444` (ou `ssl_reject_handshake`) da seção 7.3 nesta fase: ele recebe todos os acessos pelo IP.
+- O nginx 1.24 do Ubuntu 24.04 não aceita a diretiva `http2 on;` (só a partir da 1.25.1); use `listen ... ssl http2`.
+
+### Firewall
+
+```bash
+sudo ufw allow 80/tcp  comment 'HTTP (Lets Encrypt e redirecionamento)'
+sudo ufw allow 443/tcp comment 'HTTPS'
+```
+
+Na *Security List* da Oracle, liberar TCP 80 e 443 para `0.0.0.0/0`.
+
+### Limitações
+
+| Função | Situação pelo IP |
+|--------|------------------|
+| Login com Google e Microsoft | Não funciona: os provedores não aceitam endereço de retorno com IP. Deixe as variáveis `AUTH_GOOGLE_*` e `AUTH_MICROSOFT_*` comentadas, e os botões não aparecem |
+| Webhook do MercadoPago | Depende de o MercadoPago aceitar `https://<IP>/api/loja/webhook`; testar antes de vender |
+| Proteção DDoS e cache da Cloudflare | Ausentes; os limites por IP e o cache de `/_next/static` no nginx ([7.5](#75-endurecimento)) cobrem parte |
+
+### Passagem para o domínio
+
+1. DNS e configurações da Cloudflare ([seção 8](#8-cloudflare)).
+2. Certificado de origem da Cloudflare e `server_name` com o domínio ([7.3](#73-nginx)); remover o `if ($host ...)` e voltar o bloco `default_server` que recusa outros nomes.
+3. `cloudflare-ips.sh` ([7.3](#73-nginx)); remover as regras públicas das portas 80 e 443 do `ufw`.
+4. `AUTH_URL` com o domínio, reativar o login externo, atualizar o webhook do MercadoPago, `npm run build` e reiniciar o site.
+5. Opcional: `sudo certbot delete --cert-name craftsapiens-ip`.
+

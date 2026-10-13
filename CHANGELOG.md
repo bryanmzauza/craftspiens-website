@@ -7,6 +7,25 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.17.1] — 13/10/2026 — Site no ar pelo IP e endurecimento da VPS
+
+### Adicionado
+
+- **Fase provisória de acesso pelo IP** (`docs/arquitetura-producao.md`, seção 16): enquanto o domínio não aponta para a VPS de entrada, o site é publicado no IP público dela, sem a Cloudflare na frente. O certificado é do Let's Encrypt para o próprio IP (perfil `shortlived`, validade de 6 dias, renovado pelo certbot do snap com validação pela porta 80). A seção traz o que muda em relação à arquitetura com domínio, o bloco HTTPS do nginx, o firewall, as limitações (login com Google e Microsoft não aceita IP; webhook do Mercado Pago a testar) e os passos para a passagem ao domínio
+- **Endurecimento da VPS de entrada** (seção 7.5):
+  - SSH só com chave, só o usuário `ubuntu`, sem `root`, sem encaminhamentos, com algoritmos modernos e menos tentativas por conexão
+  - `sysctl` sem redirecionamentos e roteamento de origem, com SYN cookies e restrições de kernel (BPF sem privilégio, `ptrace`, `kexec`, SysRq); ajuste do `/etc/ufw/sysctl.conf`, que reaplicava `log_martians=0` no boot
+  - nginx com TLS 1.2 e 1.3, timeouts curtos contra conexões lentas, limites por IP folgados (alunos de uma escola saem pelo mesmo IP), cache local de `/_next/static`, `/_next/image` com limite próprio, métodos HTTP restritos e resposta direta a pedidos de `.php` e arquivos ocultos
+  - fail2ban para o SSH e para robôs que procuram falhas, com banimento crescente; excesso de requisições não bane, para não bloquear uma escola inteira
+  - Reinício automático de madrugada quando uma atualização de segurança exigir e desativação de serviços sem uso da imagem da Oracle
+
+### Alterado
+
+- Bancos acessados pelo site sempre por `127.0.0.1` (`docs/arquitetura-producao.md`, seção 5.1): uma porta publicada pelo Docker só no IP de uma interface WireGuard pode não aceitar conexões vindas do próprio servidor, e as APIs ficam presas até o timeout. Com `127.0.0.1`, o site também deixa de depender da VPN de administração para subir
+- Ordem da primeira instalação (seção 10) inclui o endurecimento da VPS
+
+---
+
 ## [v0.17] — 10/10/2026 — Loja refeita: Pix no site, planos anuais e entrega automática
 
 ### Adicionado
