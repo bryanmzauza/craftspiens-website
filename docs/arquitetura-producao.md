@@ -958,32 +958,86 @@ MINECRAFT_SERVER_HOST="jogar.craftsapiens.com.br"
 
 ---
 
-## 11. Atualizações (deploy de nova versão)
+## 11. Atualizações (deploy automático)
 
-No servidor físico:
+Todo commit que chega à branch `main` entra em produção sozinho. O servidor físico **puxa** o código: a cada 5 minutos, um timer verifica a `main` no GitHub e, se houver commit novo, compila e publica. Nada no GitHub tem acesso ao servidor, nenhuma chave de produção fica fora dele e nenhuma porta nova é aberta. Como o repositório é público, o servidor lê o código sem credencial, como qualquer visitante.
+
+Os arquivos ficam em [`scripts/servidor/`](../scripts/servidor/):
+
+| Arquivo | Instalado em | Função |
+|---------|--------------|--------|
+| `craftsapiens-deploy.sh` | `/usr/local/bin/` | O deploy: fetch, build em pasta separada, troca de versão, teste e rollback |
+| `notificar-deploy.mjs` | `/usr/local/lib/craftsapiens/` | Aviso por e-mail, com o SMTP do próprio site |
+| `craftsapiens-deploy.service` e `.timer` | `/etc/systemd/system/` | Execução a cada 5 minutos, com prioridade baixa |
+| `instalar-deploy.sh` | — | Instala tudo acima e migra o site para o layout de releases |
+
+As cópias instaladas pertencem ao `root`: um commit no repositório não consegue alterá-las nem ganhar mais permissões do que o usuário `craftsapiens` já tem.
+
+### 11.1 Instalação
+
+Com o site já funcionando ([seção 6](#6-servidor-físico--site-nextjs)):
 
 ```bash
-cd /opt/craftsapiens/site
-sudo -u craftsapiens git pull
-sudo -u craftsapiens npm ci
-sudo -u craftsapiens nice -n 10 npm run build
-# Somente se prisma/schema.pg.prisma mudou (faça backup antes):
-sudo -u craftsapiens npm run db:push:pg
-sudo systemctl restart craftsapiens-site
+sudo bash scripts/servidor/instalar-deploy.sh
 ```
 
-- Enquanto o `npm run build` roda, a versão em execução pode falhar em algumas páginas, porque a pasta `.next` está sendo reescrita. Faça o deploy em horário de pouco movimento.
-- Durante o `restart`, por alguns segundos, os visitantes veem a página de manutenção.
+O instalador move a instalação para o layout abaixo, cria o clone de fetch, instala os scripts, uma regra de `sudo` que permite ao `craftsapiens` **somente** `systemctl restart craftsapiens-site.service`, e ativa o timer. O site não cai durante a migração.
 
-**Rollback:** voltar para a versão anterior e repetir o build.
+```
+/opt/craftsapiens/
+├── site -> releases/<sha>   versão no ar (o serviço roda aqui)
+├── releases/<sha>/          cada versão compilada (as 3 últimas ficam guardadas)
+├── repo/                    clone do repositório, só para o fetch
+├── shared/.env              variáveis de ambiente (link em cada release)
+├── shared/next-cache/       cache do next build, compartilhado
+├── deploy/                  estado, trava e logs dos builds
+└── deploy.conf              EMAIL_AVISO (quem recebe os avisos)
+```
+
+### 11.2 O que acontece em cada deploy
+
+1. `git fetch` e comparação do commit da `main` com a versão no ar. Sem novidade, nada acontece.
+2. Se `prisma/schema.pg.prisma` mudou, o deploy **para e avisa**: o `db:push` pode apagar colunas com dados, então esse caso é manual ([11.4](#114-mudança-no-banco)).
+3. O código é extraído em `releases/<sha>`, com `npm ci` e `npm run build` **em pasta separada**: a versão no ar continua intacta durante o build.
+4. O link `site` passa a apontar para a versão nova e o serviço reinicia (alguns segundos de página de manutenção).
+5. O site precisa responder a página inicial e `/api/estatisticas` (que consulta o banco) em até 90 s. Se não responder, o link volta para a versão anterior e o serviço reinicia de novo.
+6. Um e-mail informa o resultado: atualizado, falhou (com o fim do log do build) ou bloqueado.
+
+Um commit que falha não é tentado de novo a cada 5 minutos: o script espera um commit novo ou o `--forcar`. O build roda com `nice`, peso de CPU reduzido e limite de memória, para não disputar com os servidores de Minecraft.
+
+### 11.3 Comandos
+
+| Comando (no servidor físico) | Para quê |
+|------------------------------|----------|
+| `journalctl -u craftsapiens-deploy -f` | Acompanhar os deploys |
+| `systemctl list-timers craftsapiens-deploy.timer` | Próxima verificação |
+| `sudo systemctl start craftsapiens-deploy.service` | Verificar a `main` agora, sem esperar o timer |
+| `sudo -u craftsapiens craftsapiens-deploy.sh --voltar` | Voltar para a versão anterior (rollback) |
+| `sudo -u craftsapiens craftsapiens-deploy.sh --forcar` | Tentar de novo um commit que falhou |
+| `ls /opt/craftsapiens/deploy/log/` | Logs completos dos builds (30 dias) |
+| `sudo systemctl disable --now craftsapiens-deploy.timer` | Pausar o deploy automático |
+
+### 11.4 Mudança no banco
+
+Quando o commit altera `prisma/schema.pg.prisma`, o aviso por e-mail chega e o deploy fica bloqueado até ser feito à mão:
 
 ```bash
-sudo -u craftsapiens git checkout <commit-anterior>
-sudo -u craftsapiens npm ci && sudo -u craftsapiens nice -n 10 npm run build
-sudo systemctl restart craftsapiens-site
+sudo systemctl start craftsapiens-backup.service          # backup antes (seção 12)
+sudo -u craftsapiens craftsapiens-deploy.sh --com-schema   # build, db:push:pg e troca de versão
 ```
 
-> Se a versão nova alterou o schema do banco, o rollback do código pode exigir também restaurar o backup ([12.4](#124-restauração)).
+> Se a versão nova alterou o schema, o rollback do código pode exigir também restaurar o backup ([12.4](#124-restauração)).
+
+### 11.5 Proteção do repositório
+
+Quem consegue escrever na `main` controla a produção. Por isso, no GitHub:
+
+- **Autenticação em duas etapas** na conta.
+- **Ruleset na `main`**: bloquear force push e exclusão da branch (*Settings → Rules → Rulesets*).
+- **Secret scanning com push protection** e **alertas do Dependabot** (*Settings → Advanced Security*), gratuitos em repositórios públicos.
+- Opcional, a camada mais forte: **exigir commits assinados**. Com o arquivo `/opt/craftsapiens/allowed_signers` (formato do `gpg.ssh.allowedSignersFile` do Git) no servidor, o deploy recusa qualquer commit que não esteja assinado por uma das chaves listadas, mesmo que a conta do GitHub seja invadida.
+
+Pull requests e forks de outras pessoas não disparam nada: o servidor só olha a `main`.
 
 ---
 

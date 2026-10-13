@@ -1,0 +1,21 @@
+[Unit]
+Description=CraftSapiens — deploy automático do site (branch main)
+After=network-online.target craftsapiens-site.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=craftsapiens
+Group=craftsapiens
+WorkingDirectory=/opt/craftsapiens
+ExecStart=/usr/local/bin/craftsapiens-deploy.sh
+TimeoutStartSec=40min
+# Build com prioridade baixa para não disputar com os servidores de Minecraft
+Nice=10
+CPUWeight=30
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+MemoryMax=8G
+PrivateTmp=true
+ProtectHome=true
+# Sem NoNewPrivileges: o script usa sudo só para reiniciar o site (/etc/sudoers.d/craftsapiens-deploy)

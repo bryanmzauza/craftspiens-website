@@ -7,6 +7,25 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.18] — 13/10/2026 — Deploy automático a partir da branch main
+
+### Adicionado
+
+- **Deploy automático** (`scripts/servidor/`): o servidor físico verifica a branch `main` a cada 5 minutos e publica sozinho os commits novos. O servidor puxa o código; nada no GitHub tem acesso à produção e nenhuma porta nova é aberta
+  - `craftsapiens-deploy.sh`: build em pasta separada (`releases/<sha>`), de modo que a versão no ar não é tocada durante a compilação; troca de versão por link simbólico e reinício do serviço; teste da página inicial e de uma consulta ao banco; se a versão nova não responder, volta sozinho para a anterior. Guarda as 3 últimas versões e os logs dos builds por 30 dias
+  - Commits que alteram `prisma/schema.pg.prisma` não são publicados automaticamente: o deploy fica bloqueado e avisa, porque o `db:push` pode apagar colunas com dados; publicação manual com `--com-schema`, depois do backup
+  - Opção de exigir commits assinados: com o arquivo `allowed_signers` no servidor, commits sem assinatura válida são recusados
+  - `notificar-deploy.mjs`: aviso por e-mail (atualizado, falhou ou bloqueado) usando o SMTP já configurado no site
+  - `craftsapiens-deploy.service` e `.timer`: execução com prioridade baixa de CPU e disco e limite de memória, para não disputar com os servidores de Minecraft
+  - `instalar-deploy.sh`: migra a instalação para o layout de releases sem derrubar o site, cria a regra de `sudo` restrita a reiniciar o serviço e ativa o timer
+- Comandos de operação: `--voltar` (rollback), `--forcar` (repetir um commit que falhou) e `--com-schema`
+
+### Alterado
+
+- `docs/arquitetura-producao.md`, seção 11: passa a descrever o deploy automático, o layout de releases, a mudança no banco e a proteção do repositório (ruleset na `main`, duas etapas, secret scanning e commits assinados)
+
+---
+
 ## [v0.17.1] — 13/10/2026 — Site no ar pelo IP e endurecimento da VPS
 
 ### Adicionado
