@@ -58,7 +58,7 @@ O site (Next.js) e os bancos de dados rodam no servidor físico, junto com os se
 | Túnel WireGuard exclusivo (`wg-site`) | O site não depende da VPS de tráfego, e o servidor físico não precisa de nenhuma porta aberta para o site |
 | PostgreSQL em Docker, publicado só em `127.0.0.1` | Isolado do Pterodactyl, fácil de atualizar e inacessível de fora da máquina, nem pelo túnel |
 | Cloudflare com proxy | Esconde o IP da VPS, absorve ataques HTTP e guarda em cache os arquivos estáticos, o que poupa o upload do servidor físico |
-| Backup criptografado no Google Drive | Cópia fora do servidor físico, sem custo extra |
+| Backup local em outro disco e criptografado no Google Drive | Recuperação rápida pela cópia local; a do Google Drive sobrevive à perda do servidor físico, sem custo extra |
 
 ### Dependências e pontos de falha
 
@@ -930,7 +930,7 @@ MINECRAFT_SERVER_HOST="jogar.craftsapiens.com.br"
 2. **WireGuard** entre a VPS de entrada e o servidor físico ([seção 4](#4-wireguard-wg-site)); testar o `ping`.
 3. **PostgreSQL** no servidor físico ([5.1](#51-postgresql-em-docker)); conferir `healthy`.
 4. **Usuário `site_nlogin`** no MariaDB ([5.2](#52-mariadb-do-pterodactyl-nlogin)); testar a conexão.
-5. **Backup** configurado e testado ([seção 12](#12-backup-do-postgresql-google-drive)) **antes** de carregar dados.
+5. **Backup** configurado e testado ([seção 12](#12-backup-dos-bancos-local-e-google-drive)) **antes** de carregar dados.
 6. No servidor físico: Node.js, código, `.env`, `npm ci` e `npm run build` ([6.1](#61-preparação) e [6.2](#62-código-e-variáveis-de-ambiente)).
 7. Criar as tabelas do site:
    ```bash
@@ -1041,126 +1041,104 @@ Pull requests e forks de outras pessoas não disparam nada: o servidor só olha 
 
 ---
 
-## 12. Backup do PostgreSQL (Google Drive)
+## 12. Backup dos bancos (local e Google Drive)
 
-O backup roda no servidor físico, uma vez por dia, e envia uma cópia criptografada para o Google Drive. O banco contém dados pessoais de alunos (inclusive menores de idade), por isso a criptografia é obrigatória.
+O backup roda no servidor físico uma vez por dia, às 03:30 (horário de Brasília). Guarda uma cópia local, num disco diferente do banco, e uma cópia criptografada no Google Drive. O banco contém dados pessoais de alunos (inclusive menores de idade), por isso a cópia fora do servidor é sempre criptografada.
 
-### 12.1 Configurar o rclone
+| O que | Arquivo |
+|-------|---------|
+| PostgreSQL do site inteiro | `postgres_<data>.dump` (`pg_dump -Fc`, restaurável com `pg_restore`) |
+| Tabela `nlogin` do MariaDB (contas e senhas do jogo e do site) | `nlogin_<data>.sql.gz` |
 
-```bash
-sudo apt install -y rclone
-sudo rclone config
-```
+A tabela `nlogin` entra porque o backup do Pterodactyl não cobre bancos de dados, e sem ela ninguém consegue entrar no site nem no jogo.
 
-1. **Remote `gdrive`** — tipo `drive`, *scope* `drive.file` (o rclone só enxerga os arquivos que ele mesmo criar).
-   - O servidor não tem navegador: escolha *"Use web browser to automatically authenticate?" → n* e rode `rclone authorize "drive"` em um computador com navegador; cole o token gerado.
-   - Use uma conta Google da organização, não uma conta pessoal.
-2. **Remote `gdrive-crypt`** — tipo `crypt`, apontando para `gdrive:craftsapiens-backups`, criptografando nomes de arquivos, com senha e salt fortes.
+| Onde | Retenção |
+|------|----------|
+| Local (`DESTINO_LOCAL`, de preferência em outro disco) | 14 dias |
+| Google Drive, pasta `diario/` | 30 dias |
+| Google Drive, pasta `mensal/` (o primeiro backup de cada mês) | 12 meses |
 
-> **Guarde a senha e o salt do `gdrive-crypt` em um gerenciador de senhas, fora do servidor.** Sem eles, os backups não podem ser restaurados.
+Os arquivos ficam em [`scripts/servidor/`](../scripts/servidor/):
 
-### 12.2 Script
+| Arquivo | Instalado em | Função |
+|---------|--------------|--------|
+| `craftsapiens-backup.sh` | `/usr/local/bin/` | Dump, conferência, envio, cópia mensal e remoção dos antigos |
+| `craftsapiens-backup.service` e `.timer` | `/etc/systemd/system/` | Execução diária, com prioridade baixa de CPU e disco |
+| `instalar-backup.sh` | — | Instala o rclone, configura o Google Drive e a criptografia, e faz o primeiro backup |
 
-`/usr/local/bin/craftsapiens-backup.sh` (permissão `700`):
+### 12.1 Instalação
 
-```bash
-#!/usr/bin/env bash
-# Backup diário do PostgreSQL do site para o Google Drive (criptografado)
-set -euo pipefail
-umask 077
-
-DIR=/var/backups/craftsapiens
-STAMP=$(date +%F_%H%M)
-FILE="$DIR/craftsapiens_$STAMP.dump"
-
-mkdir -p "$DIR"
-
-# Formato custom (-Fc): comprimido e restaurável com pg_restore
-docker exec craftsapiens-postgres pg_dump -U craftsapiens -d craftsapiens -Fc > "$FILE"
-
-# O backup não pode estar vazio
-test -s "$FILE"
-
-rclone copy "$FILE" gdrive-crypt:postgres/
-
-# Retenção: 7 dias no disco local, 30 dias no Google Drive
-find "$DIR" -name 'craftsapiens_*.dump' -mtime +7 -delete
-rclone delete gdrive-crypt:postgres/ --min-age 30d
-
-echo "Backup concluído: $FILE"
-```
-
-### 12.3 Agendamento (systemd timer)
-
-`/etc/systemd/system/craftsapiens-backup.service`:
-
-```ini
-[Unit]
-Description=CraftSapiens — backup do PostgreSQL
-After=docker.service network-online.target
-Wants=network-online.target
-
-[Service]
-Type=oneshot
-ExecStart=/usr/local/bin/craftsapiens-backup.sh
-```
-
-`/etc/systemd/system/craftsapiens-backup.timer`:
-
-```ini
-[Unit]
-Description=Backup diário do PostgreSQL do site
-
-[Timer]
-OnCalendar=*-*-* 03:30
-Persistent=true
-RandomizedDelaySec=10m
-
-[Install]
-WantedBy=timers.target
-```
+Num terminal interativo, no servidor físico:
 
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now craftsapiens-backup.timer
-sudo systemctl start craftsapiens-backup.service      # primeiro backup imediato
-sudo journalctl -u craftsapiens-backup -n 20
-rclone ls gdrive-crypt:postgres/                       # o arquivo deve aparecer
+sudo bash scripts/servidor/instalar-backup.sh
 ```
 
-`Persistent=true` executa o backup perdido se o servidor estiver desligado no horário agendado.
+O instalador:
+
+1. Instala o `rclone`.
+2. Cria `/etc/craftsapiens/backup.conf` (permissão `600`) a partir do `POSTGRES_URL` do site: usuário, banco e o container que publica a porta. Se `/mnt/hdd` for um ponto de montagem, os backups locais vão para lá; senão, para `/var/backups/craftsapiens`.
+3. **Google Drive** (remote `gdrive`, escopo `drive.file`: o rclone só enxerga os arquivos que ele mesmo criar). O servidor não tem navegador, então o token é gerado num computador com navegador:
+   ```bash
+   # No seu computador (Windows: winget install Rclone.Rclone)
+   rclone authorize "drive" "eyJzY29wZSI6ImRyaXZlLmZpbGUifQ"
+   ```
+   O argumento é `{"scope":"drive.file"}` em base64. Depois de autorizar no navegador, o terminal mostra o token (a linha que começa com `{`), que é colado no instalador. Use uma conta Google da organização, não uma conta pessoal.
+4. **Criptografia** (remote `gdrive-crypt`, pasta `craftsapiens-backups`, nomes de arquivos e pastas criptografados). A senha e o sal são gerados na hora e mostrados **uma única vez**; o instalador só continua depois de você digitar `SALVEI`.
+5. Instala o script e o timer, faz o primeiro backup e um teste de restauração.
+
+> **Guarde a senha e o sal do `gdrive-crypt` em um gerenciador de senhas, fora do servidor.** Sem eles, os backups do Google Drive não podem ser lidos. Se o servidor físico for perdido, essa é a única forma de recuperar os dados.
+
+### 12.2 O que acontece em cada backup
+
+1. Confere que o disco de destino está montado. Com `nofail` no `fstab`, o servidor sobe mesmo sem o disco, e a pasta ficaria no disco do sistema.
+2. `pg_dump -Fc` dentro do container do PostgreSQL, conferido com `pg_restore -l`.
+3. `mariadb-dump --single-transaction` só da tabela `nlogin`, com as credenciais do `DATABASE_URL` do site, conferido com `gzip -t`. As credenciais vão para um arquivo de opções temporário, não para a linha de comando. O cliente do MariaDB 11 exige TLS por padrão, e o MariaDB do Pterodactyl não oferece TLS; com o host em `127.0.0.1`, o script desliga o TLS (`skip-ssl`), já que a conexão não sai da máquina.
+4. Envio para `gdrive-crypt:diario/` e, se ainda não houver cópia do mês, para `gdrive-crypt:mensal/`.
+5. Remoção dos antigos, local e no Google Drive.
+
+Arquivos com erro nunca substituem um backup bom: o dump é gravado como `.parcial` e só ganha o nome final depois da conferência. Se qualquer etapa falhar, chega um e-mail com o fim do log (mesmo destinatário dos avisos de deploy).
+
+### 12.3 Comandos
+
+| Comando (no servidor físico) | Para quê |
+|------------------------------|----------|
+| `journalctl -u craftsapiens-backup -n 30` | Resultado do último backup |
+| `systemctl list-timers craftsapiens-backup.timer` | Próximo e último backup |
+| `sudo systemctl start craftsapiens-backup.service` | Backup agora (por exemplo, antes de uma mudança no banco) |
+| `sudo craftsapiens-backup.sh --testar` | Restaura o último backup local num banco temporário, confere e apaga |
+| `sudo rclone lsl gdrive-crypt:diario/` | Backups diários no Google Drive (nomes já descriptografados) |
+| `sudo rclone lsl gdrive-crypt:mensal/` | Backups mensais no Google Drive |
+
+**Teste de restauração:** rode o `--testar` uma vez por mês. Um backup que nunca foi restaurado não garante a recuperação dos dados.
 
 ### 12.4 Restauração
 
-No servidor físico:
+**PostgreSQL**, no servidor físico:
 
 ```bash
-# 1. Baixar o backup desejado
-rclone ls gdrive-crypt:postgres/
-rclone copy gdrive-crypt:postgres/craftsapiens_<DATA>.dump /tmp/
+# 1. Escolher o backup: local (DESTINO_LOCAL/diario/) ou do Google Drive
+sudo rclone copy gdrive-crypt:diario/postgres_<DATA>.dump /tmp/
 
 # 2. Parar o site para ninguém gravar durante a restauração (a VPS mostra a página de manutenção)
 sudo systemctl stop craftsapiens-site
 
-# 3. Restaurar
-docker exec -i craftsapiens-postgres \
-  pg_restore -U craftsapiens -d craftsapiens --clean --if-exists --no-owner \
-  < /tmp/craftsapiens_<DATA>.dump
+# 3. Restaurar (PG_CONTAINER, PG_USER e PG_DB em /etc/craftsapiens/backup.conf)
+docker exec -i <PG_CONTAINER> \
+  pg_restore -U <PG_USER> -d <PG_DB> --clean --if-exists --no-owner \
+  < /tmp/postgres_<DATA>.dump
 
 # 4. Subir o site de novo
 sudo systemctl start craftsapiens-site
 ```
 
-**Teste de restauração:** uma vez por mês, restaure o backup mais recente em um banco temporário e confira as contagens. Um backup que nunca foi restaurado não garante a recuperação dos dados.
+**Tabela `nlogin`**: só em caso de perda real. A restauração substitui a tabela inteira, então contas criadas e senhas trocadas depois do backup se perdem. Pare o servidor de Minecraft que usa o nLogin e o site antes:
 
 ```bash
-docker exec craftsapiens-postgres createdb -U craftsapiens restore_teste
-docker exec -i craftsapiens-postgres pg_restore -U craftsapiens -d restore_teste --no-owner < /tmp/craftsapiens_<DATA>.dump
-docker exec craftsapiens-postgres psql -U craftsapiens -d restore_teste -c "SELECT COUNT(*) FROM users;"
-docker exec craftsapiens-postgres dropdb -U craftsapiens restore_teste
+gunzip -c nlogin_<DATA>.sql.gz | mariadb -h 127.0.0.1 -P <PORTA> -u <USUARIO> -p <BANCO_NLOGIN>
 ```
 
-> A tabela `nlogin` (MariaDB) não entra neste backup. Ela pertence ao Pterodactyl e deve fazer parte do backup do servidor de Minecraft.
+**Em outra máquina** (servidor perdido): instale o rclone, crie o remote do Google Drive com `rclone config` e um remote `crypt` apontando para `<remote>:craftsapiens-backups`, com nomes criptografados (`standard`), a senha e o sal guardados no gerenciador de senhas.
 
 ---
 
@@ -1176,7 +1154,8 @@ docker exec craftsapiens-postgres dropdb -U craftsapiens restore_teste
 | Físico | `sudo journalctl -u craftsapiens-aulas -n 50` | Resultado da última atualização das aulas |
 | Físico | `docker compose -f /opt/craftsapiens-db/docker-compose.yml ps` | Estado do PostgreSQL |
 | Físico | `systemctl list-timers craftsapiens-backup.timer` | Próximo e último backup |
-| Físico | `sudo journalctl -u craftsapiens-backup -n 50` | Resultado do último backup |
+| Físico | `journalctl -u craftsapiens-backup -n 30` | Resultado do último backup |
+| Físico | `sudo craftsapiens-backup.sh --testar` | Teste de restauração (mensal) |
 | Ambos | `sudo wg show wg-site` | Estado do túnel (último handshake) |
 | VPS | `curl -sI http://10.20.0.2:3000 \| head -1` | Next.js respondendo pelo túnel |
 | VPS | `sudo tail -f /var/log/nginx/error.log` | Erros do nginx (inclusive falhas ao alcançar o Next.js) |
@@ -1199,7 +1178,7 @@ docker exec craftsapiens-postgres dropdb -U craftsapiens restore_teste
 ### Monitoramento recomendado
 
 - **Disponibilidade do site:** monitor HTTP externo (ex.: UptimeRobot, gratuito) em `https://craftsapiens.com.br`, com alerta por email ou Discord. A página de manutenção responde `503`, então o monitor detecta a queda.
-- **Backups:** conferir semanalmente `rclone ls gdrive-crypt:postgres/` e o log do último backup.
+- **Backups:** falhas chegam por e-mail; conferir de vez em quando `sudo rclone lsl gdrive-crypt:diario/` e rodar o `--testar` todo mês.
 - **Espaço em disco** no servidor físico (volume do Docker e `/var/backups`).
 
 ---
@@ -1219,7 +1198,7 @@ Depois da instalação (e após mudanças de infraestrutura):
 - [ ] Compra de teste com credenciais de teste do MercadoPago (Pix e cartão): pedido vai para APPROVED, a entrega aparece em `deliveries` e o email de confirmação chega.
 - [ ] Reenviar o mesmo webhook (painel do MercadoPago) não baixa o estoque nem cria entrega de novo.
 - [ ] Plugin da loja busca a entrega (`GET /api/loja/entregas` responde 200 com o token) e o grupo aparece em `/lp user <nick> info`.
-- [ ] Backup aparece no Google Drive e a restauração de teste funciona.
+- [ ] Backup aparece no Google Drive (`sudo rclone lsl gdrive-crypt:diario/`) e o `sudo craftsapiens-backup.sh --testar` funciona.
 - [ ] Após reiniciar o servidor físico, túnel, PostgreSQL e site voltam sozinhos.
 - [ ] Após reiniciar a VPS de entrada, `ufw`, nginx e túnel voltam sozinhos.
 

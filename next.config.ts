@@ -37,6 +37,8 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   images: {
     remotePatterns: [{ protocol: "https", hostname: "mc-heads.net" }],
+    // Qualidades usadas pelos <Image> do site (hero: 80, CTA: 60); fora da lista, o Next usa a mais próxima
+    qualities: [60, 75, 80],
   },
   async headers() {
     return [

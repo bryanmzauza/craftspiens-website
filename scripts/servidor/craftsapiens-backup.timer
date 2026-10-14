@@ -1,0 +1,10 @@
+[Unit]
+Description=Backup diário dos bancos do site
+
+[Timer]
+OnCalendar=*-*-* 03:30 America/Sao_Paulo
+Persistent=true
+RandomizedDelaySec=10m
+
+[Install]
+WantedBy=timers.target

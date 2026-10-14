@@ -1,0 +1,14 @@
+[Unit]
+Description=CraftSapiens — backup dos bancos do site (local e Google Drive)
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/craftsapiens-backup.sh
+TimeoutStartSec=2h
+Nice=10
+IOSchedulingClass=idle
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectSystem=full

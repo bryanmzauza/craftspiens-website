@@ -1,9 +1,33 @@
 # Changelog
 
-Todas as alterações notáveis deste projeto serão documentadas neste arquivo.
+* [ ] 
 
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
+
+---
+
+## [v0.19] — 13/10/2026 — Backup diário dos bancos, local e no Google Drive
+
+### Adicionado
+
+- **Backup diário automático** (`scripts/servidor/craftsapiens-backup.sh`, timer às 03:30 de Brasília):
+  - PostgreSQL do site inteiro (`pg_dump -Fc`, conferido com `pg_restore -l`)
+  - Tabela `nlogin` do MariaDB (contas e senhas do jogo e do site), que o backup do Pterodactyl não cobre; as credenciais vêm do `DATABASE_URL` do site por um arquivo de opções temporário, sem aparecer na linha de comando
+  - Cópia local num disco diferente do banco, com a conferência de que o disco está montado (o `fstab` usa `nofail`)
+  - Cópia criptografada no Google Drive pelo `rclone` (remote `crypt`, nomes criptografados, escopo `drive.file`)
+  - Retenção: 14 dias no disco local, 30 dias de diários e 12 meses de mensais no Google Drive; os antigos são apagados a cada execução
+  - Dumps gravados como `.parcial` e renomeados só depois da conferência; aviso por e-mail se qualquer etapa falhar
+- `craftsapiens-backup.sh --testar`: restaura o último backup num banco temporário, confere as tabelas e os usuários, e apaga o banco temporário
+- `scripts/servidor/instalar-backup.sh`: instala o `rclone`, detecta o container e o banco pelo `POSTGRES_URL` do site, configura o Google Drive com um token gerado no computador do administrador, gera a senha e o sal da criptografia (mostrados uma única vez) e faz o primeiro backup e o teste de restauração
+
+### Alterado
+
+- `docs/arquitetura-producao.md`, seção 12: passa a descrever o backup dos dois bancos, a retenção, a instalação, os comandos e a restauração, inclusive em outra máquina
+
+### Corrigido
+
+- Qualidades de imagem permitidas (`images.qualities` em `next.config.ts`): o Next.js 16 só aceita as qualidades listadas, e o padrão é só 75. A imagem do topo da home (qualidade 80) e a da chamada final (60) eram servidas com 75; agora a lista é `[60, 75, 80]`
 
 ---
 
@@ -94,17 +118,20 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ### Adicionado
 
 - **Login pela conta Microsoft** (Minecraft Java original e Bedrock), em `src/lib/minecraft-auth.ts`:
+
   - Fluxo oficial dos launchers: conta Microsoft, Xbox Live (XUID e gamertag) e API do Minecraft (UUID e nick do Java)
   - A conta do jogo é encontrada pelo identificador oficial no nLogin: `mojang_id` (Java original) ou `bedrock_id` (UUID do Floodgate gerado a partir do XUID)
   - Só entra quem já tem conta no servidor; não cria contas do jogo. A conta do site é criada no primeiro acesso, como no login por senha
   - A etapa do Java depende de a Mojang aprovar o app do Azure para a API do Minecraft; até lá, o login funciona para Bedrock
 - **Login e cadastro pelo Google**: cria uma conta no site sem nick. O e-mail do Google precisa estar verificado, e se o e-mail já pertence a uma conta com e-mail confirmado, o Google é vinculado a ela automaticamente; com e-mail ainda não confirmado, o dono entra com nick e senha e confirma o e-mail antes
 - **Aba "Contas vinculadas"** em Configurações (`perfil/ContasVinculadas.tsx`):
+
   - Vincular nick do Minecraft confirmando a senha do servidor (`POST /api/perfil/vinculos/nick`); nick de conta original é recusado e vinculado pela Microsoft
   - Vincular e desvincular o Google; desvincular só é permitido se a conta tiver outra forma de entrar
   - Vínculo pela Microsoft para quem joga com conta original ou Bedrock
   - Intenção de vínculo em cookie assinado, válido por 10 minutos (`src/lib/link-intent.ts`)
 - **Confirmação de e-mail obrigatória** (`/confirmar-email`, `src/lib/email-verification.ts`):
+
   - Toda conta sem e-mail confirmado precisa informar um e-mail e confirmar com um código de 6 dígitos antes de usar a plataforma; as páginas públicas continuam abertas
   - Vale para login por nick e senha, cadastro pelo site e Microsoft; contas do Google já entram confirmadas, e contas com e-mail provisório (`@craftsapiens.temp`) precisam informar um e-mail real
   - Alternativa ao código: **Confirmar com Google**, que vincula o Google à conta e adota o e-mail dele como confirmado (não vale para troca de e-mail nem para e-mail que já pertence a outra conta)
@@ -114,6 +141,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   - E-mail com o código (`sendEmailVerificationCode`); em desenvolvimento, se o SMTP falhar, o código aparece no terminal
 - **CPF de quem paga no checkout** (`src/lib/cpf.ts`): obrigatório para comprar, pode ser do aluno ou de um responsável, validado pelos dígitos verificadores, salvo na conta e enviado ao MercadoPago como identificação do pagador
 - **Envio de e-mails pelo Gmail com o domínio próprio** (guia em `docs/email.md`):
+
   - Envio pelo SMTP do Gmail (`smtp.gmail.com:465`, senha de app), com remetente `nao-responda@craftsapiens.com.br` cadastrado em "Enviar e-mail como"
   - Recebimento pelo Cloudflare Email Routing, encaminhando `contato@` e `nao-responda@craftsapiens.com.br` para o Gmail da equipe, que responde como `contato@`
   - O e-mail do domínio deixa de usar a hospedagem antiga; o guia lista os registros de DNS a remover e mantém o DMARC em `p=none` enquanto o envio for pelo Gmail
@@ -124,6 +152,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Tabela `linked_accounts` e campos `users.display_name`; `users.nlogin_id` passa a aceitar nulo (conta criada pelo Google, ainda sem nick)
 - Variáveis opcionais `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `AUTH_MICROSOFT_ID` e `AUTH_MICROSOFT_SECRET`; sem elas, os botões correspondentes não aparecem
 - **Status do servidor ao vivo** (`src/lib/minecraft-status.ts`):
+
   - Consulta direta ao servidor pelo protocolo Server List Ping, resolvendo o registro SRV do domínio (o servidor está na porta 25576, não na 25565); se o DNS do sistema não responder à consulta SRV, usa DNS públicos
   - API pública mcsrvstat.us como reserva, agora com User-Agent (sem ele a API responde 403)
   - Cache de 15 s no servidor; o navegador atualiza a cada 30 s com uma única consulta compartilhada entre os componentes (`src/lib/use-server-status.ts`) e pausa quando a aba não está visível
@@ -132,20 +161,22 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Acesso Java e Bedrock na página de status** (`status/HowToConnect.tsx`): seção "Como entrar" com o endereço do servidor para as duas edições, a porta do Bedrock (19132, constante `BEDROCK_PORT`), botões de copiar e o passo a passo de cada edição; o painel de status passa a indicar "Java e Bedrock" como edições aceitas
 - **Faixa do Discord no rodapé**, no lugar da inscrição na newsletter por e-mail: convite para o servidor do Discord com o número de membros e de pessoas online, vindos da API pública de convites do Discord (`/api/discord`, cache de 10 min)
 - **Página Sobre refeita** (`sobre/SobreContent.tsx`, conteúdo em `src/content/sobre.ts`):
+
   - Hero com a imagem do campus e números reais (início em 2020, média de alunos por aula e membros no Discord ao vivo)
   - Linha do tempo com marcos confirmados pela imprensa, no lugar dos marcos genéricos
   - Seção "Na imprensa" com 8 matérias clicáveis e conferidas, com destaque para a reportagem da Folha de S.Paulo (20/03/2026); saíram os itens sem link verificável
   - Equipe agrupada em Direção, Professores e Equipe, pronta para receber fotos (`public/equipe/`), com os membros citados pela Folha incluídos
   - Hierarquia em formato de pirâmide, com os professores à parte da cadeia de moderação
   - Convite para entrar na equipe pelo Discord
-
 - **Perfil com dados do servidor:**
+
   - Foto do perfil com a skin do jogo: conta original pelo UUID da Mojang, Bedrock pela textura publicada pelo Geyser e as demais pelo nick (`src/lib/player-profile.ts`)
   - Cargo vindo do LuckPerms: grupo de maior peso, com nome e cor do prefixo do jogo (`src/lib/luckperms.ts`, somente leitura)
   - Tag Novato, Membro, Veterano ou Lenda pela data de registro no nLogin, e "No servidor desde" no lugar de "Membro desde"
   - Selo "Verificado" no perfil e no campo de e-mail de Configurações; o campo mostra "Não confirmado" e o link para confirmar quando falta
 - **Google e Microsoft confirmam o e-mail:** entrar ou vincular pelo Google confirma o e-mail da conta Google, inclusive para vínculos feitos antes; a Microsoft passa a pedir os escopos `openid email` e confirma o e-mail de contas pessoais. O vínculo pela Microsoft fica registrado em `linked_accounts`, e Contas vinculadas mostra "Verificado pela Microsoft" e "Verificado pelo Google"
 - **Aulas com os vídeos do canal no YouTube:** a página `/aulas` passa a listar os 1013 vídeos e lives públicos do canal (938 lives, 25 vídeos e 50 vídeos curtos, de 2021 a 2026), separados em 26 disciplinas:
+
   - `npm run aulas:youtube` (`scripts/youtube-sync.mjs`) lista as abas Vídeos e Ao vivo do canal com o yt-dlp e grava `scripts/data/youtube-videos.json`; só os vídeos novos são consultados um a um para obter a data de publicação
   - A matéria vem do título do vídeo (`scripts/lib/youtube-aulas.mjs`), inclusive com os erros de digitação que aparecem no canal; um vídeo pode entrar em mais de uma disciplina (ex.: "Inglês/Espanhol", "Química - ENEM"). O conteúdo que não é aula (tutoriais, eventos, Survival Geopolítico) fica em "Servidor e Comunidade"; a lista `OVERRIDES` permite reclassificar vídeos pelo id
   - Lives com título genérico ("[LIVE] Aula no Minecraft"): 158 das 168 receberam o título transcrito da miniatura, com matéria e tema (`scripts/lib/youtube-titulos.mjs`), exibido no site e usado na classificação; as 10 com miniatura sem texto ficam em "Outras Aulas"
@@ -248,28 +279,27 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ### Adicionado
 
 - **Validação de variáveis de ambiente** (`src/lib/env.ts` + `src/instrumentation.ts`):
+
   - Schema zod para `AUTH_*`, `POSTGRES_URL`, `DATABASE_URL`, `MERCADOPAGO_*`, `SMTP_*` e `MINECRAFT_SERVER_*`
   - Em produção o servidor não atende requisições se alguma variável obrigatória faltar; o erro lista todas de uma vez, com dicas de renomeação (`NEXTAUTH_URL` → `AUTH_URL`, `NEXTAUTH_SECRET` → `AUTH_SECRET`, `SMTP_PASSWORD` → `SMTP_PASS`)
   - Validação preguiçosa: o `next build` não depende das variáveis de produção
-
 - **Rate limiting no PostgreSQL** (`src/lib/rate-limit.ts`, tabela `rate_limits`):
+
   - Incremento atômico (`INSERT … ON CONFLICT`), compartilhado entre instâncias e persistente entre deploys
   - IP do cliente lido só do `X-Real-IP` definido pelo nginx (`src/lib/client-ip.ts`)
   - Login limitado por IP (20/15 min) e por conta (5/15 min)
   - Novos limites em verificação de username, validação de cupom, carrinho, reações do fórum, redefinição de senha, atualização de perfil e exclusão de conta
-
 - **Revogação de sessões** — campo `users.session_version`:
+
   - O token JWT é revalidado contra o banco a cada minuto (role, conta ativa e versão da sessão)
   - Trocar ou redefinir a senha e desativar a conta encerram todas as sessões abertas
-
 - **Headers de segurança** (`next.config.ts`): Content-Security-Policy, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy e Cross-Origin-Opener-Policy; `no-referrer` nas páginas cujo link carrega token
-
 - **Novas APIs com dados reais:**
+
   - `GET /api/loja/produtos` — catálogo vindo do banco (sem expor `server_command`)
   - `GET /api/ranking` — top 10 de aulas concluídas (contas ativas com perfil público)
   - `GET /api/perfil/atividade` — compras aprovadas, tópicos, comentários e aulas concluídas do usuário
   - `GET /api/estatisticas` — total de alunos e de aulas ativas
-
 - **Scripts de banco** no `package.json`: `db:generate`, `db:push:pg`, `db:seed` (e `db:seed:aulas|blog|forum|loja`), `db:migrate-v13`, `typecheck`
 - **`scripts/seed-loja.mjs`** — catálogo inicial da loja (dados de exemplo, revisar antes da produção)
 - **Aviso por email** ao endereço antigo quando o email da conta é alterado
@@ -330,21 +360,22 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ### Adicionado
 
 - **Docker Compose** para PostgreSQL 17 Alpine (desenvolvimento local):
+
   - Container `craftsapiens-postgres` na porta 5454
   - Volume persistente `pgdata`
   - Credenciais: `craftsapiens` / `craftsapiens_dev`
-
 - **Schema PostgreSQL** (`prisma/schema.pg.prisma`):
+
   - Todos os modelos do site (User, Profile, Product, Order, Post, Comment, BlogPost, Discipline, Lesson, etc.)
   - Gerador separado em `src/generated/prisma-pg`
   - Config separada em `prisma.pg.config.ts`
-
 - **Funções auxiliares cross-database** em `lib/nlogin.ts`:
+
   - `getNloginById(id)` — busca nlogin individual no MariaDB
   - `getNloginsByIds(ids)` — busca batch de nlogins (evita N+1)
   - `enrichUsersWithNlogin(users)` — enriquece lista de users com dados nlogin
-
 - **Script de migração** (`scripts/migrate-v13.mjs`):
+
   - Migra dados de todas as tabelas do MariaDB para PostgreSQL
   - Suporte a ON CONFLICT DO NOTHING (idempotente)
   - Mapeamento completo de colunas snake_case → camelCase
@@ -352,18 +383,17 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ### Alterado
 
 - **Arquitetura de banco de dados**: MariaDB agora é usado **apenas** para a tabela `nlogin` (autenticação Minecraft). Todos os outros dados (usuários, perfis, loja, fórum, blog, aulas) estão no **PostgreSQL**.
-
 - **Prisma schemas**:
+
   - `prisma/schema.prisma` → apenas modelo Nlogin (MariaDB, output `prisma-mariadb`)
   - `prisma/schema.pg.prisma` → todos os outros modelos (PostgreSQL, output `prisma-pg`)
-
 - **`lib/prisma.ts`** reescrito com exports duplos:
+
   - `prisma` → PrismaClient PostgreSQL (via `@prisma/adapter-pg`)
   - `prismaMariaDb` → PrismaClient MariaDB (via `@prisma/adapter-mariadb`)
-
 - **`lib/nlogin.ts`** — todas as operações nlogin agora usam `prismaMariaDb`, operações de user usam `prisma` (PG). `findUserByEmail` faz join manual cross-database.
-
 - **APIs atualizadas** para remover `include: { nlogin: ... }` e usar queries separadas:
+
   - `api/auth/redefinir-senha` — operações sequenciais ao invés de `$transaction` cross-DB
   - `api/auth/recuperar-senha` — `getNloginById` para dados do nlogin
   - `api/blog/[slug]` e `api/blog` — batch nlogin resolution para autores
@@ -374,7 +404,6 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   - `api/perfil/conta` — `prismaMariaDb` para verificação de senha e confirmação
   - `api/perfil/senha` — `prismaMariaDb` para verificação e atualização de senha
   - `api/loja/webhook` — `getNloginById` para username em email de confirmação
-
 - **`docs/stack-tecnica.md`** — atualizado com arquitetura dual-database, diagrama, comandos Prisma, variáveis de ambiente
 
 ### Dependências
@@ -389,26 +418,27 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ### Adicionado
 
 - **API de Detalhe de Aula** (`GET /api/aulas/[slug]/[lessonSlug]`):
+
   - Retorna dados completos da aula: título, descrição, conteúdo HTML, objetivos, URL de vídeo
   - Inclui informações da disciplina (nome, slug, cor, ícone)
   - Navegação prev/next entre aulas da mesma disciplina (ordenadas por `order`)
   - Total de aulas da disciplina para contexto
   - Status de conclusão da aula (quando autenticado)
-
 - **API de Progresso** (`GET /api/aulas/progresso`):
+
   - Retorna progresso agrupado por disciplina (total de aulas, concluídas) para o usuário autenticado
   - Inclui slug e cor de cada disciplina
-
 - **API de Toggle de Conclusão** (`POST /api/aulas/progresso`):
+
   - Marca/desmarca aula como concluída (toggle)
   - Atualiza automaticamente `profile.aulasConcluidas` com contagem total
   - Validação de existência da aula
-
 - **API de Detalhe de Progresso** (`GET /api/aulas/progresso/detalhe`):
+
   - Retorna lista de IDs de aulas concluídas para uma disciplina específica
   - Filtro por `disciplineId` via query param
-
 - **Componente LessonContent** (`src/components/aulas/LessonContent.tsx`):
+
   - Player de vídeo (iframe responsivo) com placeholder quando sem URL
   - Renderização de conteúdo HTML da aula
   - Lista de objetivos de aprendizagem
@@ -417,41 +447,42 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   - Botão de toggle de conclusão (CheckCircle animado)
   - CTA para login quando não autenticado
   - Link para cronograma
-
 - **Página de Aula** (`src/app/aulas/[slug]/[lessonSlug]/page.tsx`):
+
   - Server component com `generateMetadata` dinâmico (título e descrição da aula)
   - Renderiza LessonContent com slugs da disciplina e aula
-
 - **Model UserLessonProgress** no Prisma:
+
   - Tracks conclusão de aulas por usuário
   - Constraint unique `[userId, lessonId]`
   - Relações com User e Lesson
   - Mapeado para `website_user_lesson_progress`
-
 - **Migration v0.12** (`scripts/migrate-v12.mjs`):
+
   - ALTER TABLE `website_lessons`: adiciona colunas `content` (LONGTEXT), `video_url` (VARCHAR 500), `objectives` (TEXT)
   - CREATE TABLE `website_user_lesson_progress` com foreign keys e índices
 
 ### Modificado
 
 - **Schema Prisma** (`prisma/schema.prisma`):
+
   - Lesson: adicionados campos `content` (LongText), `videoUrl` (VarChar 500), `objectives` (Text)
   - Lesson: adicionada relação `progress` com UserLessonProgress
   - User: adicionada relação `lessonProgress` com UserLessonProgress
-
 - **DisciplinaContent** (`src/components/aulas/DisciplinaContent.tsx`):
+
   - Aulas agora são links clicáveis para `/aulas/[slug]/[lessonSlug]`
   - Indicador visual de aula concluída (ícone CheckCircle verde)
   - Barra de progresso na sidebar mostrando X/Y aulas concluídas
   - Fetch de progresso detalhado por disciplina via API
-
 - **PerfilContent** (`src/components/perfil/PerfilContent.tsx`):
+
   - Removidos dados mock (`MOCK_PROGRESS`)
   - Progresso real via `GET /api/aulas/progresso`
   - Cards de progresso são links para a página da disciplina
   - Estado vazio com mensagem e CTA para página de aulas
-
 - **Seed de Aulas** (`scripts/seed-aulas.mjs`):
+
   - Todas as 26 aulas agora incluem conteúdo HTML, objetivos (JSON array) e campo videoUrl
   - Query INSERT atualizada com novas colunas
 
@@ -528,18 +559,19 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ### Adicionado
 
 - **Módulo MercadoPago** (`src/lib/mercadopago.ts`) — Cliente MercadoPago SDK v2:
+
   - Instância `Preference` para criação de preferências de pagamento
   - Instância `Payment` para consulta de status de pagamentos
   - Configuração `MP_CONFIG` com back URLs (sucesso/falha/pendente), notification URL e statement descriptor
   - Variável de ambiente `MERCADOPAGO_ACCESS_TOKEN` obrigatória
-
 - **API de Validação de Cupons** (`POST /api/cupons/validar`):
+
   - Recebe `code` no body, busca cupom por código único
   - Verifica: existência, ativo, não expirado, limite de usos não atingido
   - Retorna `{ valid, code, discount, id }` se válido
   - Protegido por autenticação
-
 - **API de Checkout** (`POST /api/loja/checkout`):
+
   - Rate limiting: 5 tentativas / 15 min por userId (`RATE_LIMITS.checkout`)
   - Valida carrinho não vazio, estoque disponível e produtos ativos
   - Calcula subtotal, aplica cupom (percentual) se fornecido
@@ -548,27 +580,27 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   - Desconto aplicado proporcionalmente nos preços dos itens (MercadoPago não suporta itens negativos)
   - Em caso de erro MercadoPago: marca pedido como REJECTED e retorna erro
   - Retorna `{ orderId, preferenceId, initPoint, total, discount, subtotal }`
-
 - **API de Webhook MercadoPago** (`POST /api/loja/webhook`):
+
   - Recebe notificações de pagamento do MercadoPago
   - Verificação de assinatura HMAC-SHA256 com `x-signature` header (se `MERCADOPAGO_WEBHOOK_SECRET` configurado)
   - Consulta pagamento via `payment.get()` e mapeia status: approved → APPROVED, rejected/cancelled → REJECTED, refunded/charged_back → REFUNDED
   - Na aprovação: limpa carrinho do usuário, decrementa estoque de produtos com limite
   - Envia email de confirmação de compra (fire-and-forget)
   - Idempotente: ignora se status já é igual ao novo
-
 - **API de Pedido** (`GET /api/loja/pedido/[id]`):
+
   - Retorna detalhes do pedido com itens, produtos, cupom aplicado e totais
   - Verificação de ownership: apenas dono do pedido ou admin pode acessar
   - Protegido por autenticação
-
 - **Email de Confirmação de Compra** (`sendOrderConfirmationEmail`) — Novo template em `src/lib/email.ts`:
+
   - Tabela com ID do pedido, método de pagamento (PIX/Cartão/Boleto/Débito) e total
   - Lista de itens comprados
   - Instruções de ativação (VIP/Rank → entrar no servidor, itens → entrega automática)
   - CTA "Ver Minhas Compras" → `/perfil/compras`
-
 - **Página de Checkout** (`/loja/checkout`) — `CheckoutContent`:
+
   - Resumo dos itens do pedido (nome, quantidade, preço unitário, subtotal)
   - Campo de cupom com validação via API, indicador visual de cupom aplicado com % e botão remover
   - Seção "Formas de Pagamento" com cards PIX / Cartão / Boleto (informativo — escolha feita no MercadoPago)
@@ -576,16 +608,16 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   - Estado de processamento com spinner durante criação do pedido
   - Exibição de erros (carrinho vazio, estoque insuficiente, erro MercadoPago)
   - Protegida por autenticação no proxy; `robots: noindex, nofollow`
-
 - **Páginas de Resultado do Pedido** (`/loja/pedido/sucesso|pendente|falha`):
+
   - `PedidoResultContent` com 3 estados visuais (sucesso verde, pendente amarelo, falha vermelho)
   - Ícone animado (Framer Motion spring), título, mensagem contextual
   - Fetch automático dos detalhes do pedido via `external_reference` da URL (retornado pelo MercadoPago)
   - Tabela de itens e total do pedido
   - Botões de ação: "Ver Minhas Compras" ou "Tentar Novamente" (falha) + "Voltar à Loja"
   - `Suspense` wrapper para `useSearchParams()`
-
 - **Script de migração v0.10** (`scripts/migrate-v10.mjs`):
+
   - Verifica/adiciona colunas `payment_method` e `payment_id` na tabela orders (IF NOT EXISTS)
   - Seed de 3 cupons de exemplo (5%, 10% e 20% de desconto, dois deles com limite de usos)
   - Idempotente com `ON DUPLICATE KEY UPDATE`
@@ -593,20 +625,20 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ### Modificado
 
 - **CarrinhoContent** (`src/components/loja/CarrinhoContent.tsx`):
+
   - Cupom agora funcional: campo de código com validação via `POST /api/cupons/validar`
   - Estado de cupom aplicado com indicador visual (código + % off + botão remover)
   - Desconto calculado e exibido no resumo (subtotal, desconto, total)
   - Erros de cupom exibidos em vermelho abaixo do campo
   - Botão "FINALIZAR COMPRA" agora navega para `/loja/checkout` via `router.push()`
   - Adicionado `useRouter` do next/navigation
-
 - **Rate Limiter** (`src/lib/rate-limit.ts`):
-  - Adicionados presets `checkout` (5 tentativas / 15 min) e `coupon` (10 validações / 15 min)
 
+  - Adicionados presets `checkout` (5 tentativas / 15 min) e `coupon` (10 validações / 15 min)
 - **Proxy (middleware)** (`src/proxy.ts`):
+
   - `/loja/checkout` e `/loja/pedido/*` adicionados ao array `protectedRoutes`
   - Rotas adicionadas ao `config.matcher`
-
 - **`.env.example`** — Adicionada seção MercadoPago com `MERCADOPAGO_ACCESS_TOKEN` e `MERCADOPAGO_WEBHOOK_SECRET` (opcional)
 
 ### Dependências adicionadas
@@ -641,65 +673,66 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ### Adicionado
 
 - **Modelo Discipline** (`website_disciplines`) — Disciplinas do servidor educacional:
+
   - Campos: id, name, slug (unique), description, shortDescription, icon, color, banner, levels (JSON), order, active, createdAt, updatedAt
   - Relação `lessons Lesson[]` com modelo Lesson
-
 - **Modelo Lesson** (`website_lessons`) — Aulas dentro de cada disciplina:
+
   - Campos: id, disciplineId (FK → Discipline), title, slug (unique), description, order, duration, active, createdAt, updatedAt
   - Índice composto `@@unique([disciplineId, slug])`
-
 - **Modelo CartItem** (`website_cart_items`) — Persistência de carrinho de compras:
+
   - Campos: id, userId (FK → User), productId (FK → Product), quantity, createdAt, updatedAt
   - Constraint `@@unique([userId, productId])` para evitar duplicatas
   - Relações com User e Product
-
 - **API de Aulas — Listagem** (`GET /api/aulas`):
+
   - Query params: `busca` (search em nome/descrição), `nivel` (filtro por nível no campo JSON levels)
   - Retorna disciplinas ativas com contagem de aulas (`_count.lessons`)
   - Parse automático do campo `levels` de JSON string para array
-
 - **API de Aulas — Detalhe** (`GET /api/aulas/[slug]`):
+
   - Busca disciplina por slug + active:true
   - Inclui aulas ativas ordenadas por `order`
   - Retorna 404 se disciplina não encontrada ou inativa
-
 - **API de Carrinho — Listagem e Adição** (`/api/carrinho`):
+
   - `GET` — Lista itens do carrinho com detalhes do produto, subtotal e contagem; filtra produtos inativos
   - `POST` — Adiciona item ao carrinho com validação de productId, verificação de estoque e upsert (incrementa quantidade se já existente)
   - Ambos endpoints protegidos por autenticação
-
 - **API de Carrinho — Item** (`/api/carrinho/[id]`):
+
   - `PUT` — Atualiza quantidade (validação 1-99) com verificação de ownership (userId)
   - `DELETE` — Remove item do carrinho com verificação de ownership
   - Ambos endpoints protegidos por autenticação
-
 - **Página dinâmica de disciplina** (`/aulas/[slug]`):
+
   - Server component com `generateMetadata` para SEO dinâmico
   - `await params` (Next.js 16 Promise params)
-
 - **DisciplinaContent** (`src/components/aulas/DisciplinaContent.tsx`):
+
   - Fetch da API `/api/aulas/{slug}`, mapeamento dinâmico de ícones (ICON_MAP)
   - Sidebar com stats (total de aulas, duração, níveis), lista curricular com numeração e duração
   - CTA auth-aware: logado → cronograma, não logado → registro
   - Loading/error states com Framer Motion
-
 - **CarrinhoContent** (`src/components/loja/CarrinhoContent.tsx`):
+
   - Página dedicada de carrinho com fetch da API `/api/carrinho`
   - Controles de quantidade (±), remoção de itens, animações com AnimatePresence
   - Resumo do pedido: subtotal, desconto, total, campo de cupom
   - Checkbox de aceite dos Termos e botão "FINALIZAR COMPRA"
   - Estados: loading, carrinho vazio, não autenticado (com redirect para login)
-
 - **Página /loja/carrinho** (`src/app/loja/carrinho/page.tsx`):
+
   - Metadata com `robots: { index: false, follow: false }` (rota protegida)
   - Rota já configurada em `protectedRoutes` no proxy.ts
-
 - **Script de migração v0.9** (`scripts/migrate-v09.mjs`):
+
   - CREATE TABLE website_disciplines, website_lessons, website_cart_items
   - ALTER TABLE products: 10 novos campos (short_description, original_price, duration_days, benefits, server_command, stock, featured, badge, color, `order`)
   - Idempotente com IF NOT EXISTS / ADD COLUMN IF NOT EXISTS
-
 - **Script de seed de aulas** (`scripts/seed-aulas.mjs`):
+
   - 8 disciplinas (Matemática, Ciências, Português, História, Geografia, Inglês, Redação, Programação)
   - 26 aulas distribuídas entre as disciplinas
   - IDs determinísticos (e.g., `disc_matematica`, `les_mat_01`), idempotente com ON DUPLICATE KEY UPDATE
@@ -707,18 +740,19 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ### Modificado
 
 - **Schema Prisma** (`prisma/schema.prisma`):
+
   - Modelo Product: novos campos `shortDescription`, `originalPrice`, `durationDays`, `benefits`, `serverCommand`, `stock` (default -1), `featured`, `badge`, `color`, `order` e relação `cartItems`
   - Modelo User: adicionada relação `cartItems CartItem[]`
   - 3 novos modelos: Discipline, Lesson, CartItem
-
 - **AulasContent** (`src/components/aulas/AulasContent.tsx`):
+
   - Removido array estático DISCIPLINES com dados mock
   - Fetch dinâmico da API `/api/aulas` com debounce de 300ms na busca
   - Cards de disciplina agora são `<Link>` para `/aulas/{slug}`
   - Mostram `lessonsCount` vindo da API em vez de valor estático
   - Estado de loading com spinner Loader2
-
 - **LojaContent** (`src/components/loja/LojaContent.tsx`):
+
   - Carrinho agora usa API persistente (`POST /api/carrinho`) para usuários autenticados
   - Não autenticados são redirecionados para `/login?redirect=/loja` ao clicar "Adicionar"
   - Fetch de resumo do carrinho (contagem + total) da API no mount
@@ -748,6 +782,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ### Adicionado
 
 - **Módulo de email** (`src/lib/email.ts`) — Nodemailer v7 com templates HTML responsivos branded CraftSapiens:
+
   - `sendPasswordResetEmail()` — Email de recuperação de senha com link de redefinição (expira em 1h)
   - `sendNewsletterConfirmationEmail()` — Email de double opt-in para newsletter
   - `sendWelcomeEmail()` — Email de boas-vindas com instruções de acesso ao servidor Minecraft
@@ -755,57 +790,57 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   - `baseTemplate()` — Layout HTML com header verde, branding CraftSapiens e footer com copyright
   - `escapeHtml()` — Sanitização XSS para conteúdo dinâmico nos templates
   - Configuração via variáveis de ambiente: `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
-
 - **API de Recuperação de Senha** (`src/app/api/auth/recuperar-senha/route.ts`) — `POST /api/auth/recuperar-senha`:
+
   - Rate limiting: 3 tentativas por hora por IP (`RATE_LIMITS.passwordReset`)
   - Resposta genérica anti-enumeração ("Se o email estiver cadastrado…") independente do resultado
   - Invalida tokens anteriores não usados do mesmo usuário
   - Gera token de 64 chars hex (32 bytes via `crypto.randomBytes`), armazena hash SHA-256 no banco
   - Envia email com link de redefinição válido por 1 hora
   - Busca por email no modelo User com relação nLogin
-
 - **API de Redefinição de Senha** (`src/app/api/auth/redefinir-senha/route.ts`) — `POST /api/auth/redefinir-senha`:
+
   - Valida token via hash SHA-256 (token nunca armazenado em texto plano)
   - Verifica expiração (1h) e uso prévio do token
   - Validação de senha: mínimo 8 chars, pelo menos 1 letra e 1 número, confirmação de senha
   - Atualiza hash no nLogin via `hashPassword()` + marca token como usado em transação Prisma `$transaction`
-
 - **API de Newsletter — Inscrição** (`src/app/api/newsletter/route.ts`) — `POST /api/newsletter`:
+
   - Rate limiting: 3 tentativas por hora por IP (`RATE_LIMITS.newsletter`)
   - Double opt-in: gera token de confirmação e envia email
   - Handles re-inscrição: se email existente cancelou ou não confirmou, regenera token e reenvia confirmação
   - Resposta amigável se email já confirmado ("já está inscrito")
   - Validação de formato de email com regex
-
 - **API de Newsletter — Confirmação** (`src/app/api/newsletter/confirmar/route.ts`) — `GET /api/newsletter/confirmar?token=xxx`:
+
   - Busca por `confirmToken` no modelo Newsletter
   - Seta `confirmed: true, unsubscribedAt: null`, mantém token para uso futuro (cancelamento)
   - Retorno idempotente se já confirmado
-
 - **API de Newsletter — Cancelamento** (`src/app/api/newsletter/cancelar/route.ts`) — `GET /api/newsletter/cancelar?token=xxx`:
+
   - Busca por `confirmToken`, seta `confirmed: false, unsubscribedAt: new Date()`
   - Limpa o token para prevenir reutilização
   - Soft-delete: registro mantido para auditoria
-
 - **Página Recuperar Senha** (`src/app/recuperar-senha/page.tsx` + `src/components/auth/RecuperarSenhaContent.tsx`):
+
   - Formulário de email com validação
   - Estado de sucesso com feedback visual (ícone CheckCircle, mensagem informativa, dica sobre spam)
   - Link de volta para login; Framer Motion para animações
   - SEO: metadata com título e descrição
-
 - **Página Redefinir Senha** (`src/app/redefinir-senha/page.tsx` + `src/components/auth/RedefinirSenhaContent.tsx`):
+
   - Lê token da URL via `useSearchParams()` (envolto em `Suspense`)
   - Indicador de força de senha em 5 níveis (Muito fraca → Muito forte) com barra colorida
   - Toggles mostrar/ocultar senha para ambos os campos
   - Estados: erro de token ausente, sucesso com auto-redirect para login em 3s, token inválido
   - SEO: `robots: { index: false, follow: false }` (rota privada)
-
 - **Página Confirmar Newsletter** (`src/app/newsletter/confirmar/page.tsx` + `src/components/newsletter/NewsletterConfirmarContent.tsx`):
+
   - Confirmação automática ao montar via `useEffect` + fetch para API
   - Estados de loading, sucesso (com ícone e link para home) e erro
   - `Suspense` wrapper para `useSearchParams()`
-
 - **Script de migração** (`scripts/migrate-v08.mjs`):
+
   - `CREATE TABLE IF NOT EXISTS password_reset_tokens` — id, user_id (FK → users), token_hash (UNIQUE), expires_at, used_at, created_at
   - `ALTER TABLE newsletter ADD COLUMN IF NOT EXISTS unsubscribed_at`
   - `ALTER TABLE users ADD COLUMN IF NOT EXISTS birth_date, deactivated_at`
@@ -814,28 +849,28 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ### Modificado
 
 - **Schema Prisma** (`prisma/schema.prisma`):
+
   - Novo modelo `PasswordResetToken` mapeado para `password_reset_tokens` com campos id, userId (FK → User), tokenHash (unique), expiresAt, usedAt, createdAt
   - Relação `passwordResetTokens PasswordResetToken[]` adicionada ao modelo User
   - Campo `unsubscribedAt DateTime?` adicionado ao modelo Newsletter
-
 - **Footer** (`src/components/layout/Footer.tsx`):
+
   - Formulário de newsletter agora funcional: conectado a `POST /api/newsletter`
   - Estados de loading (spinner), sucesso (mensagem verde) e erro (mensagem vermelha)
   - Import do ícone `Loader2` do lucide-react
-
 - **Rate Limiter** (`src/lib/rate-limit.ts`):
-  - Adicionados presets `passwordReset` (3 tentativas / 1 hora) e `newsletter` (3 tentativas / 1 hora)
 
+  - Adicionados presets `passwordReset` (3 tentativas / 1 hora) e `newsletter` (3 tentativas / 1 hora)
 - **Proxy (middleware)** (`src/proxy.ts`):
+
   - `/recuperar-senha` e `/redefinir-senha` adicionados ao array `authRoutes` (redireciona para /perfil se logado)
   - Ambas as rotas adicionadas ao `config.matcher`
-
 - **API de Registro** (`src/app/api/auth/register/route.ts`):
+
   - Envio de email de boas-vindas fire-and-forget após registro bem-sucedido via `sendWelcomeEmail()`
-
 - **API de Contato** (`src/app/api/contato/route.ts`):
-  - Envio de email de confirmação fire-and-forget após salvar mensagem via `sendContactConfirmationEmail()`
 
+  - Envio de email de confirmação fire-and-forget após salvar mensagem via `sendContactConfirmationEmail()`
 - **`.env.example`** — Adicionada seção SMTP com as 6 variáveis de configuração do Nodemailer
 
 ### Decisões técnicas
@@ -882,11 +917,12 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ### Adicionado
 
 - **API de Categorias do Fórum** (`src/app/api/forum/categorias/route.ts`) — `GET /api/forum/categorias`:
+
   - Retorna todas as categorias ativas com contagem de tópicos, total de membros e último post
   - Query otimizada com `_count`, `include` de último post e autor
   - Filtra por `active: true` e ordena por `order`
-
 - **API de Tópicos — Listagem e Criação** (`src/app/api/forum/topicos/route.ts`):
+
   - `GET /api/forum/topicos` — Listagem paginada com filtro por categoria (`categoria` slug), busca textual (`busca`), ordenação por fixados + última atividade
   - `POST /api/forum/topicos` — Criação de tópico com:
     - Autenticação obrigatória via `auth()`
@@ -896,39 +932,39 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
     - Detecção de duplicatas (mesmo título na mesma categoria em 24h)
     - Geração automática de slug com tratamento de colisão (sufixo numérico)
     - Validação: título 5-100 chars, conteúdo 10-10000 chars
-
 - **API de Tópico Individual** (`src/app/api/forum/topicos/[slug]/route.ts`):
+
   - `GET /api/forum/topicos/[slug]` — Detalhe do tópico com incremento de views, dados do autor com reputação calculada (posts + comentários + curtidas×2 - descurtidas), contagem de posts/comentários do autor
   - `PUT /api/forum/topicos/[slug]` — Edição com janela de 30min para autores, staff sem restrição; suporta fixar, trancar e resolver (staff only)
   - `DELETE /api/forum/topicos/[slug]` — Autor pode deletar se não há comentários, staff pode deletar sempre
-
 - **API de Comentários** (`src/app/api/forum/comentarios/route.ts`):
+
   - `GET /api/forum/comentarios` — Listagem paginada por tópico com respostas aninhadas (1 nível), dados do autor com role e UUID
   - `POST /api/forum/comentarios` — Criação com autenticação, rate limiting (10/15min), verificação de tópico trancado, enforcement de 1 nível de aninhamento, atualiza `lastActivityAt` do post pai
-
 - **API de Comentário Individual** (`src/app/api/forum/comentarios/[id]/route.ts`):
+
   - `PUT` — Edição com janela de 30min para autor
   - `DELETE` — Autor pode deletar se não há respostas, staff pode deletar sempre
-
 - **API de Reações** (`src/app/api/forum/reacoes/route.ts`) — `POST /api/forum/reacoes`:
+
   - Toggle de like/dislike em posts ou comentários
   - Estados: criar reação, remover se já existe igual, ou trocar se tipo diferente
   - Autenticação obrigatória
-
 - **Componente ComunidadeContent** reescrito (`src/components/comunidade/ComunidadeContent.tsx`):
+
   - Removidos todos os dados mock (CATEGORIES, MOCK_TOPICS, STATS)
   - Busca dinâmica de categorias via `GET /api/forum/categorias`
   - Cards de categoria com ícone, contagem de tópicos/posts, último tópico e autor
   - Barra de estatísticas em tempo real (membros, total de tópicos)
   - Links para rotas dinâmicas `/comunidade/[slug]`
-
 - **Componente CategoriaContent** (`src/components/comunidade/CategoriaContent.tsx`):
+
   - Listagem de tópicos de uma categoria com busca, paginação e estados de loading/vazio
   - Modal de criação de tópico com validação (título 5-100, conteúdo 10-10000 chars)
   - Avatares via mc-heads.net (UUID), badges de role (Admin/Moderador/Professor)
   - Ícones de fixado, trancado e resolvido; contagem de respostas e views
-
 - **Componente TopicoContent** (`src/components/comunidade/TopicoContent.tsx`):
+
   - Visualizador completo de tópico com sidebar do autor (avatar, role, badge de reputação, stats)
   - Sistema de reputação visual com quatro níveis: Novato, Membro, Veterano e Lenda
   - Renderizador de conteúdo com bold, italic, code inline e sanitização XSS
@@ -936,12 +972,12 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   - Formulário de resposta com suporte a reply direto a comentário
   - Estados: tópico trancado, não autenticado, compartilhar link, reportar
   - Framer Motion para animações de entrada
-
 - **Rotas dinâmicas do fórum**:
+
   - `/comunidade/[categoria]/page.tsx` — Página de categoria passando slug para CategoriaContent
   - `/comunidade/[categoria]/[topico]/page.tsx` — Página de tópico passando slugs para TopicoContent
-
 - **Script de seed do fórum** (`scripts/seed-forum.mjs`):
+
   - Popula banco com 7 categorias: Anúncios, Geral, Dúvidas de Aulas, Sugestões, Bugs & Problemas, Showroom, Off-Topic
   - Ícones emoji, descrições, flags staffOnly e slugs únicos
   - Uso: `node scripts/seed-forum.mjs` (requer `DATABASE_URL` no `.env`)
@@ -950,10 +986,11 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ### Modificado
 
 - **Schema Prisma** (`prisma/schema.prisma`):
+
   - `ForumCategory`: adicionados campos `staffOnly Boolean @default(false)` e `active Boolean @default(true)`
   - `Post`: adicionados campos `slug String @unique`, `resolved Boolean @default(false)`, `tags String? @db.Text`, `lastActivityAt DateTime @default(now())`
-
 - **Rate Limiter** (`src/lib/rate-limit.ts`):
+
   - Adicionados presets `forumTopic` (5 tentativas / 1 hora) e `forumComment` (10 tentativas / 15 minutos)
 
 ### Decisões técnicas
@@ -986,28 +1023,29 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ### Adicionado
 
 - **`.env.example`** — Arquivo de referência documentando todas as variáveis de ambiente necessárias:
+
   - `DATABASE_URL` (obrigatória), `AUTH_SECRET`, `AUTH_URL`, `MINECRAFT_SERVER_HOST`, `MINECRAFT_SERVER_PORT`
   - Evita exposição acidental de credenciais e facilita onboarding de novos devs
-
 - **API do Blog — Listagem** (`src/app/api/blog/route.ts`) — `GET /api/blog`:
+
   - Paginação com `page` e `limit` (padrão 9 por página)
   - Filtragem por categoria via parâmetro `categoria` (slug)
   - Busca textual via parâmetro `busca` (pesquisa em `title` e `excerpt`)
   - Inclui dados do autor (username via nlogin, uuid para avatar Minecraft)
   - Retorna `{ posts, pagination: { page, limit, total, totalPages } }`
-
 - **API do Blog — Post individual** (`src/app/api/blog/[slug]/route.ts`) — `GET /api/blog/[slug]`:
+
   - Busca post por slug com dados completos (content, author, category)
   - Incremento automático de visualizações (fire-and-forget)
   - Posts relacionados: até 3 posts da mesma categoria
   - Navegação: retorna `prev` e `next` posts por data de publicação
   - Retorna `{ post, related, navigation: { prev, next } }`
-
 - **Página dinâmica do blog** (`src/app/blog/[slug]/page.tsx`):
+
   - Rota dinâmica com `generateMetadata` para SEO (título dinâmico)
   - Renderiza o componente `BlogPostContent` com o slug como prop
-
 - **Componente BlogPostContent** (`src/components/blog/BlogPostContent.tsx`):
+
   - Visualizador completo de post com estados de loading, erro e post não encontrado
   - Imagem de capa, badge de categoria, contador de views, tempo de leitura
   - Avatar do autor via Crafatar (UUID do Minecraft)
@@ -1015,19 +1053,19 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   - Sanitização HTML contra XSS (escape de `<`, `>`, `&`, `"`, `'`)
   - Tags do post, botão de copiar link, navegação prev/next, grid de posts relacionados
   - Framer Motion para animações de entrada
-
 - **API de Desativação de Conta** (`src/app/api/perfil/desativar/route.ts`) — `POST /api/perfil/desativar`:
+
   - Define `deactivatedAt = new Date()` no registro do usuário
   - Protegido por `auth()` — retorna 401 se não autenticado
   - Permite reativação futura (soft delete)
-
 - **API de Exclusão de Conta** (`src/app/api/perfil/conta/route.ts`) — `DELETE /api/perfil/conta`:
+
   - Requer `confirmation` (username + " CONFIRMAR") e `password` atual
   - Verificação de senha via `nloginVerifyPassword()` (multi-algoritmo)
   - Exclui Profile + User em transação Prisma (preserva dados nLogin/Minecraft)
   - Protegido por `auth()` — retorna 401 se não autenticado
-
 - **Script de seed do blog** (`scripts/seed-blog.mjs`):
+
   - Popular banco com 6 categorias (novidades, aulas, eventos, midia, tutoriais, comunidade)
   - 9 posts iniciais com conteúdo Markdown realista
   - Uso: `node scripts/seed-blog.mjs` (requer `DATABASE_URL` no `.env`)
@@ -1036,13 +1074,14 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ### Modificado
 
 - **Schema Prisma** (`prisma/schema.prisma`) — Campos adicionados ao modelo `BlogPost`:
+
   - `authorId String?` — FK opcional para User (relação com autor)
   - `tags String? @db.Text` — Tags do post em formato JSON
   - `views Int @default(0)` — Contador de visualizações
   - `readTime Int @default(5)` — Tempo estimado de leitura em minutos
   - Relação `blogPosts BlogPost[]` adicionada ao modelo `User`
-
 - **BlogContent** (`src/components/blog/BlogContent.tsx`) — Reescrito completamente:
+
   - Removidos todos os dados mock hardcoded (arrays de posts e categorias)
   - Busca dinâmica via `fetch('/api/blog')` com `useCallback` + `useEffect`
   - Paginação funcional com parâmetros de query
@@ -1050,8 +1089,8 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   - Busca textual via parâmetro `busca`
   - Estados de loading com spinner animado
   - Mapa de cores de categorias (`CATEGORY_COLORS`) extraído como constante
-
 - **ConfiguracoesContent** (`src/components/perfil/ConfiguracoesContent.tsx`) — Zona de Perigo funcional:
+
   - Adicionado import de `signOut` do next-auth/react
   - Botão "Desativar Conta" agora chama `POST /api/perfil/desativar` e faz `signOut()`
   - Seção "Excluir Conta" com campo de senha e confirmação textual (username + " CONFIRMAR")
@@ -1086,23 +1125,24 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ### Adicionado
 
 - **Rate limiter in-memory** (`src/lib/rate-limit.ts`) — Módulo de rate limiting por chave (IP/username):
+
   - `checkRateLimit(key, config)` retorna `{ success, remaining, resetAt }`
   - Store Map-based com limpeza automática a cada 5 minutos
   - Presets pré-configurados: `login` (5/15min), `contact` (3/1h), `register` (3/1h), `passwordChange` (5/15min)
   - Conforme requisitos de RN-AUTH-02 (docs/paginas/07-auth.md) e RN-CONTATO-05 (docs/paginas/08-contato.md)
-
 - **API de Perfil** (`src/app/api/perfil/route.ts`) — `GET + PUT /api/perfil`:
+
   - **GET**: Retorna dados completos do usuário autenticado — email, role, birthDate, nlogin (uuid, lastSeen, creationDate), profile (bio, avatar, coins, xp, playtime, aulas concluídas, ranking, preferências de privacidade e notificação), stats (_count de orders, posts, comments)
   - **PUT**: Atualização de email (com validação de unicidade e formato) e bio (máx. 500 chars)
   - Ambos protegidos por `auth()` — retorna 401 se não autenticado
-
 - **API de Troca de Senha** (`src/app/api/perfil/senha/route.ts`) — `POST /api/perfil/senha`:
+
   - Verificação da senha atual via `nloginVerifyPassword()` (multi-algoritmo)
   - Validação da nova senha: mínimo 8 chars, ao menos 1 letra e 1 número
   - Hash da nova senha via `nloginHashPassword()` e atualização na tabela nLogin (sincronizado com servidor Minecraft)
   - Rate limiting: 5 tentativas por 15 minutos por userId
-
 - **API de Configurações** (`src/app/api/perfil/configuracoes/route.ts`) — `PUT /api/perfil/configuracoes`:
+
   - Atualização de notificações: `notifForumRespostas`, `notifLembretesAulas`, `notifNovidades`, `notifResumoSemanal` (valores: "email", "push", "ambos", "off")
   - Atualização de privacidade: `perfilPublico`, `mostrarTempoOnline`, `mostrarAtividade` (boolean)
   - Validação whitelist dos valores aceitos
@@ -1110,18 +1150,19 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ### Modificado
 
 - **Schema Prisma** (`prisma/schema.prisma`) — Expansão dos models User e Profile:
+
   - **User**: Adicionados `birthDate` (DateTime?) e `deactivatedAt` (DateTime?) para data de nascimento e desativação de conta
   - **Profile**: Adicionados `playtimeMinutes` (Int?), `aulasConcluidas` (Int?), `rankingPosition` (Int?) para estatísticas de jogo; `perfilPublico` (Boolean? default true), `mostrarTempoOnline` (Boolean? default true), `mostrarAtividade` (Boolean? default true) para privacidade; `notifForumRespostas` (String? default "email"), `notifLembretesAulas` (String? default "email"), `notifNovidades` (String? default "email"), `notifResumoSemanal` (String? default "off") para notificações
-
 - **`src/components/perfil/PerfilContent.tsx`** — Reescrito com dados reais:
+
   - `useSession()` + `fetch("/api/perfil")` substituem todos os dados mock
   - Avatar dinâmico via mc-heads.net usando UUID do nLogin
   - Estatísticas (coins, XP, playtime, ranking) calculadas da resposta da API
   - Badge de reputação calculado pela contagem de posts + comments
   - Loading spinner durante carregamento
   - Seções de progresso e atividade marcadas com comentários para implementação futura
-
 - **`src/components/perfil/ConfiguracoesContent.tsx`** — Reescrito com APIs reais:
+
   - Fetch de dados do perfil no mount para preencher formulários
   - **Tab Dados**: `PUT /api/perfil` para atualizar email e bio
   - **Tab Senha**: `POST /api/perfil/senha` com verificação de senha atual e confirmação da nova
@@ -1129,21 +1170,18 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   - **Tab Privacidade**: Toggles de perfil público, tempo online e atividade via mesma API
   - **Tab Perigo**: Nome do usuário dinâmico da sessão, botões de desativar/excluir conta (estrutura preparada)
   - Indicadores de loading, erro e sucesso em cada formulário
-
 - **`src/components/perfil/ComprasContent.tsx`** — Atualizado com sessão:
+
   - `useSession()` para detecção de autenticação
   - Estado `orders` gerenciado via `useState` (preparado para futura API)
-
 - **`src/lib/nlogin.ts`** — `createUserWithProfile()` agora aceita parâmetro opcional `birthDate?: Date` para salvar data de nascimento no registro
-
 - **`src/app/api/auth/register/route.ts`** — Rate limiting (3 registros/hora por IP) + salvamento de `birthDate` na criação do User
-
 - **`src/app/api/auth/[...nextauth]/route.ts`** — Rate limiting no login:
+
   - Wrapper customizado no handler POST que intercepta `/callback/credentials`
   - 5 tentativas por 15 minutos por IP (conforme RN-AUTH-02)
   - Retorna 429 com header `Retry-After` quando excedido
   - Headers `X-RateLimit-Remaining` e `X-RateLimit-Reset` em todas as respostas
-
 - **`src/app/api/contato/route.ts`** — Rate limiting adicionado (3 envios/hora por IP) conforme RN-CONTATO-05
 
 ### Decisões técnicas
@@ -1176,6 +1214,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ### Adicionado
 
 - **Módulo de algoritmos nLogin** (`src/lib/nlogin-algorithms.ts`) — Porta completa da biblioteca [nLogin-Web](https://github.com/nickuc-com/nLogin-Web) (PHP) para TypeScript/Node.js:
+
   - **BCrypt** (`$2a$`, `$2b$`, `$2y$`) — via `bcryptjs`
   - **SHA256** (`$SHA256$hash$salt`) — formato antigo e novo do nLogin
   - **SHA512** (`$SHA512$hash$salt`) — formato antigo e novo do nLogin
@@ -1184,34 +1223,31 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   - `detectAlgorithm()` — Detecção automática do algoritmo pelo prefixo do hash (idêntico ao `detect_algorithm()` do PHP)
   - `nloginVerifyPassword()` — Verificação de senha multi-algoritmo com timing-safe comparison
   - `nloginHashPassword()` — Geração de hash com algoritmo configurável (padrão: BCrypt)
-
 - **Auto-criação de User no primeiro login** — Jogadores do Minecraft que logam no site pela primeira vez têm `User` + `Profile` criados automaticamente na tabela `users`/`profiles`
-
 - **Script de criação de tabelas** (`scripts/create-tables.mjs`) — Criação direta via SQL das 15 tabelas do site no banco de produção (bypass do `prisma db push` que falhava por índice corrompido na tabela `plan_ping`)
 
 ### Modificado
 
 - **Schema Prisma** (`prisma/schema.prisma`) — Model `Nlogin` corrigido para corresponder à estrutura real da tabela no banco:
+
   - `id` → mapeado para coluna `ai` (PK real do nLogin)
   - `ip` → mapeado para coluna `last_ip`
   - Removido `real_name` (não existe no banco)
   - `last_login`/`reg_date` (BigInt) → `last_seen`/`creation_date` (DateTime/Timestamp)
   - Adicionados campos `mojang_id`, `bedrock_id`, `email`, `discord`, `settings`
   - Índices `last_ip_idx` e `last_name_idx`
-
 - **`src/lib/nlogin.ts`** — Refatorado para usar `nlogin-algorithms.ts`:
+
   - `hashPassword()` e `verifyPassword()` delegam para `nloginHashPassword()` e `nloginVerifyPassword()`
   - `createNloginEntry()` simplificado (banco usa `DEFAULT now()` para timestamps)
   - `updateNloginLastLogin()` atualiza `last_seen` com `new Date()`
   - Removida dependência direta do `bcryptjs`
-
 - **`src/lib/auth.ts`** — Fluxo de login atualizado:
+
   - Tratamento de `password` nullable (retorna `null` se sem senha)
   - Auto-criação de `User` + `Profile` para jogadores existentes do Minecraft no primeiro login no site
   - Email temporário `username@craftsapiens.temp` quando o nLogin não tem email
-
 - **`src/lib/prisma.ts`** — Conversão automática de `mysql://` para `mariadb://` no runtime (CLI do Prisma exige `mysql://`, adapter MariaDB exige `mariadb://`)
-
 - **`.env`** — `DATABASE_URL` configurada para o banco de produção (host e credenciais ficam fora do repositório)
 
 ### Dependências adicionadas
@@ -1232,42 +1268,41 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ### Adicionado
 
 - **Autenticação nLogin completa** (`src/lib/auth.ts`) — Integração real do NextAuth v5 com o banco de dados nLogin do Minecraft:
+
   - Provider Credentials busca na tabela `nlogin` por username ou na tabela `users` por email
   - Verificação de senha via bcrypt (`$2a$`) compatível com nLogin (original e pirata)
   - Sessão JWT com campos customizados: id, username, email, role, nloginId
   - Atualização automática de `last_login` na tabela nLogin após login bem-sucedido
   - Sessão com duração de 30 dias
-
 - **Módulo nLogin** (`src/lib/nlogin.ts`) — Funções utilitárias para integração com o plugin nLogin:
+
   - `hashPassword()` / `verifyPassword()` — Hashing bcrypt com salt rounds 10 (compatível com nLogin)
   - `findNloginByUsername()` / `findUserByEmail()` — Busca de credenciais
   - `createNloginEntry()` / `createUserWithProfile()` — Criação de registros nLogin + User + Profile em transação
   - `updateNloginPassword()` / `updateNloginLastLogin()` — Atualização de dados nLogin
   - Senha compartilhada entre site e servidor Minecraft via mesmo hash bcrypt
-
 - **Tipos NextAuth** (`src/types/next-auth.d.ts`) — Extensão dos tipos de sessão e JWT do NextAuth com campos customizados (username, role, nloginId)
-
 - **API de Registro** (`src/app/api/auth/register/route.ts`) — `POST /api/auth/register`:
+
   - Validação server-side: username (3-16 chars, alfanumérico + _), email, senha (8+ chars, letra + número), data de nascimento (13+ anos)
   - Verificação de unicidade: username na tabela `nlogin`, email na tabela `users`
   - Criação sequencial: registro nLogin → User → Profile com valores padrão
   - Hash bcrypt da senha compatível com nLogin
   - Respostas com códigos HTTP apropriados (201 Created, 400 Bad Request, 409 Conflict)
-
 - **API de Verificação de Username** (`src/app/api/auth/check-username/route.ts`) — `GET /api/auth/check-username?username=`:
+
   - Consulta em tempo real se o username já existe na tabela `nlogin`
   - Validação de formato antes da consulta ao banco
   - Retorna `{ available: true/false }`
-
 - **API de Contato** (`src/app/api/contato/route.ts`) — `POST /api/contato`:
+
   - Validação de todos os campos: nome (2-100 chars), email, categoria, mensagem (10-2000 chars)
   - Campo honeypot anti-bot (rejeição silenciosa)
   - Validação de categorias permitidas
   - Persistência na tabela `contact_messages` via Prisma
-
 - **SessionProvider** (`src/app/providers.tsx`) — Wrapper client component com `SessionProvider` do NextAuth para disponibilizar sessão em toda a aplicação
-
 - **Proteção de Rotas** (`src/proxy.ts`) — Proxy/middleware Next.js 16 com `auth()` do NextAuth:
+
   - Rotas protegidas (`/perfil/*`, `/loja/carrinho`) redirecionam para `/login?redirect=` se não autenticado
   - Rotas de auth (`/login`, `/registro`) redirecionam para `/perfil` se já autenticado
   - Preserva URL de redirect no query param para redirecionamento pós-login
@@ -1275,25 +1310,25 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ### Modificado
 
 - **`src/app/layout.tsx`** — Envolvido com `<Providers>` (SessionProvider) para disponibilizar sessão de autenticação em todos os componentes client
-
 - **`src/lib/prisma.ts`** — Atualizado para Prisma 7 com adapter MariaDB (`@prisma/adapter-mariadb`):
+
   - `new PrismaClient({ adapter: new PrismaMariaDb(connectionString) })`
   - Compatível com MySQL/MariaDB existente do servidor Minecraft
-
 - **`src/components/auth/LoginContent.tsx`** — Integração real com NextAuth:
+
   - `signIn("credentials", { redirect: false })` com tratamento de erros
   - Leitura de `?redirect=` via `useSearchParams()` para redirecionamento pós-login
   - Mensagem genérica de erro ("Username/email ou senha incorretos") por segurança
   - Redirecionamento automático para `/perfil` ou URL de redirect
-
 - **`src/components/auth/RegistroContent.tsx`** — Integração com API de registro:
+
   - `POST /api/auth/register` com dados do formulário
   - Verificação de disponibilidade de username em tempo real (debounce 500ms via `useEffect`)
   - Indicador visual: Disponível / Em uso / Verificando (spinner Loader2)
   - Login automático após registro bem-sucedido via `signIn("credentials")`
   - Mensagem de sucesso antes do redirecionamento
-
 - **`src/components/layout/Navbar.tsx`** — Estado de autenticação dinâmico:
+
   - **Não logado**: Botões "Login" e "Criar Conta Grátis" (comportamento original)
   - **Logado**: Avatar Minecraft (via mc-heads.net), username e dropdown com menu:
     - Meu Perfil → `/perfil`
@@ -1302,16 +1337,15 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
     - Sair (signOut com redirect para `/`)
   - Dropdown fecha ao clicar fora (click outside listener)
   - Menu mobile atualizado com mesmo comportamento auth-aware
-
 - **`src/components/home/HeroSection.tsx`** — CTA condicional conforme RN-HOME-01:
+
   - Logado: "Acessar Perfil" → `/perfil`
   - Não logado: "Iniciar Jornada Grátis" → `/registro`
-
 - **`src/components/contato/ContatoContent.tsx`** — Formulário conectado à API real:
+
   - `POST /api/contato` em vez de simulação com setTimeout
   - Exibição de erros do servidor
   - Mantém campo honeypot anti-bot
-
 - **`src/app/login/page.tsx`** — Adicionado `<Suspense>` boundary para `useSearchParams()` (requisito Next.js 16 para SSG)
 
 ### Dependências adicionadas
@@ -1350,6 +1384,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ### Adicionado
 
 - **Página Cronograma** (`src/components/cronograma/CronogramaContent.tsx`) — Implementação conforme docs/paginas/04-cronograma.md:
+
   - Hero com breadcrumb reutilizável (PageHero)
   - Visão semanal com grid 7 colunas por dia da semana, highlight no dia atual
   - Visão mensal com calendário navegável (← Anterior / Próximo →), dias com indicadores coloridos de aulas
@@ -1363,8 +1398,8 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   - Navegação entre semanas (← Semana anterior / Próxima semana →) com offset
   - Layout responsivo: desktop grid 7 colunas, mobile lista vertical por dia com barra de cor
   - 10 aulas mock distribuídas na semana com dados realistas de professores e disciplinas
-
 - **Página Blog** (`src/components/blog/BlogContent.tsx`) — Implementação conforme docs/paginas/11-blog.md:
+
   - Hero com breadcrumb
   - Barra de busca global com ícone, filtra por título, resumo e tags
   - 7 categorias filtráveis (Todos, Novidades, Aulas, Eventos, Mídia, Tutoriais, Comunidade) com cores individuais
@@ -1374,8 +1409,8 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   - Estado vazio com ícone e mensagem quando nenhum post é encontrado
   - 9 posts mock com dados realistas (autores, categorias, tags, datas)
   - Links preparados para rota `/blog/[slug]`
-
 - **Página Loja** (`src/components/loja/LojaContent.tsx`) — Implementação conforme docs/paginas/05-loja.md:
+
   - Hero com breadcrumb
   - Seção destaque "Planos VIP / Premium" com 3 cards comparativos (VIP, VIP+, Premium)
     - Cada plano com ícone, preço mensal, lista de features (incluída / não incluída), botão "Assinar"
@@ -1389,8 +1424,8 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
     - Barra flutuante fixa no bottom com contagem e total
     - Modal de carrinho com lista de itens, remoção individual, total e botão "Finalizar Compra"
   - Animações de entrada com Framer Motion stagger
-
 - **Página Comunidade** (`src/components/comunidade/ComunidadeContent.tsx`) — Implementação conforme docs/paginas/06-comunidade.md:
+
   - Hero com breadcrumb dinâmico (muda conforme categoria aberta)
   - Barra de busca global do fórum
   - 7 categorias (Anúncios, Geral, Dúvidas, Sugestões, Bugs, Showroom, Off-Topic) com:
@@ -1404,16 +1439,16 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   - Barra de estatísticas (total de tópicos, comentários, membros)
   - Estado vazio para categorias sem tópicos
   - 6 tópicos mock na categoria "Geral" com variações de fixado/fechado
-
 - **Página Perfil — Dashboard** (`src/components/perfil/PerfilContent.tsx`) — Implementação conforme docs/paginas/09-perfil.md:
+
   - Header do perfil com avatar Minecraft (via mc-heads.net), username, badge de rank (VIP+) com cor, badge de reputação (Veterano), data de registro, último acesso, botão "Editar Perfil"
   - 6 cards de métricas: Moedas SAPIENS, XP Total, Tempo Online, Aulas Concluídas, Ranking Geral, Plano Atual com expiração
   - Seção "Progresso de Aulas" com barras de progresso animadas (Framer Motion) por disciplina, cores individuais, percentual e contagem
   - Toggle "Ver todas / Ver menos" para lista de disciplinas
   - Seção "Atividade Recente" com timeline de 6 ações (login, aula, fórum, compra, conquista, milestone) com ícones e cores específicas
   - Links de navegação rápida: Minhas Compras, Configurações, Meu Ranking
-
 - **Página Perfil — Compras** (`src/components/perfil/ComprasContent.tsx`) — Implementação conforme docs/paginas/09-perfil.md (RN-PERFIL-02):
+
   - Hero com breadcrumb de 3 níveis (Home > Perfil > Compras)
   - Banner de VIP ativo com data de expiração e botão "Renovar" → /loja
   - Resumo: total gasto e número de pedidos
@@ -1421,8 +1456,8 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   - Lista de 6 pedidos mock com: produto, badge de status colorido (Aprovado, Pendente, Cancelado, Reembolsado), data, método de pagamento (PIX/Cartão/Boleto), código do pedido, valor
   - Estado vazio quando filtro não encontra resultados
   - Meta robots noindex, nofollow (página protegida)
-
 - **Página Perfil — Configurações** (`src/components/perfil/ConfiguracoesContent.tsx`) — Implementação conforme docs/paginas/09-perfil.md (RN-PERFIL-03):
+
   - Sidebar de navegação com 5 abas: Dados Pessoais, Alterar Senha, Notificações, Privacidade, Zona de Perigo
   - **Dados Pessoais**: Username (readonly), email editável com aviso de confirmação, bio com textarea e contador de caracteres (500 max), data de nascimento (readonly)
   - **Alterar Senha**: Campos senha atual, nova senha e confirmação com validação de match, aviso de sync com nLogin/Minecraft, botão desabilitado até validação
