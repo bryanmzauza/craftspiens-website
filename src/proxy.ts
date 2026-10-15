@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { isDevAccount } from "@/lib/dev-access";
 
 const protectedRoutes = ["/perfil", "/loja/comprar", "/loja/pedido", "/confirmar-email"];
 const authRoutes = ["/login", "/registro", "/recuperar-senha", "/redefinir-senha"];
@@ -17,18 +18,25 @@ const verifiedApis = [
 const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 // Liberada sem e-mail confirmado: vincular o Google é uma das formas de confirmá-lo
 const unverifiedAllowedApis = ["/api/perfil/vinculos/iniciar"];
+// Seções em desenvolvimento (src/lib/dev-access.ts); as páginas são barradas no layout
+const devOnlyApis = ["/api/forum"];
 
 const matches = (pathname: string, routes: string[]) =>
   routes.some((route) => pathname === route || pathname.startsWith(route + "/"));
 
-export default auth((req) => {
+export default auth(async (req) => {
   const { pathname } = req.nextUrl;
   const user = req.auth?.user;
   const isLoggedIn = !!user;
   const emailConfirmed = user?.emailConfirmed === true;
 
-  // APIs: bloqueia escrita de contas logadas sem e-mail confirmado
   if (pathname.startsWith("/api/")) {
+    // Comunidade ainda não lançada: o fórum só responde a contas do grupo "dev"
+    if (matches(pathname, devOnlyApis) && !(await isDevAccount(user?.nloginId))) {
+      return NextResponse.json({ error: "Em breve.", code: "EmBreve" }, { status: 403 });
+    }
+
+    // Bloqueia escrita de contas logadas sem e-mail confirmado
     if (
       isLoggedIn &&
       !emailConfirmed &&

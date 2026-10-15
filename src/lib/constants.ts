@@ -19,6 +19,9 @@ export const NAV_LINKS = [
 
 // Código do convite permanente do servidor do Discord
 export const DISCORD_INVITE_CODE = "craftsapiens";
+// Convite que abre direto o canal #cronograma-de-aulas. Use um convite sem
+// validade (Discord: Convidar pessoas > Editar link > Expirar após: Nunca)
+export const DISCORD_SCHEDULE_URL = "https://discord.gg/VP9ZyqgYm";
 
 export const SOCIAL_LINKS = {
   discord: "https://discord.gg/craftsapiens",

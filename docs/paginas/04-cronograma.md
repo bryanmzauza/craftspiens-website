@@ -1,7 +1,7 @@
 # Página 04 — Cronograma / Grade Curricular
 
 > **Rota**: `/cronograma`
-> **Acesso**: Público
+> **Acesso**: Público (ainda não lançada: só contas do grupo `dev` do LuckPerms veem o conteúdo; os demais veem "Em breve", com um botão para o canal #cronograma-de-aulas do Discord, onde o cronograma da semana é publicado; ver `src/lib/dev-access.ts`)
 > **Propósito**: Exibir horários de aulas, grade semanal e calendário de eventos.
 
 ---

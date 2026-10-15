@@ -37,6 +37,7 @@ const UNREADABLE = new Set(["#000000", "#0000AA", "#555555"]);
 
 const CACHE_TTL_MS = 60_000;
 const cache = new Map<string, { at: number; rank: PlayerRank | null }>();
+const groupsCache = new Map<string, { at: number; groups: string[] }>();
 
 /** 75d2341716...  ->  75d23417-1682-358f-ae3a-a43c3cafacd1 */
 export function toDashedUuid(uuid: string): string | null {
@@ -85,7 +86,21 @@ export async function getPlayerRank(uniqueId: string | null | undefined): Promis
   return rank;
 }
 
-async function loadRank(uuid: string): Promise<PlayerRank | null> {
+/** Grupos ativos do jogador (nomes em minúsculas), sem herança. Lista vazia se não houver. */
+export async function getPlayerGroups(uniqueId: string | null | undefined): Promise<string[]> {
+  const uuid = uniqueId ? toDashedUuid(uniqueId) : null;
+  if (!uuid) return [];
+
+  const cached = groupsCache.get(uuid);
+  if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.groups;
+
+  const groups = await loadGroups(uuid);
+  groupsCache.set(uuid, { at: Date.now(), groups });
+  if (groupsCache.size > 5_000) groupsCache.clear();
+  return groups;
+}
+
+async function loadGroups(uuid: string): Promise<string[]> {
   const nowSeconds = Math.floor(Date.now() / 1000);
 
   const rows = await prismaMariaDb.$queryRaw<PermissionRow[]>`
@@ -93,7 +108,7 @@ async function loadRank(uuid: string): Promise<PlayerRank | null> {
     WHERE uuid = ${uuid} AND value = 1 AND permission LIKE 'group.%'
   `;
   // Grupos temporários vencidos não contam (expiry 0 = permanente)
-  const groups = [
+  return [
     ...new Set(
       rows
         .filter((row) => {
@@ -103,6 +118,10 @@ async function loadRank(uuid: string): Promise<PlayerRank | null> {
         .map((row) => row.permission.slice("group.".length).toLowerCase())
     ),
   ];
+}
+
+async function loadRank(uuid: string): Promise<PlayerRank | null> {
+  const groups = await loadGroups(uuid);
   if (groups.length === 0) return null;
 
   // Subconsulta em vez de Prisma.join: no servidor do Next, a lista montada pelo

@@ -7,6 +7,25 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.20] — 14/10/2026 — Seções restritas ao grupo dev e equipe atualizada
+
+### Alterado
+
+- **Cronograma e comunidade só para o grupo `dev`**: enquanto não forem lançadas, as duas seções só mostram o conteúdo para contas cujo nick vinculado está no grupo `dev` do LuckPerms. Os demais visitantes, logados ou não, veem uma página "Em breve" no lugar
+  - A checagem fica nos layouts de `/cronograma` e `/comunidade` (vale também para as categorias e os tópicos) e em `src/lib/dev-access.ts`; em caso de erro na leitura do LuckPerms, o acesso é negado
+  - As APIs do fórum (`/api/forum/*`) respondem 403 para quem não é do grupo, inclusive nas consultas de leitura, para o conteúdo não ficar acessível por fora da página
+  - Os links do menu, do rodapé e da home continuam apontando para as seções
+  - No cronograma, o botão principal leva ao canal #cronograma-de-aulas do Discord, onde o cronograma da semana é publicado (`DISCORD_SCHEDULE_URL` em `src/lib/constants.ts`)
+  - Para lançar uma seção: apagar o `layout.tsx` dela e, no caso da comunidade, tirar `/api/forum` de `devOnlyApis` em `src/proxy.ts`
+- `src/lib/luckperms.ts`: nova função `getPlayerGroups`, com os grupos ativos do jogador (cache de 1 minuto)
+- **Equipe na página Sobre**: lista atualizada (reitor, cinco professores e quatro pessoas da equipe), com o nick de cada um no servidor. Sem foto, o cartão mostra a cabeça da skin do nick no lugar das iniciais
+
+### Adicionado
+
+- Componente `EmBreve` (`src/components/ui/EmBreve.tsx`) para seções ainda não lançadas
+
+---
+
 ## [v0.19] — 13/10/2026 — Backup diário dos bancos, local e no Google Drive
 
 ### Adicionado

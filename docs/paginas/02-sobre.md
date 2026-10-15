@@ -17,14 +17,14 @@ A página foi refeita na v0.15. O conteúdo editável fica em `src/content/sobre
 | Quem somos | Como as aulas funcionam: servidor e Discord, quadros e minijogos, Minecraft sem mods |
 | Missão, visão e valores | Missão e visão em destaque e os cinco valores numerados |
 | Na imprensa | Matéria em destaque (Folha de S.Paulo) e lista das demais (`PRESS`), todas com link para o original em nova aba |
-| Nossa equipe | Membros agrupados em Direção, Professores e Equipe (`TEAM`); cada cartão mostra a foto ou, sem foto, as iniciais |
+| Nossa equipe | Membros agrupados em Direção, Professores e Equipe (`TEAM`); cada cartão mostra a foto ou, sem foto, a cabeça da skin do nick no jogo, além do nome, da função e do nick |
 | Hierarquia | Pirâmide com os cinco cargos da moderação (`HIERARCHY`) e os professores à parte (`TEACHING_ROLE`) |
 | CTA | Convite para entrar na equipe pelo Discord |
 
 Como atualizar:
 
 - **Foto de um membro:** salve a imagem em `public/equipe/` (quadrada, mínimo 600 x 600) e preencha `photo: "/equipe/arquivo.jpg"` no membro correspondente em `TEAM`.
-- **Novo membro:** adicione um item em `TEAM` com `name`, `role` e `group`.
+- **Novo membro:** adicione um item em `TEAM` com `name`, `nick`, `role` e `group`.
 - **Nova matéria:** adicione um item em `PRESS` com veículo, título, data (AAAA-MM-DD), link e formato. Só inclua links conferidos.
 
 O fundo de partículas global não é montado nesta página, como na home.
@@ -76,17 +76,14 @@ O fundo de partículas global não é montado nesta página, como na home.
 
 ### RN-SOBRE-06: Nossa Equipe
 - Grid de membros da equipe com:
-  - Foto (skin do Minecraft renderizada ou foto real)
+  - Foto real ou, enquanto não houver, a cabeça da skin do nick (mc-heads.net)
   - Nome
   - Cargo/Função
-- Membros conhecidos:
-  - **Helton A. Gonçalves** — Diretor/Fundador
-  - **Jonas Agra** — Dono da página Minecraft Interessante
-  - **Thawana Oliveira** — Professora
-  - **Marcelo Camilli** — Professor
-  - **Erica** — Redes Sociais
-  - **Wilton Andretti** — Professor
-  - **Arthur Martins** — Professor
+  - Nick no servidor
+- Membros (lista completa em `src/content/sobre.ts`):
+  - Direção: **Helton** (Heltonnn), reitor
+  - Professores: **João Pedro G. M. Pasqualetto** (j0t4p3), química; **João Lucas R. Camargo** (jaolucasss), história e filosofia; **Beatriz Fernandez** (Biadrum1), inglês e espanhol; **Carolina Teixeira** (CarolFox), biologia e ciências; **Kelvin Luis de Melo Santos** (Kelvin_Luis), português e Libras
+  - Equipe: **Bryan** (brmz) e **Vitor** (Shift_Sad), desenvolvimento; **David** (DG0837), desenvolvimento e administração; **Érica** (Erihhh), marketing
 - Botão "Junte-se à equipe" → Link para formulário de interesse ou Discord
 
 ### RN-SOBRE-07: Hierarquia do Servidor

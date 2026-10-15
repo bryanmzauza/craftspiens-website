@@ -9,12 +9,14 @@
 // -----------------------------------------------------------------------------
 // Fotos: salve a imagem em public/equipe/ (quadrada, mínimo 600x600, .jpg ou
 // .webp) e informe o caminho em `photo`, por exemplo "/equipe/helton.jpg".
-// Sem foto, o cartão mostra as iniciais do nome.
+// Sem foto, o cartão mostra a cabeça da skin do `nick` no jogo (mc-heads.net).
 
 export type TeamGroup = "Direção" | "Professores" | "Equipe";
 
 export interface TeamMember {
   name: string;
+  /** Nick no servidor, usado para a cabeça da skin enquanto não há foto */
+  nick: string;
   role: string;
   group: TeamGroup;
   photo?: string;
@@ -23,20 +25,18 @@ export interface TeamMember {
 export const TEAM_GROUPS: TeamGroup[] = ["Direção", "Professores", "Equipe"];
 
 export const TEAM: TeamMember[] = [
-  { name: "Helton A. Gonçalves", role: "Fundador e diretor", group: "Direção" },
-  { name: "David Guerreiro", role: "Gestão", group: "Direção" },
+  { name: "Helton", nick: "Heltonnn", role: "Reitor", group: "Direção" },
 
-  { name: "Beatriz Fernandez", role: "Inglês e espanhol", group: "Professores" },
-  { name: "João Pedro Pasqualetto", role: "Química", group: "Professores" },
-  { name: "Kelvin Santos", role: "Português", group: "Professores" },
-  { name: "Thawana Oliveira", role: "Professora", group: "Professores" },
-  { name: "Marcelo Camilli", role: "Professor", group: "Professores" },
-  { name: "Wilton Andretti", role: "Professor", group: "Professores" },
-  { name: "Arthur Martins", role: "Professor", group: "Professores" },
+  { name: "João Pedro G. M. Pasqualetto", nick: "j0t4p3", role: "Química", group: "Professores" },
+  { name: "João Lucas R. Camargo", nick: "jaolucasss", role: "História e filosofia", group: "Professores" },
+  { name: "Beatriz Fernandez", nick: "Biadrum1", role: "Inglês e espanhol", group: "Professores" },
+  { name: "Carolina Teixeira", nick: "CarolFox", role: "Biologia e ciências", group: "Professores" },
+  { name: "Kelvin Luis de Melo Santos", nick: "Kelvin_Luis", role: "Português e Libras", group: "Professores" },
 
-  { name: "Bryan Munaretto Zauza", role: "Desenvolvimento", group: "Equipe" },
-  { name: "Erica", role: "Redes sociais", group: "Equipe" },
-  { name: "Jonas Agra", role: "Minecraft Interessante", group: "Equipe" },
+  { name: "Bryan", nick: "brmz", role: "Desenvolvimento", group: "Equipe" },
+  { name: "Vitor", nick: "Shift_Sad", role: "Desenvolvimento", group: "Equipe" },
+  { name: "David", nick: "DG0837", role: "Desenvolvimento e administração", group: "Equipe" },
+  { name: "Érica", nick: "Erihhh", role: "Marketing", group: "Equipe" },
 ];
 
 // -----------------------------------------------------------------------------

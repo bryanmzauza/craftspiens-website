@@ -1,7 +1,7 @@
 # Página 06 — Comunidade (Fórum)
 
 > **Rota**: `/comunidade`, `/comunidade/[categoria]`, `/comunidade/[categoria]/[topico]`
-> **Acesso**: Público (leitura) / Logado (participar)
+> **Acesso**: Público (leitura) / Logado (participar). Ainda não lançada: só contas do grupo `dev` do LuckPerms veem o fórum; os demais veem "Em breve" e as APIs `/api/forum/*` respondem 403 (ver `src/lib/dev-access.ts`)
 > **Propósito**: Fórum da comunidade para discussões, dúvidas e interação entre alunos, professores e staff.
 
 ---

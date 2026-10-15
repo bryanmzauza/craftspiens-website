@@ -26,14 +26,6 @@ function formatPressDate(date: string): string {
   return MONTH_FORMAT.format(new Date(`${date}T12:00:00Z`)).replace(".", "").replace(" de ", " ");
 }
 
-/** Iniciais do primeiro e do último nome (ignora abreviações como "A.") */
-function initials(name: string): string {
-  const parts = name.split(/\s+/).filter((part) => !/^[A-Z]\.$/.test(part));
-  const first = parts[0]?.[0] ?? "";
-  const last = parts.length > 1 ? parts[parts.length - 1][0] : "";
-  return (first + last).toUpperCase();
-}
-
 function Reveal({
   children,
   delay = 0,
@@ -392,19 +384,24 @@ function MemberCard({ member }: { member: TeamMember }) {
             className="object-cover"
           />
         ) : (
-          <div
-            aria-hidden="true"
-            className="flex h-full items-center justify-center bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:16px_16px]"
-          >
-            <span className="font-[family-name:var(--font-press-start)] text-xl text-green-cs/80 sm:text-2xl">
-              {initials(member.name)}
-            </span>
+          <div className="flex h-full items-center justify-center bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:16px_16px]">
+            {/* Sem foto: cabeça da skin do jogo, ampliada sem suavizar os pixels */}
+            {/* eslint-disable-next-line @next/next/no-img-element -- avatar externo (mc-heads.net) */}
+            <img
+              src={`https://mc-heads.net/avatar/${encodeURIComponent(member.nick)}/128`}
+              alt={`Skin de ${member.name} no jogo`}
+              width={128}
+              height={128}
+              loading="lazy"
+              className="h-1/2 w-1/2 [image-rendering:pixelated] drop-shadow-[0_8px_16px_rgba(0,0,0,0.45)]"
+            />
           </div>
         )}
       </div>
       <figcaption className="mt-4">
         <p className="font-semibold text-white">{member.name}</p>
         <p className="mt-0.5 text-sm text-[#A0A0A0]">{member.role}</p>
+        <p className="mt-1 font-[family-name:var(--font-jetbrains-mono)] text-xs text-green-cs/80">{member.nick}</p>
       </figcaption>
     </figure>
   );
