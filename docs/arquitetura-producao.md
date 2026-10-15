@@ -484,10 +484,13 @@ O WireGuard é instalado na [seção 4](#4-wireguard-wg-site). A VPS não precis
 ```bash
 #!/usr/bin/env bash
 # Atualiza as faixas de IP da Cloudflare no nginx (real_ip) e no ufw (porta 443)
+#   cloudflare-ips.sh            nginx e ufw
+#   cloudflare-ips.sh --so-nginx só o real_ip (enquanto a porta 443 ainda é pública)
 set -euo pipefail
 
 V4=$(curl -fsS https://www.cloudflare.com/ips-v4)
 V6=$(curl -fsS https://www.cloudflare.com/ips-v6)
+[ -n "$V4" ] && [ -n "$V6" ] || { echo "Lista de IPs da Cloudflare vazia" >&2; exit 1; }
 
 {
   echo "# Gerado por /usr/local/bin/cloudflare-ips.sh — não editar à mão"
@@ -495,9 +498,11 @@ V6=$(curl -fsS https://www.cloudflare.com/ips-v6)
   echo "real_ip_header CF-Connecting-IP;"
 } > /etc/nginx/conf.d/cloudflare-realip.conf
 
-for ip in $V4 $V6; do
-  ufw allow proto tcp from "$ip" to any port 443 comment 'Cloudflare' >/dev/null
-done
+if [ "${1:-}" != "--so-nginx" ]; then
+  for ip in $V4 $V6; do
+    ufw allow proto tcp from "$ip" to any port 443 comment 'Cloudflare' >/dev/null
+  done
+fi
 
 nginx -t && systemctl reload nginx
 ```
@@ -507,7 +512,11 @@ sudo chmod +x /usr/local/bin/cloudflare-ips.sh
 sudo /usr/local/bin/cloudflare-ips.sh
 ```
 
-> As faixas da Cloudflare mudam raramente. Rode o script de novo de tempos em tempos (por exemplo, mensalmente via cron).
+> As faixas da Cloudflare mudam raramente. Agende o script uma vez por mês em `/etc/cron.d/cloudflare-ips`:
+>
+> ```
+> 17 4 1 * * root /usr/local/bin/cloudflare-ips.sh >/var/log/cloudflare-ips.log 2>&1
+> ```
 
 **Certificado de origem.** No painel da Cloudflare: *SSL/TLS → Origin Server → Create Certificate* (validade de 15 anos). Salve:
 
@@ -582,13 +591,12 @@ server {
     }
 }
 
-# Qualquer outro host (acesso direto pelo IP, por exemplo) é recusado
+# Qualquer outro nome, ou nenhum (acesso direto pelo IP), é recusado já no handshake TLS
 server {
-    listen 443 ssl default_server;
-    listen [::]:443 ssl default_server;
-    ssl_certificate     /etc/ssl/cloudflare/origin.pem;
-    ssl_certificate_key /etc/ssl/cloudflare/origin.key;
-    return 444;
+    listen 443 ssl http2 default_server;
+    listen [::]:443 ssl http2 default_server;
+    server_name _;
+    ssl_reject_handshake on;
 }
 ```
 
@@ -1323,4 +1331,6 @@ Na *Security List* da Oracle, liberar TCP 80 e 443 para `0.0.0.0/0`.
 3. `cloudflare-ips.sh` ([7.3](#73-nginx)); remover as regras públicas das portas 80 e 443 do `ufw`.
 4. `AUTH_URL` com o domínio, reativar o login externo, atualizar o webhook do MercadoPago, `npm run build` e reiniciar o site.
 5. Opcional: `sudo certbot delete --cert-name craftsapiens-ip`.
+
+Para não haver intervalo fora do ar, o bloco do domínio pode conviver com o do IP: o do IP continua `default_server` e o do domínio é escolhido pelo SNI. Com os dois no ar, rode `cloudflare-ips.sh --so-nginx` (só o `real_ip`, sem fechar a porta 443), troque o DNS e o `AUTH_URL`, e só depois remova o bloco do IP e as regras públicas do `ufw`. Antes de fechar, confira que nada mais chama o site pelo IP (plugin da loja, monitores).
 

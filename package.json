@@ -1,6 +1,6 @@
 {
   "name": "craftsapiens-website",
-  "version": "0.20.0",
+  "version": "0.20.1",
   "private": true,
   "engines": {
     "node": ">=20.9.0"

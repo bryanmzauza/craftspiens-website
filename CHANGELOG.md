@@ -7,6 +7,18 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.20.1] — 15/10/2026 — Site no domínio, atrás da Cloudflare
+
+### Alterado
+
+- O site passa a responder em `https://craftsapiens.com.br`, com a Cloudflare na frente; o acesso direto pelo IP da VPS de entrada foi fechado
+- `docs/arquitetura-producao.md`:
+  - `cloudflare-ips.sh` com a opção `--so-nginx` (só o `real_ip`, sem mexer no `ufw`) e agendamento mensal
+  - Bloco padrão do nginx recusa outros nomes já no handshake (`ssl_reject_handshake`), sem precisar de certificado
+  - Seção 16: passagem do IP para o domínio sem intervalo fora do ar
+
+---
+
 ## [v0.20] — 14/10/2026 — Seções restritas ao grupo dev e equipe atualizada
 
 ### Alterado
@@ -19,6 +31,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   - Para lançar uma seção: apagar o `layout.tsx` dela e, no caso da comunidade, tirar `/api/forum` de `devOnlyApis` em `src/proxy.ts`
 - `src/lib/luckperms.ts`: nova função `getPlayerGroups`, com os grupos ativos do jogador (cache de 1 minuto)
 - **Equipe na página Sobre**: lista atualizada (reitor, cinco professores e quatro pessoas da equipe), com o nick de cada um no servidor. Sem foto, o cartão mostra a cabeça da skin do nick no lugar das iniciais
+
 
 ### Adicionado
 
