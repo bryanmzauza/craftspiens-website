@@ -1,7 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
-import { getNloginById } from "@/lib/nlogin";
+import { getSessionUser, requireWriter } from "@/lib/forum/access";
+import {
+  canDelete,
+  canEdit,
+  canModerate,
+  canResolve,
+  canViewPost,
+  isStaff,
+} from "@/lib/forum/permissions";
+import { AUTHOR_SELECT, resolveAuthor } from "@/lib/forum/authors";
+import { extractMentions, renderMarkdown } from "@/lib/forum/markdown";
+import { normalizeTags, parseTags } from "@/lib/forum/slug";
+import { computeReputation, getReputationBadge } from "@/lib/forum/reputation";
+import { notify, notifyMentions } from "@/lib/forum/notifications";
+import { CONTENT_MAX, CONTENT_MIN, TAGS_MAX, TITLE_MAX } from "@/lib/forum/constants";
+
+/** Reputação do autor (RN-FORUM-06): contagens de posts, comentários e reações recebidas */
+async function authorReputation(authorId: string): Promise<number> {
+  const [posts, comments, likesOnPosts, likesOnComments, dislikes] = await Promise.all([
+    prisma.post.count({ where: { authorId } }),
+    prisma.comment.count({ where: { authorId } }),
+    prisma.reaction.count({ where: { post: { authorId }, type: "LIKE" } }),
+    prisma.reaction.count({ where: { comment: { authorId }, type: "LIKE" } }),
+    prisma.reaction.count({
+      where: { type: "DISLIKE", OR: [{ post: { authorId } }, { comment: { authorId } }] },
+    }),
+  ]);
+  return computeReputation({ posts, comments, likesOnPosts, likesOnComments, dislikes });
+}
 
 // GET /api/forum/topicos/[slug] — Detalhe do tópico
 export async function GET(
@@ -9,58 +36,43 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params;
+  const user = await getSessionUser();
 
   const post = await prisma.post.findUnique({
     where: { slug },
     include: {
       author: {
         select: {
-          id: true,
-          role: true,
+          ...AUTHOR_SELECT,
           createdAt: true,
-          nloginId: true,
-          profile: { select: { bio: true } },
+          profile: { select: { bio: true, perfilPublico: true } },
           _count: { select: { posts: true, comments: true } },
         },
       },
-      category: { select: { id: true, name: true, slug: true, icon: true } },
+      category: { select: { id: true, name: true, slug: true, icon: true, staffOnly: true } },
       _count: { select: { comments: true } },
+      reactions: { select: { type: true, userId: true } },
     },
   });
 
-  if (!post) {
+  if (!post || !canViewPost(post, user)) {
     return NextResponse.json({ error: "Tópico não encontrado" }, { status: 404 });
   }
 
-  // Incrementar views (fire-and-forget)
-  prisma.post.update({ where: { id: post.id }, data: { views: { increment: 1 } } }).catch(() => {});
+  // Views: só de quem não é o autor, sem travar a resposta
+  const countsView = !user || user.id !== post.authorId;
+  if (countsView) {
+    prisma.post.update({ where: { id: post.id }, data: { views: { increment: 1 } } }).catch(() => {});
+  }
 
-  // Calcular reputação do autor (RN-FORUM-06)
-  const [authorLikesOnPosts, authorLikesOnComments, authorDislikes] = await Promise.all([
-    prisma.reaction.count({
-      where: { post: { authorId: post.author.id }, type: "LIKE" },
-    }),
-    prisma.reaction.count({
-      where: { comment: { authorId: post.author.id }, type: "LIKE" },
-    }),
-    prisma.reaction.count({
-      where: {
-        OR: [
-          { post: { authorId: post.author.id }, type: "DISLIKE" },
-          { comment: { authorId: post.author.id }, type: "DISLIKE" },
-        ],
-      },
-    }),
+  const [reputation, author] = await Promise.all([
+    authorReputation(post.author.id),
+    resolveAuthor(post.author),
   ]);
 
-  const reputation =
-    post.author._count.posts +
-    post.author._count.comments +
-    authorLikesOnPosts * 2 +
-    authorLikesOnComments -
-    authorDislikes;
-
-  const nlogin = await getNloginById(post.author.nloginId);
+  const likes = post.reactions.filter((r) => r.type === "LIKE").length;
+  const dislikes = post.reactions.filter((r) => r.type === "DISLIKE").length;
+  const userReaction = user ? (post.reactions.find((r) => r.userId === user.id)?.type ?? null) : null;
 
   return NextResponse.json({
     post: {
@@ -68,71 +80,83 @@ export async function GET(
       title: post.title,
       slug: post.slug,
       content: post.content,
+      contentHtml: renderMarkdown(post.content),
       pinned: post.pinned,
       locked: post.locked,
       resolved: post.resolved,
-      views: post.views + 1,
-      tags: post.tags ? JSON.parse(post.tags) : [],
+      private: post.private,
+      views: post.views + (countsView ? 1 : 0),
+      tags: parseTags(post.tags),
       commentCount: post._count.comments,
+      likes,
+      dislikes,
+      userReaction,
       createdAt: post.createdAt,
-      updatedAt: post.updatedAt,
+      editedAt: post.editedAt,
       lastActivityAt: post.lastActivityAt,
       category: post.category,
       author: {
-        id: post.author.id,
-        username: nlogin?.last_name ?? "Unknown",
-        uuid: nlogin?.unique_id ?? null,
-        role: post.author.role,
-        bio: post.author.profile?.bio,
+        ...author,
+        bio: post.author.profile?.perfilPublico === false ? null : (post.author.profile?.bio ?? null),
         joinedAt: post.author.createdAt,
         postCount: post.author._count.posts,
         commentCount: post.author._count.comments,
         reputation,
+        badge: getReputationBadge(reputation).label,
+      },
+      can: {
+        edit: canEdit(post, user),
+        delete: canDelete({ authorId: post.authorId, replyCount: post._count.comments }, user),
+        resolve: canResolve(post, user),
+        moderate: !!user && canModerate(user.role),
+        comment: !post.locked || (!!user && canModerate(user.role)),
       },
     },
   });
 }
 
-// PUT /api/forum/topicos/[slug] — Editar tópico (autor dentro de 30min ou staff)
+// PUT /api/forum/topicos/[slug] — Editar, resolver e moderar
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-  }
+  const access = await requireWriter();
+  if ("error" in access) return access.error;
+  const { user } = access;
 
   const { slug } = await params;
 
   const post = await prisma.post.findUnique({
     where: { slug },
-    select: { id: true, authorId: true, createdAt: true },
+    select: {
+      id: true,
+      authorId: true,
+      createdAt: true,
+      title: true,
+      content: true,
+      pinned: true,
+      locked: true,
+      resolved: true,
+      private: true,
+      categoryId: true,
+      category: { select: { name: true } },
+    },
   });
 
-  if (!post) {
+  if (!post || !canViewPost(post, user)) {
     return NextResponse.json({ error: "Tópico não encontrado" }, { status: 404 });
   }
 
-  const isAuthor = post.authorId === session.user.id;
-  const isStaff = ["MODERADOR", "ADMIN", "PROFESSOR"].includes(session.user.role);
-
-  if (!isAuthor && !isStaff) {
-    return NextResponse.json({ error: "Sem permissão" }, { status: 403 });
-  }
-
-  // Autor só pode editar dentro de 30 minutos (RN-FORUM-07)
-  if (isAuthor && !isStaff) {
-    const editWindowMs = 30 * 60 * 1000;
-    if (Date.now() - new Date(post.createdAt).getTime() > editWindowMs) {
-      return NextResponse.json(
-        { error: "O prazo de 30 minutos para edição expirou" },
-        { status: 403 }
-      );
-    }
-  }
-
-  let body: { title?: string; content?: string; pinned?: boolean; locked?: boolean; resolved?: boolean };
+  let body: {
+    title?: unknown;
+    content?: unknown;
+    tags?: unknown;
+    pinned?: unknown;
+    locked?: unknown;
+    resolved?: unknown;
+    private?: unknown;
+    categoryId?: unknown;
+  };
   try {
     body = await request.json();
   } catch {
@@ -140,44 +164,124 @@ export async function PUT(
   }
 
   const data: Record<string, unknown> = {};
+  const moderationNotes: string[] = [];
+  const wantsEdit = body.title !== undefined || body.content !== undefined || body.tags !== undefined;
 
-  if (body.title !== undefined) {
-    if (body.title.length > 200) {
-      return NextResponse.json({ error: "Título deve ter no máximo 200 caracteres" }, { status: 400 });
+  if (wantsEdit) {
+    if (!canEdit(post, user)) {
+      return NextResponse.json(
+        { error: "Só o autor, em até 30 minutos, ou a moderação pode editar este tópico" },
+        { status: 403 }
+      );
     }
-    data.title = body.title;
+
+    if (body.title !== undefined) {
+      const title = typeof body.title === "string" ? body.title.trim().replace(/\s+/g, " ") : "";
+      if (!title || title.length > TITLE_MAX) {
+        return NextResponse.json({ error: `Título deve ter entre 1 e ${TITLE_MAX} caracteres` }, { status: 400 });
+      }
+      data.title = title;
+    }
+
+    if (body.content !== undefined) {
+      const content = typeof body.content === "string" ? body.content.trim() : "";
+      if (content.length < CONTENT_MIN || content.length > CONTENT_MAX) {
+        return NextResponse.json(
+          { error: `Conteúdo deve ter entre ${CONTENT_MIN} e ${CONTENT_MAX} caracteres` },
+          { status: 400 }
+        );
+      }
+      data.content = content;
+    }
+
+    if (body.tags !== undefined) {
+      const tags = normalizeTags(body.tags);
+      if (tags === null) {
+        return NextResponse.json({ error: `Tags inválidas (máximo de ${TAGS_MAX})` }, { status: 400 });
+      }
+      data.tags = tags.length > 0 ? JSON.stringify(tags) : null;
+    }
+
+    if (data.title !== undefined || data.content !== undefined) data.editedAt = new Date();
   }
 
-  if (body.content !== undefined) {
-    if (body.content.length < 20) {
-      return NextResponse.json({ error: "Conteúdo deve ter no mínimo 20 caracteres" }, { status: 400 });
+  if (body.resolved !== undefined) {
+    if (!canResolve(post, user)) {
+      return NextResponse.json({ error: "Só o autor ou a moderação marca o tópico como resolvido" }, { status: 403 });
     }
-    data.content = body.content;
+    data.resolved = body.resolved === true;
   }
 
-  // Apenas staff pode fixar/fechar/resolver
-  if (isStaff) {
-    if (body.pinned !== undefined) data.pinned = body.pinned;
-    if (body.locked !== undefined) data.locked = body.locked;
-    if (body.resolved !== undefined) data.resolved = body.resolved;
+  const moderation = body.pinned !== undefined || body.locked !== undefined || body.private !== undefined || body.categoryId !== undefined;
+  if (moderation) {
+    if (!canModerate(user.role)) {
+      return NextResponse.json({ error: "Apenas a moderação pode fazer esta alteração" }, { status: 403 });
+    }
+    if (body.pinned !== undefined) data.pinned = body.pinned === true;
+    if (body.locked !== undefined) {
+      data.locked = body.locked === true;
+      if (data.locked !== post.locked) moderationNotes.push(data.locked ? "fechado para novos comentários" : "reaberto");
+    }
+    if (body.private !== undefined) {
+      data.private = body.private === true;
+      if (data.private !== post.private) moderationNotes.push(data.private ? "marcado como privado (só você e a moderação veem)" : "tornado público");
+    }
+    if (body.categoryId !== undefined) {
+      const categoryId = typeof body.categoryId === "string" ? body.categoryId : "";
+      const target = await prisma.forumCategory.findUnique({
+        where: { id: categoryId },
+        select: { id: true, name: true, active: true, staffOnly: true },
+      });
+      if (!target || !target.active) {
+        return NextResponse.json({ error: "Categoria de destino não encontrada" }, { status: 404 });
+      }
+      if (target.id !== post.categoryId) {
+        data.categoryId = target.id;
+        moderationNotes.push(`movido de ${post.category.name} para ${target.name}`);
+      }
+    }
   }
 
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: "Nenhum campo para atualizar" }, { status: 400 });
   }
 
-  await prisma.post.update({ where: { id: post.id }, data });
+  const updated = await prisma.post.update({
+    where: { id: post.id },
+    data,
+    select: { slug: true, category: { select: { slug: true } } },
+  });
 
-  return NextResponse.json({ success: true });
+  // Avisos ao autor sobre ações da moderação, e menções novas no texto editado
+  const tasks: Promise<void>[] = [];
+  if (moderationNotes.length > 0 && post.authorId !== user.id) {
+    tasks.push(
+      notify({
+        userId: post.authorId,
+        type: "MODERATION",
+        actorId: user.id,
+        postId: post.id,
+        message: `Seu tópico foi ${moderationNotes.join(", ")}`.slice(0, 255),
+      })
+    );
+  }
+  if (typeof data.content === "string") {
+    const before = new Set(extractMentions(post.content).map((n) => n.toLowerCase()));
+    const added = extractMentions(data.content).filter((n) => !before.has(n.toLowerCase()));
+    tasks.push(notifyMentions(added, { actorId: user.id, postId: post.id }));
+  }
+  await Promise.all(tasks);
+
+  return NextResponse.json({ success: true, slug: updated.slug, categorySlug: updated.category.slug });
 }
 
-// DELETE /api/forum/topicos/[slug] — Deletar tópico (autor sem respostas ou staff)
+// DELETE /api/forum/topicos/[slug] — Excluir tópico (autor sem respostas ou moderação)
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const user = await getSessionUser();
+  if (!user) {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   }
 
@@ -185,29 +289,37 @@ export async function DELETE(
 
   const post = await prisma.post.findUnique({
     where: { slug },
-    select: { id: true, authorId: true, _count: { select: { comments: true } } },
+    select: {
+      id: true,
+      authorId: true,
+      private: true,
+      title: true,
+      _count: { select: { comments: true } },
+      category: { select: { slug: true } },
+    },
   });
 
-  if (!post) {
+  if (!post || !canViewPost(post, user)) {
     return NextResponse.json({ error: "Tópico não encontrado" }, { status: 404 });
   }
 
-  const isAuthor = post.authorId === session.user.id;
-  const isStaff = ["MODERADOR", "ADMIN", "PROFESSOR"].includes(session.user.role);
-
-  if (!isAuthor && !isStaff) {
-    return NextResponse.json({ error: "Sem permissão" }, { status: 403 });
-  }
-
-  // Autor só pode deletar se não tiver respostas (RN-FORUM-07)
-  if (isAuthor && !isStaff && post._count.comments > 0) {
+  if (!canDelete({ authorId: post.authorId, replyCount: post._count.comments }, user)) {
     return NextResponse.json(
-      { error: "Não é possível excluir um tópico que já possui respostas" },
+      { error: "Só é possível excluir um tópico sem respostas; a moderação pode excluir qualquer tópico" },
       { status: 403 }
     );
   }
 
   await prisma.post.delete({ where: { id: post.id } });
 
-  return NextResponse.json({ success: true });
+  if (post.authorId !== user.id && isStaff(user.role)) {
+    await notify({
+      userId: post.authorId,
+      type: "MODERATION",
+      actorId: user.id,
+      message: `Seu tópico "${post.title}" foi removido pela moderação`.slice(0, 255),
+    });
+  }
+
+  return NextResponse.json({ success: true, categorySlug: post.category.slug });
 }

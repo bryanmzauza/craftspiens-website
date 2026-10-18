@@ -20,9 +20,11 @@ import {
   Link2,
   ShieldCheck,
   ShieldAlert,
+  CreditCard,
 } from "lucide-react";
 import { PageHero } from "@/components/ui/PageHero";
 import { ContasVinculadas } from "@/components/perfil/ContasVinculadas";
+import { formatCpf, isValidCpf, normalizeCpf } from "@/lib/cpf";
 
 type Tab = "dados" | "vinculos" | "senha" | "notificacoes" | "privacidade" | "perigo";
 
@@ -41,6 +43,8 @@ type ProfileData = {
   email: string;
   emailConfirmed: boolean;
   birthDate: string | null;
+  /** CPF de quem paga, já mascarado pela API */
+  payerCpf: string | null;
   profile: {
     bio: string | null;
     perfilPublico: boolean;
@@ -75,6 +79,13 @@ export function ConfiguracoesContent() {
   const [emailConfirmed, setEmailConfirmed] = useState(false);
   const [bio, setBio] = useState("");
   const [birthDate, setBirthDate] = useState("");
+  // Sem data registrada (contas do Google), o campo aceita a data uma única vez
+  const [birthDateMissing, setBirthDateMissing] = useState(false);
+  const [birthDateInput, setBirthDateInput] = useState("");
+  // CPF de quem paga as compras: o salvo aparece mascarado; "editingCpf" pede um novo
+  const [savedCpf, setSavedCpf] = useState<string | null>(null);
+  const [editingCpf, setEditingCpf] = useState(false);
+  const [cpfInput, setCpfInput] = useState("");
 
   // Password
   const [senhaAtual, setSenhaAtual] = useState("");
@@ -116,9 +127,12 @@ export function ConfiguracoesContent() {
         setBio(data.profile?.bio || "");
         setBirthDate(
           data.birthDate
-            ? new Date(data.birthDate).toLocaleDateString("pt-BR")
+            ? new Date(data.birthDate).toLocaleDateString("pt-BR", { timeZone: "UTC" })
             : "Não informada"
         );
+        setBirthDateMissing(!data.birthDate);
+        setSavedCpf(data.payerCpf ?? null);
+        setEditingCpf(!data.payerCpf);
 
         if (data.profile) {
           setPerfilPublico(data.profile.perfilPublico);
@@ -146,19 +160,38 @@ export function ConfiguracoesContent() {
     setTimeout(() => setSaved(false), 2000);
   }, []);
 
+  const cpfDigits = normalizeCpf(cpfInput);
+  const cpfInvalid = editingCpf && cpfDigits.length === 11 && !isValidCpf(cpfDigits);
+
   const handleSaveDados = async () => {
+    if (editingCpf && cpfDigits.length > 0 && !isValidCpf(cpfDigits)) {
+      setError("CPF inválido. Confira os números.");
+      return;
+    }
     setSaving(true);
     setError("");
     try {
+      const payload: Record<string, string> = { bio };
+      if (birthDateMissing && birthDateInput) payload.birthDate = birthDateInput;
+      if (editingCpf && isValidCpf(cpfDigits)) payload.payerCpf = cpfDigits;
       const res = await fetch("/api/perfil", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bio }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || "Erro ao salvar.");
         return;
+      }
+      if (payload.birthDate) {
+        setBirthDate(new Date(`${payload.birthDate}T00:00:00Z`).toLocaleDateString("pt-BR", { timeZone: "UTC" }));
+        setBirthDateMissing(false);
+      }
+      if (payload.payerCpf) {
+        setSavedCpf(`${cpfDigits.slice(0, 3)}.***.***-${cpfDigits.slice(9)}`);
+        setEditingCpf(false);
+        setCpfInput("");
       }
       showSaved();
     } catch {
@@ -386,10 +419,83 @@ export function ConfiguracoesContent() {
                       <Calendar size={14} className="mr-1 inline" />
                       Data de Nascimento
                     </label>
-                    <p className="rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-[#A0A0A0]">
-                      {birthDate}
-                    </p>
-                    <p className="mt-1 text-xs text-[#A0A0A0]">Não pode ser alterada após o registro.</p>
+                    {birthDateMissing ? (
+                      <>
+                        <input
+                          id="birthDate"
+                          type="date"
+                          value={birthDateInput}
+                          onChange={(e) => setBirthDateInput(e.target.value)}
+                          max={new Date().toISOString().slice(0, 10)}
+                          min="1900-01-01"
+                          className="w-full rounded-lg border border-warning/40 bg-white/5 px-4 py-2.5 text-sm text-white focus:border-green-cs focus:outline-none"
+                        />
+                        <p className="mt-1 text-xs text-warning">
+                          Obrigatória para participar do fórum e comprar na loja. Depois de salva, não pode ser alterada.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-[#A0A0A0]">
+                          {birthDate}
+                        </p>
+                        <p className="mt-1 text-xs text-[#A0A0A0]">Não pode ser alterada após o registro.</p>
+                      </>
+                    )}
+                  </div>
+
+                  <div>
+                    <label htmlFor="payerCpf" className="mb-1 block text-sm font-medium text-[#E0E0E0]">
+                      <CreditCard size={14} className="mr-1 inline" />
+                      CPF de quem paga as compras
+                    </label>
+                    {!editingCpf && savedCpf ? (
+                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5">
+                        <span className="font-[family-name:var(--font-jetbrains-mono)] text-sm text-white">{savedCpf}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingCpf(true);
+                            setCpfInput("");
+                          }}
+                          className="text-sm font-semibold text-green-cs hover:underline"
+                        >
+                          Alterar CPF
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <input
+                          id="payerCpf"
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="off"
+                          value={cpfInput}
+                          onChange={(e) => setCpfInput(formatCpf(e.target.value))}
+                          placeholder="000.000.000-00"
+                          className={`w-full rounded-lg border bg-white/5 px-4 py-2.5 text-sm text-white focus:border-green-cs focus:outline-none ${
+                            savedCpf ? "border-white/20" : "border-warning/40"
+                          }`}
+                        />
+                        {cpfInvalid && <p className="mt-1 text-xs text-error">CPF inválido. Confira os números.</p>}
+                        {savedCpf ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingCpf(false);
+                              setCpfInput("");
+                            }}
+                            className="mt-1 text-xs text-[#A0A0A0] hover:text-white"
+                          >
+                            Manter o CPF salvo ({savedCpf})
+                          </button>
+                        ) : (
+                          <p className="mt-1 text-xs text-warning">
+                            Obrigatório para comprar na loja. Pode ser o CPF do aluno ou de um responsável.
+                          </p>
+                        )}
+                      </>
+                    )}
                   </div>
 
                   <button
@@ -499,7 +605,7 @@ export function ConfiguracoesContent() {
                   )}
 
                   {[
-                    { label: "Respostas no fórum", value: notifForum, set: setNotifForum, options: ["email", "site", "off"] },
+                    { label: "Respostas e menções no fórum", value: notifForum, set: setNotifForum, options: ["email", "site", "off"] },
                     { label: "Lembretes de aulas", value: notifAulas, set: setNotifAulas, options: ["email", "site", "off"] },
                     { label: "Novidades e promoções", value: notifNovidades, set: setNotifNovidades, options: ["email", "off"] },
                     { label: "Resumo semanal", value: notifResumo, set: setNotifResumo, options: ["email", "off"] },
@@ -513,7 +619,7 @@ export function ConfiguracoesContent() {
                       >
                         {item.options.map((opt) => (
                           <option key={opt} value={opt} className="bg-bg-primary">
-                            {opt === "email" ? "Email" : opt === "site" ? "Apenas no site" : "Desligado"}
+                            {opt === "email" ? "E-mail e no site" : opt === "site" ? "Apenas no site" : "Desligado"}
                           </option>
                         ))}
                       </select>

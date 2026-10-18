@@ -5,10 +5,11 @@ import Image from "next/image";
 import logo from "@/assets/brand/logo.webp";
 import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
-import { Menu, X, User, ShoppingBag, Settings, LogOut, ChevronDown } from "lucide-react";
+import { Menu, X, User, ShoppingBag, Settings, LogOut, ChevronDown, Bell } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 import { NAV_LINKS } from "@/lib/constants";
 import { ServerStatusBadge } from "@/components/ui/ServerStatusBadge";
+import { NotificationBell } from "@/components/comunidade/NotificationBell";
 
 export function Navbar() {
   const pathname = usePathname();
@@ -94,6 +95,7 @@ export function Navbar() {
         {/* Desktop Auth */}
         <div className="hidden lg:flex items-center gap-3">
           <ServerStatusBadge className="mr-3 hidden xl:inline-flex" />
+          {session?.user && <NotificationBell />}
           {session?.user ? (
             <div ref={dropdownRef} className="relative">
               <button
@@ -125,6 +127,12 @@ export function Navbar() {
                     className="flex items-center gap-2 px-4 py-2.5 text-sm text-white hover:bg-white/5"
                   >
                     <ShoppingBag size={16} /> Minhas Compras
+                  </Link>
+                  <Link
+                    href="/comunidade/notificacoes"
+                    className="flex items-center gap-2 px-4 py-2.5 text-sm text-white hover:bg-white/5"
+                  >
+                    <Bell size={16} /> Notificações
                   </Link>
                   <Link
                     href="/perfil/configuracoes"
@@ -160,7 +168,9 @@ export function Navbar() {
           )}
         </div>
 
-        {/* Mobile Toggle */}
+        {/* Mobile: sino e menu */}
+        <div className="flex items-center gap-1 lg:hidden">
+          {session?.user && <NotificationBell />}
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
           className="lg:hidden text-white p-2"
@@ -168,6 +178,7 @@ export function Navbar() {
         >
           {mobileOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
+        </div>
       </nav>
 
       {/* Mobile Menu Overlay */}
@@ -226,6 +237,12 @@ export function Navbar() {
                 className="flex items-center gap-2 rounded-lg px-4 py-3 text-base font-medium text-white hover:bg-white/5"
               >
                 <ShoppingBag size={18} /> Minhas Compras
+              </Link>
+              <Link
+                href="/comunidade/notificacoes"
+                className="flex items-center gap-2 rounded-lg px-4 py-3 text-base font-medium text-white hover:bg-white/5"
+              >
+                <Bell size={18} /> Notificações
               </Link>
               <Link
                 href="/perfil/configuracoes"

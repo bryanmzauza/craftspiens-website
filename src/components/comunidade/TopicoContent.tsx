@@ -1,38 +1,65 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import Link from "next/link";
+import { useSession } from "next-auth/react";
 import {
   MessageSquare,
   Eye,
-  Pin,
-  Lock,
-  CheckCircle,
   Clock,
   ThumbsUp,
   ThumbsDown,
   Reply,
   Loader2,
-  ChevronLeft,
-  ChevronRight,
   Flag,
   Share2,
   Send,
+  Lock,
+  Pencil,
+  Trash2,
+  CheckCircle,
+  Pin,
+  EyeOff,
+  FolderInput,
+  ShieldCheck,
+  Check,
+  X,
+  Unlock,
 } from "lucide-react";
-import Link from "next/link";
-import { useSession } from "next-auth/react";
 import { PageHero } from "@/components/ui/PageHero";
+import { CommentCard, type CommentData } from "@/components/comunidade/CommentCard";
+import { MarkdownEditor } from "@/components/comunidade/MarkdownEditor";
+import { NewTopicDialog, type CategoryOption } from "@/components/comunidade/NewTopicDialog";
+import {
+  api,
+  ApiError,
+  type Author,
+  Avatar,
+  AuthorName,
+  EmptyState,
+  inputClass,
+  MarkdownBody,
+  Paginator,
+  primaryButtonClass,
+  RoleBadge,
+  secondaryButtonClass,
+  Tag,
+  TopicStatusIcons,
+  When,
+  type Pagination,
+} from "@/components/comunidade/shared";
+import { COMMENT_MAX, COMMENT_MIN, CONTENT_MAX, CONTENT_MIN, REPORTS_CATEGORY_SLUG, TITLE_MAX } from "@/lib/forum/constants";
+import { fullDate } from "@/lib/forum/time";
 
-interface Author {
-  id: string;
-  username: string;
-  uuid: string | null;
-  role: string;
-  bio?: string;
-  joinedAt?: string;
-  postCount?: number;
-  commentCount?: number;
-  reputation?: number;
+interface PostAuthor extends Author {
+  bio: string | null;
+  joinedAt: string;
+  postCount: number;
+  commentCount: number;
+  reputation: number;
+  badge: string;
 }
 
 interface PostDetail {
@@ -40,174 +67,307 @@ interface PostDetail {
   title: string;
   slug: string;
   content: string;
+  contentHtml: string;
   pinned: boolean;
   locked: boolean;
   resolved: boolean;
+  private: boolean;
   views: number;
   tags: string[];
   commentCount: number;
-  createdAt: string;
-  updatedAt: string;
-  lastActivityAt: string;
-  category: { id: string; name: string; slug: string; icon: string | null };
-  author: Author;
-}
-
-interface CommentData {
-  id: string;
-  content: string;
-  createdAt: string;
-  updatedAt: string;
   likes: number;
   dislikes: number;
-  author: { id: string; username: string; uuid: string | null; role: string };
-  replies: CommentData[];
+  userReaction: "LIKE" | "DISLIKE" | null;
+  createdAt: string;
+  editedAt: string | null;
+  lastActivityAt: string;
+  category: { id: string; name: string; slug: string; icon: string | null; staffOnly: boolean };
+  author: PostAuthor;
+  can: { edit: boolean; delete: boolean; resolve: boolean; moderate: boolean; comment: boolean };
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  ADMIN: "Admin",
-  MODERADOR: "Moderador",
-  PROFESSOR: "Professor",
-};
-
-const REPUTATION_BADGES: { min: number; label: string }[] = [
-  { min: 201, label: "Lenda" },
-  { min: 51, label: "Veterano" },
-  { min: 11, label: "Membro" },
-  { min: 0, label: "Novato" },
-];
-
-function getReputationBadge(rep: number) {
-  return REPUTATION_BADGES.find((b) => rep >= b.min) ?? REPUTATION_BADGES[REPUTATION_BADGES.length - 1];
+interface CommentsResponse {
+  comments: CommentData[];
+  pagination: Pagination;
 }
 
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return "agora";
-  if (minutes < 60) return `${minutes}min atrás`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h atrás`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d atrás`;
-  return new Date(dateStr).toLocaleDateString("pt-BR");
-}
+type Problem = { error: string; code?: string };
 
-function escapeHtml(text: string): string {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-}
-
-function renderContent(text: string): string {
-  let html = escapeHtml(text);
-  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-  html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
-  html = html.replace(/`(.+?)`/g, '<code class="rounded bg-white/10 px-1.5 py-0.5 text-xs font-mono">$1</code>');
-  html = html.replace(/\n/g, "<br/>");
-  return html;
-}
-
-export function TopicoContent({
-  categoriaSlug,
-  topicoSlug,
-}: {
-  categoriaSlug: string;
-  topicoSlug: string;
-}) {
+export function TopicoContent({ categoriaSlug, topicoSlug }: { categoriaSlug: string; topicoSlug: string }) {
   const { data: session } = useSession();
+  const router = useRouter();
+  const loggedIn = !!session?.user;
+
   const [post, setPost] = useState<PostDetail | null>(null);
   const [comments, setComments] = useState<CommentData[]>([]);
-  const [commentPagination, setCommentPagination] = useState({ page: 1, totalPages: 1 });
+  const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 30, total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+
+  // Resposta
   const [replyContent, setReplyContent] = useState("");
-  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyingTo, setReplyingTo] = useState<CommentData | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState("");
+  const [submitError, setSubmitError] = useState<Problem | null>(null);
+  const replyFormRef = useRef<HTMLFormElement>(null);
+
+  // Edição do tópico
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [editTags, setEditTags] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [editError, setEditError] = useState<Problem | null>(null);
+
+  // Moderação e ações
+  const [actionError, setActionError] = useState<Problem | null>(null);
+  const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [moveOpen, setMoveOpen] = useState(false);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [moveTo, setMoveTo] = useState("");
   const [copied, setCopied] = useState(false);
 
+  // Denúncia
+  const [report, setReport] = useState<{ title: string; content: string } | null>(null);
+
   const fetchPost = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/forum/topicos/${topicoSlug}`);
-      if (res.status === 404) { setNotFound(true); return; }
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setPost(data.post);
-    } catch {
+    const res = await api<{ post: PostDetail }>(`/api/forum/topicos/${topicoSlug}`);
+    if (!res.ok) {
       setNotFound(true);
-    } finally {
       setLoading(false);
+      return null;
     }
+    setPost(res.data.post);
+    setLoading(false);
+    return res.data.post;
   }, [topicoSlug]);
 
-  const fetchComments = useCallback(async (page: number = 1) => {
-    if (!post) return;
-    try {
-      const res = await fetch(`/api/forum/comentarios?topicoId=${post.id}&page=${page}`);
+  const fetchComments = useCallback(
+    async (postId: string, page: number | "ultima" = 1, commentId?: string) => {
+      const params = new URLSearchParams({ topicoId: postId, pagina: String(page) });
+      if (commentId) params.set("comentario", commentId);
+      const res = await api<CommentsResponse>(`/api/forum/comentarios?${params}`);
       if (!res.ok) return;
-      const data = await res.json();
-      setComments(data.comments);
-      setCommentPagination({ page: data.pagination.page, totalPages: data.pagination.totalPages });
-    } catch {
-      // silently fail
-    }
-  }, [post]);
+      setComments(res.data.comments);
+      setPagination(res.data.pagination);
+    },
+    []
+  );
 
-  useEffect(() => { fetchPost(); }, [fetchPost]);
-  useEffect(() => { if (post) fetchComments(); }, [post, fetchComments]);
-
-  const handleReaction = async (type: "LIKE" | "DISLIKE", postId?: string, commentId?: string) => {
-    if (!session?.user) return;
-    try {
-      await fetch("/api/forum/reacoes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type, postId, commentId }),
-      });
-      // Refresh comments to see updated counts
-      fetchComments(commentPagination.page);
-    } catch {
-      // silently fail
-    }
-  };
-
-  const handleSubmitComment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!post || !session?.user || !replyContent.trim()) return;
-    setSubmitting(true);
-    setSubmitError("");
-
-    try {
-      const res = await fetch("/api/forum/comentarios", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          postId: post.id,
-          content: replyContent.trim(),
-          parentId: replyingTo ?? undefined,
-        }),
-      });
-
+  useEffect(() => {
+    let cancelled = false;
+    api<{ post: PostDetail }>(`/api/forum/topicos/${topicoSlug}`).then((res) => {
+      if (cancelled) return;
       if (!res.ok) {
-        const data = await res.json();
-        setSubmitError(data.error || "Erro ao enviar comentário");
+        setNotFound(true);
+        setLoading(false);
         return;
       }
+      setPost(res.data.post);
+      setLoading(false);
+      const hash = window.location.hash;
+      const target = hash.startsWith("#comentario-") ? hash.slice("#comentario-".length) : undefined;
+      if (target) setHighlightId(target);
+      fetchComments(res.data.post.id, 1, target).then(() => {
+        if (target) {
+          requestAnimationFrame(() => document.getElementById(`comentario-${target}`)?.scrollIntoView({ block: "center" }));
+        }
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [topicoSlug, fetchComments]);
 
-      setReplyContent("");
-      setReplyingTo(null);
-      fetchComments(commentPagination.page);
-    } catch {
-      setSubmitError("Erro de conexão");
-    } finally {
-      setSubmitting(false);
+  // --- Reações ---
+
+  async function reactToPost(type: "LIKE" | "DISLIKE") {
+    if (!post || !loggedIn) return;
+    const res = await api<{ likes: number; dislikes: number; userReaction: "LIKE" | "DISLIKE" | null }>("/api/forum/reacoes", {
+      method: "POST",
+      body: JSON.stringify({ type, postId: post.id }),
+    });
+    if (!res.ok) {
+      setActionError({ error: res.error, code: res.code });
+      return;
     }
-  };
+    setPost({ ...post, likes: res.data.likes, dislikes: res.data.dislikes, userReaction: res.data.userReaction });
+  }
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  async function reactToComment(comment: CommentData, type: "LIKE" | "DISLIKE") {
+    if (!loggedIn) return;
+    const res = await api<{ likes: number; dislikes: number; userReaction: "LIKE" | "DISLIKE" | null }>("/api/forum/reacoes", {
+      method: "POST",
+      body: JSON.stringify({ type, commentId: comment.id }),
+    });
+    if (!res.ok) {
+      setSubmitError({ error: res.error, code: res.code });
+      return;
+    }
+    const patch = (list: CommentData[]): CommentData[] =>
+      list.map((c) =>
+        c.id === comment.id ? { ...c, ...res.data } : { ...c, replies: patch(c.replies) }
+      );
+    setComments((current) => patch(current));
+  }
+
+  // --- Comentários ---
+
+  function startReply(comment: CommentData) {
+    setReplyingTo(comment);
+    setReplyContent((current) => (current.trim() ? current : `@${comment.author.username} `));
+    replyFormRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  async function submitComment(e: React.FormEvent) {
+    e.preventDefault();
+    if (!post || !loggedIn || replyContent.trim().length < COMMENT_MIN || submitting) return;
+    setSubmitting(true);
+    setSubmitError(null);
+
+    const res = await api<{ comment: CommentData; page: number }>("/api/forum/comentarios", {
+      method: "POST",
+      body: JSON.stringify({ postId: post.id, content: replyContent.trim(), parentId: replyingTo?.id }),
+    });
+
+    setSubmitting(false);
+    if (!res.ok) {
+      setSubmitError({ error: res.error, code: res.code });
+      return;
+    }
+
+    setReplyContent("");
+    setReplyingTo(null);
+    setPost({ ...post, commentCount: post.commentCount + 1 });
+    await fetchComments(post.id, res.data.page);
+    setHighlightId(res.data.comment.id);
+    requestAnimationFrame(() =>
+      document.getElementById(`comentario-${res.data.comment.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" })
+    );
+  }
+
+  async function editComment(comment: CommentData, content: string): Promise<string | null> {
+    const res = await api<{ content: string; contentHtml: string; editedAt: string }>(`/api/forum/comentarios/${comment.id}`, {
+      method: "PUT",
+      body: JSON.stringify({ content }),
+    });
+    if (!res.ok) return res.error;
+    const patch = (list: CommentData[]): CommentData[] =>
+      list.map((c) => (c.id === comment.id ? { ...c, ...res.data } : { ...c, replies: patch(c.replies) }));
+    setComments((current) => patch(current));
+    return null;
+  }
+
+  async function deleteComment(comment: CommentData) {
+    if (!post || !window.confirm("Excluir este comentário? Esta ação não pode ser desfeita.")) return;
+    const res = await api<{ success: true }>(`/api/forum/comentarios/${comment.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      setSubmitError({ error: res.error, code: res.code });
+      return;
+    }
+    const removed = 1 + (comment.replies?.length ?? 0);
+    setPost({ ...post, commentCount: Math.max(0, post.commentCount - removed) });
+    await fetchComments(post.id, pagination.page);
+  }
+
+  // --- Tópico: edição, exclusão, resolução e moderação ---
+
+  function startEdit() {
+    if (!post) return;
+    setEditTitle(post.title);
+    setEditContent(post.content);
+    setEditTags(post.tags.join(", "));
+    setEditError(null);
+    setEditing(true);
+  }
+
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!post || saving) return;
+    setSaving(true);
+    setEditError(null);
+    const tags = editTags.split(/[,\s]+/).map((t) => t.trim()).filter(Boolean);
+    const res = await api<{ success: true }>(`/api/forum/topicos/${post.slug}`, {
+      method: "PUT",
+      body: JSON.stringify({ title: editTitle.trim(), content: editContent.trim(), tags }),
+    });
+    setSaving(false);
+    if (!res.ok) {
+      setEditError({ error: res.error, code: res.code });
+      return;
+    }
+    setEditing(false);
+    await fetchPost();
+  }
+
+  async function updatePost(label: string, patch: Record<string, unknown>) {
+    if (!post || busyAction) return;
+    setBusyAction(label);
+    setActionError(null);
+    const res = await api<{ success: true; categorySlug: string }>(`/api/forum/topicos/${post.slug}`, {
+      method: "PUT",
+      body: JSON.stringify(patch),
+    });
+    setBusyAction(null);
+    if (!res.ok) {
+      setActionError({ error: res.error, code: res.code });
+      return;
+    }
+    if (res.data.categorySlug !== categoriaSlug) {
+      router.replace(`/comunidade/${res.data.categorySlug}/${post.slug}`);
+      return;
+    }
+    await fetchPost();
+  }
+
+  async function deletePost() {
+    if (!post || !window.confirm("Excluir este tópico e todos os comentários? Esta ação não pode ser desfeita.")) return;
+    setBusyAction("delete");
+    const res = await api<{ success: true; categorySlug: string }>(`/api/forum/topicos/${post.slug}`, { method: "DELETE" });
+    setBusyAction(null);
+    if (!res.ok) {
+      setActionError({ error: res.error, code: res.code });
+      return;
+    }
+    router.push(`/comunidade/${res.data.categorySlug}`);
+  }
+
+  async function openMove() {
+    if (categories.length === 0) {
+      const res = await api<{ categories: CategoryOption[] }>("/api/forum/categorias");
+      if (res.ok) setCategories(res.data.categories);
+    }
+    setMoveTo(post?.category.id ?? "");
+    setMoveOpen(true);
+  }
+
+  function copyLink() {
+    navigator.clipboard?.writeText(window.location.href.split("#")[0]).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  function reportPost() {
+    if (!post) return;
+    const url = `/comunidade/${post.category.slug}/${post.slug}`;
+    setReport({
+      title: `Denúncia: ${post.title}`.slice(0, TITLE_MAX),
+      content: `Denúncia sobre o tópico [${post.title}](${url}), de @${post.author.username}.\n\n**Motivo:** \n\n**Provas:** `,
+    });
+  }
+
+  function reportComment(comment: CommentData) {
+    if (!post) return;
+    const url = `/comunidade/${post.category.slug}/${post.slug}#comentario-${comment.id}`;
+    setReport({
+      title: `Denúncia: comentário em ${post.title}`.slice(0, TITLE_MAX),
+      content: `Denúncia sobre um [comentário](${url}) de @${comment.author.username} no tópico "${post.title}".\n\n**Motivo:** \n\n**Provas:** `,
+    });
+  }
+
+  // --- Render ---
 
   if (loading) {
     return (
@@ -219,138 +379,257 @@ export function TopicoContent({
 
   if (notFound || !post) {
     return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4">
-        <MessageSquare size={48} className="text-[#A0A0A0] opacity-30" />
-        <h2 className="text-xl font-bold text-white">Tópico não encontrado</h2>
-        <Link href={`/comunidade/${categoriaSlug}`} className="text-sm text-green-cs hover:underline">
-          Voltar para a categoria
-        </Link>
-      </div>
+      <>
+        <PageHero
+          title="COMUNIDADE"
+          breadcrumbs={[{ label: "Home", href: "/" }, { label: "Comunidade", href: "/comunidade" }, { label: "Tópico" }]}
+        />
+        <div className="mx-auto max-w-4xl px-4 pb-16 lg:px-6">
+          <EmptyState title="Tópico não encontrado" description="Ele pode ter sido removido ou ser privado." />
+          <div className="text-center">
+            <Link href={`/comunidade/${categoriaSlug}`} className={secondaryButtonClass}>
+              Voltar para a categoria
+            </Link>
+          </div>
+        </div>
+      </>
     );
   }
 
-  const badge = getReputationBadge(post.author.reputation ?? 0);
+  const isReport = post.category.slug === REPORTS_CATEGORY_SLUG;
+  const actionButton = "flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors hover:bg-white/5 disabled:opacity-40";
 
   return (
     <>
       <PageHero
-        title={post.category.name}
+        title={post.category.name.toUpperCase()}
         breadcrumbs={[
           { label: "Home", href: "/" },
           { label: "Comunidade", href: "/comunidade" },
-          { label: post.category.name, href: `/comunidade/${categoriaSlug}` },
+          { label: post.category.name, href: `/comunidade/${post.category.slug}` },
           { label: post.title },
         ]}
       />
 
       <div className="mx-auto max-w-4xl px-4 pb-16 lg:px-6">
-        {/* Post Original */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl border border-white/10 bg-bg-card/50"
-        >
-          {/* Header */}
+        {/* Avisos de estado */}
+        {post.private && (
+          <div className="mb-4 flex items-center gap-2 rounded-xl border border-xp/40 bg-xp/10 px-4 py-3 text-sm text-[#E0E0E0]">
+            <EyeOff size={16} className="shrink-0 text-xp" aria-hidden="true" />
+            Tópico privado: só o autor e a moderação veem este conteúdo.
+          </div>
+        )}
+        {isReport && post.resolved && (
+          <div className="mb-4 flex items-center gap-2 rounded-xl border border-green-cs/40 bg-green-cs/10 px-4 py-3 text-sm text-[#E0E0E0]">
+            <CheckCircle size={16} className="shrink-0 text-green-cs" aria-hidden="true" />
+            Denúncia analisada e encerrada pela moderação.
+          </div>
+        )}
+
+        {/* Tópico */}
+        <motion.article initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-white/10 bg-bg-card/50">
           <div className="border-b border-white/10 p-4 sm:p-6">
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              {post.pinned && <Pin size={16} className="text-yellow-500" />}
-              {post.locked && <Lock size={16} className="text-[#A0A0A0]" />}
-              {post.resolved && <CheckCircle size={16} className="text-green-cs" />}
-              <h1 className="text-xl font-bold text-white sm:text-2xl">{post.title}</h1>
-            </div>
-            <div className="flex flex-wrap items-center gap-3 text-xs text-[#A0A0A0]">
-              <span className="flex items-center gap-1">
-                <Clock size={12} /> {timeAgo(post.createdAt)}
-              </span>
-              <span className="flex items-center gap-1">
-                <Eye size={12} /> {post.views}
-              </span>
-              <span className="flex items-center gap-1">
-                <MessageSquare size={12} /> {post.commentCount}
-              </span>
-              {post.tags.map((tag) => (
-                <span key={tag} className="rounded-full bg-white/10 px-2 py-0.5 text-[10px]">
-                  {tag}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Body */}
-          <div className="flex flex-col gap-4 p-4 sm:flex-row sm:p-6">
-            {/* Author sidebar */}
-            <div className="flex shrink-0 items-start gap-3 sm:w-40 sm:flex-col sm:items-center sm:text-center">
-              {post.author.uuid ? (
-                // eslint-disable-next-line @next/next/no-img-element -- avatar externo (mc-heads.net)
-                <img
-                  src={`https://mc-heads.net/avatar/${post.author.uuid}/64`}
-                  alt={post.author.username}
-                  className="h-14 w-14 rounded-lg sm:h-16 sm:w-16"
-                />
-              ) : (
-                <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-white/10 text-xl font-bold text-white sm:h-16 sm:w-16">
-                  {post.author.username[0]?.toUpperCase()}
+            {editing ? (
+              <form onSubmit={saveEdit} className="space-y-4">
+                <div>
+                  <label htmlFor="edit-titulo" className="mb-1 block text-sm font-medium text-[#A0A0A0]">
+                    Título
+                  </label>
+                  <input
+                    id="edit-titulo"
+                    type="text"
+                    value={editTitle}
+                    maxLength={TITLE_MAX}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className={inputClass}
+                    required
+                  />
                 </div>
-              )}
-              <div>
-                <p className="font-bold text-white">{post.author.username}</p>
-                {ROLE_LABELS[post.author.role] && (
-                  <span className="mt-0.5 inline-block rounded bg-yellow-500/20 px-1.5 py-0.5 text-[10px] font-bold text-yellow-500">
-                    {ROLE_LABELS[post.author.role]}
+                <MarkdownEditor value={editContent} onChange={setEditContent} minLength={CONTENT_MIN} maxLength={CONTENT_MAX} rows={10} />
+                <div>
+                  <label htmlFor="edit-tags" className="mb-1 block text-sm font-medium text-[#A0A0A0]">
+                    Tags (separadas por vírgula)
+                  </label>
+                  <input id="edit-tags" type="text" value={editTags} onChange={(e) => setEditTags(e.target.value)} className={inputClass} />
+                </div>
+                {editError && <ApiError error={editError.error} code={editError.code} />}
+                <div className="flex justify-end gap-2">
+                  <button type="button" onClick={() => setEditing(false)} className={secondaryButtonClass}>
+                    <X size={14} /> Cancelar
+                  </button>
+                  <button type="submit" disabled={saving || editContent.trim().length < CONTENT_MIN || !editTitle.trim()} className={primaryButtonClass}>
+                    {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Salvar
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <>
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <TopicStatusIcons topic={post} size={16} />
+                  <h1 className="text-xl font-bold text-white sm:text-2xl">{post.title}</h1>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#A0A0A0]">
+                  <span className="flex items-center gap-1" title={fullDate(post.createdAt)}>
+                    <Clock size={12} /> <When date={post.createdAt} />
                   </span>
-                )}
-                <p className="mt-1 text-[10px] text-[#A0A0A0]">
-                  {badge.label} ({post.author.reputation ?? 0})
-                </p>
-                <p className="text-[10px] text-[#A0A0A0]">
-                  {post.author.postCount ?? 0} posts · {post.author.commentCount ?? 0} comentários
-                </p>
-              </div>
-            </div>
-
-            {/* Content */}
-            <div className="min-w-0 flex-1">
-              <div
-                className="prose-invert max-w-none text-sm leading-relaxed text-[#E0E0E0]"
-                dangerouslySetInnerHTML={{ __html: renderContent(post.content) }}
-              />
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex flex-wrap items-center gap-2 border-t border-white/10 px-4 py-3 sm:px-6">
-            <button
-              onClick={() => handleReaction("LIKE", post.id)}
-              disabled={!session?.user}
-              className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-[#A0A0A0] transition-colors hover:bg-white/5 hover:text-green-cs disabled:opacity-40"
-            >
-              <ThumbsUp size={14} /> Curtir
-            </button>
-            <button
-              onClick={() => handleReaction("DISLIKE", post.id)}
-              disabled={!session?.user}
-              className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-[#A0A0A0] transition-colors hover:bg-white/5 hover:text-error disabled:opacity-40"
-            >
-              <ThumbsDown size={14} /> Descurtir
-            </button>
-            <button
-              onClick={handleCopyLink}
-              className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-[#A0A0A0] transition-colors hover:bg-white/5 hover:text-white"
-            >
-              <Share2 size={14} /> {copied ? "Copiado!" : "Compartilhar"}
-            </button>
-            {session?.user && (
-              <button className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-[#A0A0A0] transition-colors hover:bg-white/5 hover:text-warning">
-                <Flag size={14} /> Reportar
-              </button>
+                  {post.editedAt && <span title={fullDate(post.editedAt)}>editado</span>}
+                  <span className="flex items-center gap-1">
+                    <Eye size={12} /> {post.views}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <MessageSquare size={12} /> {post.commentCount}
+                  </span>
+                  {post.tags.map((tag) => (
+                    <Tag key={tag} tag={tag} categorySlug={post.category.slug} />
+                  ))}
+                </div>
+              </>
             )}
           </div>
-        </motion.div>
+
+          {!editing && (
+            <div className="flex flex-col gap-4 p-4 sm:flex-row sm:p-6">
+              {/* Autor */}
+              <aside className="flex shrink-0 items-start gap-3 sm:w-40 sm:flex-col sm:items-center sm:text-center">
+                <Link href={`/comunidade/membro/${post.author.username}`} aria-label={`Perfil de ${post.author.username}`}>
+                  <Avatar author={post.author} size={64} className="h-14 w-14 rounded-lg sm:h-16 sm:w-16" />
+                </Link>
+                <div>
+                  <AuthorName author={post.author} />
+                  <div className="mt-0.5">
+                    <RoleBadge role={post.author.role} />
+                  </div>
+                  <p className="mt-1 text-[11px] text-[#A0A0A0]" title="Reputação no fórum">
+                    {post.author.badge} · {post.author.reputation} pts
+                  </p>
+                  <p className="text-[11px] text-[#A0A0A0]">
+                    {post.author.postCount} tópicos · {post.author.commentCount} comentários
+                  </p>
+                  {post.author.bio && <p className="mt-2 line-clamp-3 text-[11px] text-[#A0A0A0]">{post.author.bio}</p>}
+                </div>
+              </aside>
+
+              <MarkdownBody html={post.contentHtml} className="min-w-0 flex-1" />
+            </div>
+          )}
+
+          {/* Ações */}
+          {!editing && (
+            <div className="border-t border-white/10 px-4 py-3 sm:px-6">
+              <div className="flex flex-wrap items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => reactToPost("LIKE")}
+                  disabled={!loggedIn}
+                  aria-pressed={post.userReaction === "LIKE"}
+                  className={`${actionButton} ${post.userReaction === "LIKE" ? "text-green-cs" : "text-[#A0A0A0] hover:text-green-cs"}`}
+                >
+                  <ThumbsUp size={14} /> Curtir {post.likes > 0 && `(${post.likes})`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => reactToPost("DISLIKE")}
+                  disabled={!loggedIn}
+                  aria-pressed={post.userReaction === "DISLIKE"}
+                  className={`${actionButton} ${post.userReaction === "DISLIKE" ? "text-error" : "text-[#A0A0A0] hover:text-error"}`}
+                >
+                  <ThumbsDown size={14} /> Descurtir {post.dislikes > 0 && `(${post.dislikes})`}
+                </button>
+                <button type="button" onClick={copyLink} className={`${actionButton} text-[#A0A0A0] hover:text-white`}>
+                  <Share2 size={14} /> {copied ? "Link copiado" : "Compartilhar"}
+                </button>
+                {loggedIn && !isReport && (
+                  <button type="button" onClick={reportPost} className={`${actionButton} text-[#A0A0A0] hover:text-warning`}>
+                    <Flag size={14} /> Reportar
+                  </button>
+                )}
+
+                <span className="flex-1" />
+
+                {post.can.resolve && (
+                  <button
+                    type="button"
+                    onClick={() => updatePost("resolve", { resolved: !post.resolved })}
+                    disabled={!!busyAction}
+                    className={`${actionButton} ${post.resolved ? "text-green-cs" : "text-[#A0A0A0] hover:text-green-cs"}`}
+                  >
+                    <CheckCircle size={14} /> {post.resolved ? "Resolvido" : isReport ? "Encerrar denúncia" : "Marcar resolvido"}
+                  </button>
+                )}
+                {post.can.edit && (
+                  <button type="button" onClick={startEdit} className={`${actionButton} text-[#A0A0A0] hover:text-white`}>
+                    <Pencil size={14} /> Editar
+                  </button>
+                )}
+                {post.can.delete && (
+                  <button type="button" onClick={deletePost} disabled={!!busyAction} className={`${actionButton} text-[#A0A0A0] hover:text-error`}>
+                    <Trash2 size={14} /> Excluir
+                  </button>
+                )}
+              </div>
+
+              {post.can.moderate && (
+                <div className="mt-2 flex flex-wrap items-center gap-1 border-t border-dashed border-white/10 pt-2">
+                  <span className="flex items-center gap-1 pr-2 text-[11px] font-bold uppercase tracking-wide text-warning">
+                    <ShieldCheck size={12} /> Moderação
+                  </span>
+                  <button type="button" onClick={() => updatePost("pin", { pinned: !post.pinned })} disabled={!!busyAction} className={`${actionButton} text-[#A0A0A0] hover:text-white`}>
+                    <Pin size={14} /> {post.pinned ? "Desafixar" : "Fixar"}
+                  </button>
+                  <button type="button" onClick={() => updatePost("lock", { locked: !post.locked })} disabled={!!busyAction} className={`${actionButton} text-[#A0A0A0] hover:text-white`}>
+                    {post.locked ? <Unlock size={14} /> : <Lock size={14} />} {post.locked ? "Reabrir" : "Fechar"}
+                  </button>
+                  <button type="button" onClick={() => updatePost("private", { private: !post.private })} disabled={!!busyAction} className={`${actionButton} text-[#A0A0A0] hover:text-white`}>
+                    {post.private ? <Eye size={14} /> : <EyeOff size={14} />} {post.private ? "Tornar público" : "Tornar privado"}
+                  </button>
+                  <button type="button" onClick={openMove} disabled={!!busyAction} className={`${actionButton} text-[#A0A0A0] hover:text-white`}>
+                    <FolderInput size={14} /> Mover
+                  </button>
+                  {busyAction && <Loader2 size={14} className="animate-spin text-[#A0A0A0]" />}
+                </div>
+              )}
+
+              {moveOpen && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    setMoveOpen(false);
+                    if (moveTo && moveTo !== post.category.id) updatePost("move", { categoryId: moveTo });
+                  }}
+                  className="mt-3 flex flex-wrap items-center gap-2"
+                >
+                  <label htmlFor="mover-para" className="text-xs text-[#A0A0A0]">
+                    Mover para
+                  </label>
+                  <select id="mover-para" value={moveTo} onChange={(e) => setMoveTo(e.target.value)} className="rounded-lg border border-white/20 bg-bg-card/50 px-3 py-1.5 text-sm text-white focus:border-green-cs focus:outline-none">
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id} className="bg-bg-primary">
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button type="submit" className={primaryButtonClass}>
+                    Mover
+                  </button>
+                  <button type="button" onClick={() => setMoveOpen(false)} className={secondaryButtonClass}>
+                    Cancelar
+                  </button>
+                </form>
+              )}
+
+              {actionError && (
+                <div className="mt-3">
+                  <ApiError error={actionError.error} code={actionError.code} />
+                </div>
+              )}
+            </div>
+          )}
+        </motion.article>
 
         {/* Comentários */}
-        <div className="mt-8">
+        <section className="mt-8" aria-label="Comentários">
           <h2 className="mb-4 text-lg font-bold text-white">
-            Comentários ({post.commentCount})
+            Comentários <span className="text-sm font-normal text-[#A0A0A0]">({post.commentCount})</span>
           </h2>
 
           <div className="space-y-3">
@@ -359,81 +638,65 @@ export function TopicoContent({
                 key={comment.id}
                 comment={comment}
                 index={i}
-                session={session}
-                onReply={(id) => { setReplyingTo(id); }}
-                onReaction={handleReaction}
+                loggedIn={loggedIn}
+                highlightId={highlightId}
+                onReply={startReply}
+                onReaction={reactToComment}
+                onEdit={editComment}
+                onDelete={deleteComment}
+                onReport={reportComment}
               />
             ))}
 
             {comments.length === 0 && (
               <p className="py-8 text-center text-sm text-[#A0A0A0]">
-                Nenhum comentário ainda. Seja o primeiro!
+                {post.can.comment ? "Nenhum comentário ainda. Seja a primeira pessoa a responder." : "Nenhum comentário."}
               </p>
             )}
           </div>
 
-          {/* Comment Pagination */}
-          {commentPagination.totalPages > 1 && (
-            <div className="mt-4 flex items-center justify-center gap-2">
-              <button
-                onClick={() => fetchComments(commentPagination.page - 1)}
-                disabled={commentPagination.page <= 1}
-                className="rounded-lg border border-white/10 p-2 text-[#A0A0A0] transition-colors hover:text-white disabled:opacity-30"
-              >
-                <ChevronLeft size={18} />
-              </button>
-              <span className="px-3 text-sm text-[#A0A0A0]">
-                {commentPagination.page} / {commentPagination.totalPages}
-              </span>
-              <button
-                onClick={() => fetchComments(commentPagination.page + 1)}
-                disabled={commentPagination.page >= commentPagination.totalPages}
-                className="rounded-lg border border-white/10 p-2 text-[#A0A0A0] transition-colors hover:text-white disabled:opacity-30"
-              >
-                <ChevronRight size={18} />
-              </button>
-            </div>
-          )}
-        </div>
+          <Paginator page={pagination.page} totalPages={pagination.totalPages} onChange={(p) => fetchComments(post.id, p)} />
+        </section>
 
-        {/* Reply form */}
-        {!post.locked && session?.user ? (
+        {/* Responder */}
+        {loggedIn && post.can.comment ? (
           <motion.form
+            ref={replyFormRef}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            onSubmit={handleSubmitComment}
-            className="mt-8 rounded-xl border border-white/10 bg-bg-card/50 p-4"
+            onSubmit={submitComment}
+            className="mt-8 scroll-mt-24 rounded-xl border border-white/10 bg-bg-card/50 p-4"
           >
+            {post.locked && (
+              <p className="mb-3 text-xs text-warning">Tópico fechado: só a moderação pode comentar.</p>
+            )}
             {replyingTo && (
-              <div className="mb-3 flex items-center gap-2 text-xs text-[#A0A0A0]">
+              <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-[#A0A0A0]">
                 <Reply size={14} />
-                <span>Respondendo a um comentário</span>
-                <button
-                  type="button"
-                  onClick={() => setReplyingTo(null)}
-                  className="text-error hover:underline"
-                >
+                <span>
+                  Respondendo a <span className="font-bold text-white">{replyingTo.author.username}</span>
+                </span>
+                <button type="button" onClick={() => setReplyingTo(null)} className="text-error hover:underline">
                   Cancelar
                 </button>
               </div>
             )}
-            <textarea
+            <MarkdownEditor
               value={replyContent}
-              onChange={(e) => setReplyContent(e.target.value)}
-              placeholder="Escreva sua resposta..."
+              onChange={setReplyContent}
+              minLength={COMMENT_MIN}
+              maxLength={COMMENT_MAX}
               rows={4}
-              className="w-full resize-y rounded-lg border border-white/20 bg-bg-primary/50 px-4 py-2.5 text-sm text-white placeholder:text-white/40 focus:border-green-cs focus:outline-none"
-              required
-              minLength={2}
-              maxLength={5000}
+              placeholder="Escreva sua resposta..."
+              label={replyingTo ? "Sua resposta ao comentário" : "Sua resposta"}
             />
-            {submitError && <p className="mt-2 text-sm text-error">{submitError}</p>}
+            {submitError && (
+              <div className="mt-2">
+                <ApiError error={submitError.error} code={submitError.code} />
+              </div>
+            )}
             <div className="mt-3 flex justify-end">
-              <button
-                type="submit"
-                disabled={submitting || replyContent.trim().length < 2}
-                className="flex items-center gap-2 rounded-lg bg-green-cs px-5 py-2 text-sm font-bold text-white transition-all hover:bg-green-dark disabled:opacity-50"
-              >
+              <button type="submit" disabled={submitting || replyContent.trim().length < COMMENT_MIN} className={primaryButtonClass}>
                 {submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                 Responder
               </button>
@@ -441,119 +704,27 @@ export function TopicoContent({
           </motion.form>
         ) : post.locked ? (
           <div className="mt-8 rounded-xl border border-white/10 bg-bg-card/30 p-4 text-center text-sm text-[#A0A0A0]">
-            <Lock size={16} className="mx-auto mb-2" />
+            <Lock size={16} className="mx-auto mb-2" aria-hidden="true" />
             Este tópico está fechado para novos comentários.
           </div>
         ) : (
           <div className="mt-8 rounded-xl border border-white/10 bg-bg-card/30 p-4 text-center text-sm text-[#A0A0A0]">
-            <Link href="/login" className="text-green-cs hover:underline">Faça login</Link> para participar da discussão.
+            <Link href={`/login?redirect=/comunidade/${post.category.slug}/${post.slug}`} className="text-green-cs hover:underline">
+              Faça login
+            </Link>{" "}
+            para participar da discussão.
           </div>
         )}
       </div>
+
+      <NewTopicDialog
+        open={report !== null}
+        onClose={() => setReport(null)}
+        defaultCategorySlug={REPORTS_CATEGORY_SLUG}
+        initialTitle={report?.title}
+        initialContent={report?.content}
+        role={session?.user?.role}
+      />
     </>
-  );
-}
-
-function CommentCard({
-  comment,
-  index,
-  session,
-  onReply,
-  onReaction,
-  isReply = false,
-}: {
-  comment: CommentData;
-  index: number;
-  session: ReturnType<typeof useSession>["data"];
-  onReply: (id: string) => void;
-  onReaction: (type: "LIKE" | "DISLIKE", postId?: string, commentId?: string) => void;
-  isReply?: boolean;
-}) {
-  const roleLabel = ROLE_LABELS[comment.author.role];
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.02 }}
-      className={`rounded-xl border border-white/10 bg-bg-card/40 ${isReply ? "ml-8 border-l-2 border-l-white/20" : ""}`}
-    >
-      <div className="flex gap-3 p-4">
-        {/* Author avatar */}
-        {comment.author.uuid ? (
-          // eslint-disable-next-line @next/next/no-img-element -- avatar externo (mc-heads.net)
-          <img
-            src={`https://mc-heads.net/avatar/${comment.author.uuid}/32`}
-            alt={comment.author.username}
-            className="h-8 w-8 shrink-0 rounded-lg"
-          />
-        ) : (
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10 text-xs font-bold text-white">
-            {comment.author.username[0]?.toUpperCase()}
-          </div>
-        )}
-
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className={`font-bold ${roleLabel ? "text-yellow-500" : "text-white"}`}>
-              {comment.author.username}
-            </span>
-            {roleLabel && (
-              <span className="rounded bg-yellow-500/20 px-1 py-0.5 text-[9px] font-bold text-yellow-500">
-                {roleLabel}
-              </span>
-            )}
-            <span className="text-[#A0A0A0]">{timeAgo(comment.createdAt)}</span>
-          </div>
-
-          <div
-            className="mt-2 text-sm leading-relaxed text-[#E0E0E0]"
-            dangerouslySetInnerHTML={{ __html: renderContent(comment.content) }}
-          />
-
-          <div className="mt-2 flex items-center gap-2">
-            <button
-              onClick={() => onReaction("LIKE", undefined, comment.id)}
-              disabled={!session?.user}
-              className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-[#A0A0A0] transition-colors hover:text-green-cs disabled:opacity-40"
-            >
-              <ThumbsUp size={12} /> {comment.likes > 0 && comment.likes}
-            </button>
-            <button
-              onClick={() => onReaction("DISLIKE", undefined, comment.id)}
-              disabled={!session?.user}
-              className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-[#A0A0A0] transition-colors hover:text-error disabled:opacity-40"
-            >
-              <ThumbsDown size={12} /> {comment.dislikes > 0 && comment.dislikes}
-            </button>
-            {!isReply && session?.user && (
-              <button
-                onClick={() => onReply(comment.id)}
-                className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-[#A0A0A0] transition-colors hover:text-white"
-              >
-                <Reply size={12} /> Responder
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Nested replies */}
-      {comment.replies && comment.replies.length > 0 && (
-        <div className="space-y-2 px-4 pb-3">
-          {comment.replies.map((reply, j) => (
-            <CommentCard
-              key={reply.id}
-              comment={reply}
-              index={j}
-              session={session}
-              onReply={onReply}
-              onReaction={onReaction}
-              isReply
-            />
-          ))}
-        </div>
-      )}
-    </motion.div>
   );
 }

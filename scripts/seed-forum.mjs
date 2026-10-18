@@ -63,6 +63,17 @@ const CATEGORIES = [
     order: 7,
     staff_only: false,
   },
+  // Denúncias de jogadores e de conteúdo do fórum. O slug é fixo
+  // (REPORTS_CATEGORY_SLUG em src/lib/forum/constants.ts): o botão Reportar
+  // abre um tópico aqui. Nascem públicas; a moderação pode torná-las privadas.
+  {
+    name: "Denúncias",
+    slug: "denuncias",
+    description: "Denuncie jogadores ou conteúdo que quebre as regras. A moderação acompanha e responde aqui",
+    icon: "Flag",
+    order: 8,
+    staff_only: false,
+  },
 ];
 
 async function seed() {

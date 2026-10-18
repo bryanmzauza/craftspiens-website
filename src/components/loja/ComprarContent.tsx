@@ -79,6 +79,8 @@ export function ComprarContent({ slug }: { slug: string }) {
 
   // CPF de quem paga: o salvo na conta aparece mascarado; "editingCpf" pede um novo
   const [savedCpf, setSavedCpf] = useState<string | null>(null);
+  // Data de nascimento registrada (contas do Google entram sem ela)
+  const [birthDateMissing, setBirthDateMissing] = useState(false);
   const [editingCpf, setEditingCpf] = useState(false);
   const [cpf, setCpf] = useState("");
 
@@ -137,6 +139,7 @@ export function ComprarContent({ slug }: { slug: string }) {
         if (!active || !data) return;
         setSavedCpf(data.payerCpf ?? null);
         setEditingCpf(!data.payerCpf);
+        setBirthDateMissing(data.birthDate == null);
       })
       .catch(() => {
         if (active) setEditingCpf(true);
@@ -393,6 +396,22 @@ export function ComprarContent({ slug }: { slug: string }) {
                   </p>
                   <Link href="/perfil/configuracoes" className="mt-2 inline-block font-bold text-error hover:underline">
                     Ir para Contas vinculadas
+                  </Link>
+                </div>
+              </div>
+            )}
+
+            {/* Sem data de nascimento */}
+            {birthDateMissing && (
+              <div className="flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/5 p-4">
+                <UserX size={20} className="mt-0.5 shrink-0 text-warning" />
+                <div className="text-sm">
+                  <p className="font-bold text-white">Informe sua data de nascimento para comprar</p>
+                  <p className="mt-1 text-[#A0A0A0]">
+                    Ela é obrigatória para todas as contas e fica em Configurações &gt; Dados pessoais.
+                  </p>
+                  <Link href="/perfil/configuracoes" className="mt-2 inline-block font-bold text-warning hover:underline">
+                    Ir para Dados pessoais
                   </Link>
                 </div>
               </div>
@@ -668,7 +687,7 @@ export function ComprarContent({ slug }: { slug: string }) {
               <button
                 type="button"
                 onClick={submit}
-                disabled={processing || !cpfReady || !termsAccepted || !hasNick || accountMissing || !product.inStock}
+                disabled={processing || !cpfReady || !termsAccepted || !hasNick || accountMissing || birthDateMissing || !product.inStock}
                 className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-green-cs py-3 text-sm font-bold uppercase text-white transition-all hover:bg-green-dark disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {processing ? (

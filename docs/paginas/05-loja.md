@@ -71,7 +71,7 @@ Definido em `scripts/seed-loja.mjs` (`npm run db:seed:loja`). Benefícios dos pl
 
 ### RN-LOJA-02: Compra (`/loja/comprar/[slug]`)
 - Resumo do produto e benefícios; aviso de para qual nick a entrega vai.
-- Exigências: nick vinculado (`SemNick`), conta do jogo existente no nLogin (`ContaJogoNaoEncontrada`; `GET /api/loja/conta-jogo` mostra nick e edição Java ou Bedrock antes de pagar), e-mail confirmado (`EmailNaoVerificado`), CPF válido de quem paga (`CpfObrigatorio`/`CpfInvalido`; fica salvo em `users.payer_cpf`), aceite dos termos (16 anos ou responsável).
+- Exigências: nick vinculado (`SemNick`), conta do jogo existente no nLogin (`ContaJogoNaoEncontrada`; `GET /api/loja/conta-jogo` mostra nick e edição Java ou Bedrock antes de pagar), e-mail confirmado (`EmailNaoVerificado`), data de nascimento registrada (`SemIdade`), CPF válido de quem paga (`CpfObrigatorio`/`CpfInvalido`; fica salvo em `users.payer_cpf`), aceite dos termos (16 anos ou responsável).
 - Cupom percentual (`POST /api/cupons/validar`).
 - Planos mensais com combo: opção "Adicionar os cosméticos" troca o produto do pedido entre o plano e o combo, sem sair da página.
 - Forma de pagamento: **Pix** (recomendado, sem juros) ou **Cartão** (Mercado Pago, à vista ou até 3x com juros).

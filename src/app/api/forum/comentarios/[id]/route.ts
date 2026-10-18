@@ -1,71 +1,85 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { getSessionUser, requireWriter } from "@/lib/forum/access";
+import { canDelete, canEdit, canViewPost, isStaff } from "@/lib/forum/permissions";
+import { extractMentions, renderMarkdown } from "@/lib/forum/markdown";
+import { notify, notifyMentions } from "@/lib/forum/notifications";
+import { COMMENT_MAX, COMMENT_MIN } from "@/lib/forum/constants";
 
-// PUT /api/forum/comentarios/[id] — Editar comentário (autor dentro de 30min ou staff)
+// PUT /api/forum/comentarios/[id] — Editar comentário (autor em até 30 min ou moderação)
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-  }
+  const access = await requireWriter();
+  if ("error" in access) return access.error;
+  const { user } = access;
 
   const { id } = await params;
 
   const comment = await prisma.comment.findUnique({
     where: { id },
-    select: { id: true, authorId: true, createdAt: true },
+    select: {
+      id: true,
+      authorId: true,
+      createdAt: true,
+      content: true,
+      postId: true,
+      post: { select: { private: true, authorId: true } },
+    },
   });
 
-  if (!comment) {
+  if (!comment || !canViewPost(comment.post, user)) {
     return NextResponse.json({ error: "Comentário não encontrado" }, { status: 404 });
   }
 
-  const isAuthor = comment.authorId === session.user.id;
-  const isStaff = ["MODERADOR", "ADMIN", "PROFESSOR"].includes(session.user.role);
-
-  if (!isAuthor && !isStaff) {
-    return NextResponse.json({ error: "Sem permissão" }, { status: 403 });
+  if (!canEdit(comment, user)) {
+    return NextResponse.json(
+      { error: "Só o autor, em até 30 minutos, ou a moderação pode editar este comentário" },
+      { status: 403 }
+    );
   }
 
-  if (isAuthor && !isStaff) {
-    const editWindowMs = 30 * 60 * 1000;
-    if (Date.now() - new Date(comment.createdAt).getTime() > editWindowMs) {
-      return NextResponse.json(
-        { error: "O prazo de 30 minutos para edição expirou" },
-        { status: 403 }
-      );
-    }
-  }
-
-  let body: { content?: string };
+  let body: { content?: unknown };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Body JSON inválido" }, { status: 400 });
   }
 
-  if (!body.content || body.content.length < 2 || body.content.length > 5000) {
-    return NextResponse.json({ error: "Conteúdo deve ter entre 2 e 5000 caracteres" }, { status: 400 });
+  const content = typeof body.content === "string" ? body.content.trim() : "";
+  if (content.length < COMMENT_MIN || content.length > COMMENT_MAX) {
+    return NextResponse.json(
+      { error: `Comentário deve ter entre ${COMMENT_MIN} e ${COMMENT_MAX} caracteres` },
+      { status: 400 }
+    );
   }
 
-  await prisma.comment.update({
+  const updated = await prisma.comment.update({
     where: { id },
-    data: { content: body.content },
+    data: { content, editedAt: new Date() },
+    select: { content: true, editedAt: true },
   });
 
-  return NextResponse.json({ success: true });
+  const before = new Set(extractMentions(comment.content).map((n) => n.toLowerCase()));
+  const added = extractMentions(content).filter((n) => !before.has(n.toLowerCase()));
+  await notifyMentions(added, { actorId: user.id, postId: comment.postId, commentId: comment.id });
+
+  return NextResponse.json({
+    success: true,
+    content: updated.content,
+    contentHtml: renderMarkdown(updated.content),
+    editedAt: updated.editedAt,
+  });
 }
 
-// DELETE /api/forum/comentarios/[id] — Deletar comentário (autor sem respostas ou staff)
+// DELETE /api/forum/comentarios/[id] — Excluir comentário (autor sem respostas ou moderação)
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const user = await getSessionUser();
+  if (!user) {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   }
 
@@ -73,28 +87,35 @@ export async function DELETE(
 
   const comment = await prisma.comment.findUnique({
     where: { id },
-    select: { id: true, authorId: true, _count: { select: { replies: true } } },
+    select: {
+      id: true,
+      authorId: true,
+      _count: { select: { replies: true } },
+      post: { select: { private: true, authorId: true, title: true } },
+    },
   });
 
-  if (!comment) {
+  if (!comment || !canViewPost(comment.post, user)) {
     return NextResponse.json({ error: "Comentário não encontrado" }, { status: 404 });
   }
 
-  const isAuthor = comment.authorId === session.user.id;
-  const isStaff = ["MODERADOR", "ADMIN", "PROFESSOR"].includes(session.user.role);
-
-  if (!isAuthor && !isStaff) {
-    return NextResponse.json({ error: "Sem permissão" }, { status: 403 });
-  }
-
-  if (isAuthor && !isStaff && comment._count.replies > 0) {
+  if (!canDelete({ authorId: comment.authorId, replyCount: comment._count.replies }, user)) {
     return NextResponse.json(
-      { error: "Não é possível excluir um comentário que já possui respostas" },
+      { error: "Só é possível excluir um comentário sem respostas; a moderação pode excluir qualquer comentário" },
       { status: 403 }
     );
   }
 
   await prisma.comment.delete({ where: { id } });
+
+  if (comment.authorId !== user.id && isStaff(user.role)) {
+    await notify({
+      userId: comment.authorId,
+      type: "MODERATION",
+      actorId: user.id,
+      message: `Seu comentário em "${comment.post.title}" foi removido pela moderação`.slice(0, 255),
+    });
+  }
 
   return NextResponse.json({ success: true });
 }

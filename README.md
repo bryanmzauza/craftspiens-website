@@ -85,6 +85,7 @@ npm run start
 # Verificações
 npm run typecheck
 npm run lint
+npm test
 ```
 
 O site estará disponível em [http://localhost:3000](http://localhost:3000).
@@ -99,6 +100,10 @@ O site estará disponível em [http://localhost:3000](http://localhost:3000).
 | `npm run aulas:youtube` | Atualiza a lista de vídeos e lives do canal no YouTube (`scripts/data/youtube-videos.json`, requer o yt-dlp) |
 | `npm run aulas:atualizar` | `aulas:youtube` seguido de `db:seed:aulas`; usado pela atualização automática em produção |
 | `npm run db:migrate-v13` | Migração única dos dados antigos do MariaDB para o PostgreSQL (use `-- --dry-run` antes) |
+
+### Testes
+
+`npm test` roda os testes unitários (Vitest) das regras do fórum em `src/lib/forum/*.test.ts`: funções puras, sem banco nem navegador. Configuração em `vitest.config.mts`.
 
 ---
 

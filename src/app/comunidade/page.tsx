@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { ComunidadeContent } from "@/components/comunidade/ComunidadeContent";
 
 export const metadata: Metadata = {
@@ -7,6 +8,11 @@ export const metadata: Metadata = {
     "Participe da comunidade CraftSapiens. Discuta, tire dúvidas e compartilhe suas conquistas com outros alunos e professores do Minecraft educacional.",
 };
 
+// Suspense: a página lê a busca da URL (useSearchParams) no cliente
 export default function ComunidadePage() {
-  return <ComunidadeContent />;
+  return (
+    <Suspense>
+      <ComunidadeContent />
+    </Suspense>
+  );
 }

@@ -4,7 +4,8 @@ import { prisma } from "@/lib/prisma"
 import { getNloginById } from "@/lib/nlogin"
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit"
 import { isPlaceholderEmail } from "@/lib/email-verification"
-import { maskCpf } from "@/lib/cpf"
+import { isValidCpf, maskCpf, normalizeCpf } from "@/lib/cpf"
+import { isAtLeastMinAge, MIN_AGE, parseBirthDate } from "@/lib/birth-date"
 import { getPlayerRank } from "@/lib/luckperms"
 import { getPlayerSkin, getSeniority } from "@/lib/player-profile"
 
@@ -117,8 +118,40 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Bio deve ter no máximo 500 caracteres." }, { status: 400 })
   }
 
+  const userUpdates: Record<string, unknown> = {}
+
+  // Data de nascimento: contas do Google entram sem ela; pode ser informada uma
+  // vez e depois não muda (mesma regra do cadastro: pelo menos 13 anos)
+  if (body.birthDate !== undefined) {
+    const current = await prisma.user.findUnique({ where: { id: session.user.id }, select: { birthDate: true } })
+    if (current?.birthDate) {
+      return NextResponse.json({ error: "A data de nascimento não pode ser alterada depois de registrada." }, { status: 400 })
+    }
+    const birth = parseBirthDate(body.birthDate)
+    if (!birth) {
+      return NextResponse.json({ error: "Data de nascimento inválida." }, { status: 400 })
+    }
+    if (!isAtLeastMinAge(birth)) {
+      return NextResponse.json({ error: `Você precisa ter pelo menos ${MIN_AGE} anos para usar a plataforma.` }, { status: 400 })
+    }
+    userUpdates.birthDate = birth
+  }
+
+  // CPF de quem paga as compras (o aluno ou um responsável); também pode ser informado na compra
+  if (body.payerCpf !== undefined) {
+    const cpf = typeof body.payerCpf === "string" ? normalizeCpf(body.payerCpf) : ""
+    if (!isValidCpf(cpf)) {
+      return NextResponse.json({ error: "CPF inválido. Confira os números." }, { status: 400 })
+    }
+    userUpdates.payerCpf = cpf
+  }
+
   const profileUpdates: Record<string, unknown> = {}
   if (bio !== undefined) profileUpdates.bio = bio
+
+  if (Object.keys(userUpdates).length > 0) {
+    await prisma.user.update({ where: { id: session.user.id }, data: userUpdates })
+  }
 
   if (Object.keys(profileUpdates).length > 0) {
     await prisma.profile.update({

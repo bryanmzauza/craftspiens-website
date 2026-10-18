@@ -6,6 +6,7 @@ import { createCardCheckout, createPixPayment } from "@/lib/mercadopago";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit";
 import { isUnlimitedStock } from "@/lib/products";
 import { isValidCpf, normalizeCpf } from "@/lib/cpf";
+import { hasAcceptedCurrentTerms } from "@/lib/terms";
 
 // POST /api/loja/pedidos — cria o pedido de UM produto e o pagamento correspondente.
 // Body: { slug, method: "pix" | "cartao", couponCode?, cpf? }
@@ -68,11 +69,25 @@ export async function POST(request: Request) {
   // UUID e se é Java ou Bedrock). CPF de quem paga (o aluno ou um responsável)
   // fica salvo na conta e pode ser trocado em qualquer compra.
   const [account, game] = await Promise.all([
-    prisma.user.findUnique({ where: { id: session.user.id }, select: { email: true, payerCpf: true } }),
+    prisma.user.findUnique({ where: { id: session.user.id }, select: { email: true, payerCpf: true, birthDate: true, termsVersion: true } }),
     getGameAccount(session.user.nloginId),
   ]);
   if (!account) {
     return NextResponse.json({ error: "Conta não encontrada." }, { status: 404 });
+  }
+  // Aceite da versão vigente dos Termos e da Política de Privacidade
+  if (!hasAcceptedCurrentTerms(account.termsVersion)) {
+    return NextResponse.json(
+      { error: "Aceite os Termos e Condições e a Política de Privacidade para comprar.", code: "TermosNaoAceitos" },
+      { status: 403 }
+    );
+  }
+  // Data de nascimento registrada (contas do Google entram sem ela)
+  if (account.birthDate == null) {
+    return NextResponse.json(
+      { error: "Informe sua data de nascimento em Configurações > Dados pessoais para comprar.", code: "SemIdade" },
+      { status: 403 }
+    );
   }
   if (!game) {
     return NextResponse.json(
