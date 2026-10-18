@@ -7,6 +7,14 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.21.1] — 18/10/2026 — Correção do deploy: dependências de teste
+
+### Corrigido
+
+- `npm ci` falhava no servidor (`ERESOLVE`): o Vitest 5 exige `@types/node` 22 ou mais recente e o projeto fixava a 20. `@types/node` passa a `^22`, a mesma linha do Node da produção; a instalação resolve sem `--legacy-peer-deps`
+
+---
+
 ## [v0.21] — 18/10/2026 — Fórum da comunidade pronto para uso
 
 ### Adicionado
