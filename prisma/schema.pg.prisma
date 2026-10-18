@@ -15,40 +15,71 @@ datasource db {
 }
 
 model User {
-  id              String    @id @default(cuid())
+  id               String    @id @default(cuid())
   // Conta do jogo (tabela nlogin no MariaDB). Nulo em contas criadas pelo Google
   // que ainda não vincularam um nick do Minecraft.
-  nloginId        Int?      @unique @map("nlogin_id")
+  nloginId         Int?      @unique @map("nlogin_id")
   // Nome exibido enquanto a conta não tem nick vinculado (ex.: nome da conta Google)
-  displayName     String?   @map("display_name") @db.VarChar(100)
-  email           String    @unique
+  displayName      String?   @map("display_name") @db.VarChar(100)
+  email            String    @unique
   // Preenchido quando o usuário confirma o e-mail com o código enviado (contas do
   // Google já entram verificadas). Sem verificação, a conta não usa a plataforma.
-  emailVerifiedAt DateTime? @map("email_verified_at")
+  emailVerifiedAt  DateTime? @map("email_verified_at")
   // CPF de quem paga as compras (o aluno ou um responsável), só dígitos
-  payerCpf        String?   @map("payer_cpf") @db.VarChar(11)
-  role            Role      @default(ALUNO)
-  birthDate       DateTime? @map("birth_date") @db.Date
-  deactivatedAt   DateTime? @map("deactivated_at")
+  payerCpf         String?   @map("payer_cpf") @db.VarChar(11)
+  role             Role      @default(ALUNO)
+  birthDate        DateTime? @map("birth_date") @db.Date
+  deactivatedAt    DateTime? @map("deactivated_at")
   // Incrementado ao trocar/redefinir a senha ou desativar a conta: invalida as sessões abertas
-  sessionVersion  Int       @default(0) @map("session_version")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  sessionVersion   Int       @default(0) @map("session_version")
+  // Banimento do fórum (RN-FORUM-07): nulo = não banido; data no futuro = banido até
+  // essa data; data muito distante (ano 9999) = permanente. Só leitura enquanto banido.
+  forumBannedUntil DateTime? @map("forum_banned_until")
+  forumBanReason   String?   @map("forum_ban_reason") @db.VarChar(255)
+  forumBannedById  String?   @map("forum_banned_by_id")
+  // Aceite dos Termos e da Política de Privacidade: versão vigente em
+  // src/lib/terms.ts. Versão diferente = precisa aceitar de novo. O histórico
+  // completo, com IP e navegador, fica em terms_acceptances.
+  termsVersion     String?   @map("terms_version") @db.VarChar(20)
+  termsAcceptedAt  DateTime? @map("terms_accepted_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
 
   profile             Profile?
   orders              Order[]
   posts               Post[]
   comments            Comment[]
   reactions           Reaction[]
-  reports             Report[]
+  notifications       Notification[]       @relation("NotificationUser")
+  notificationsSent   Notification[]       @relation("NotificationActor")
+  forumBannedBy       User?                @relation("ForumBannedBy", fields: [forumBannedById], references: [id], onDelete: SetNull)
+  forumBansApplied    User[]               @relation("ForumBannedBy")
   blogPosts           BlogPost[]
   passwordResetTokens PasswordResetToken[]
   deliveries          Delivery[]
   linkedAccounts      LinkedAccount[]
   emailVerifications  EmailVerification[]
   lessonProgress      UserLessonProgress[]
+  termsAcceptances    TermsAcceptance[]
 
   @@map("users")
+}
+
+// Registro de cada aceite dos Termos e da Política de Privacidade (LGPD):
+// quem, qual versão, quando, de onde e por qual caminho (cadastro ou formulário)
+model TermsAcceptance {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  version    String   @db.VarChar(20)
+  acceptedAt DateTime @default(now()) @map("accepted_at")
+  ip         String?  @db.VarChar(45)
+  userAgent  String?  @map("user_agent") @db.VarChar(255)
+  source     String   @db.VarChar(20)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, acceptedAt])
+  @@map("terms_acceptances")
 }
 
 enum Role {
@@ -199,44 +230,55 @@ model ForumCategory {
 }
 
 model Post {
-  id             String   @id @default(cuid())
-  title          String   @db.VarChar(255)
-  slug           String   @unique @db.VarChar(300)
-  content        String   @db.Text
-  authorId       String   @map("author_id")
-  categoryId     String   @map("category_id")
-  pinned         Boolean  @default(false)
-  locked         Boolean  @default(false)
-  resolved       Boolean  @default(false)
-  views          Int      @default(0)
-  tags           String?  @db.Text
-  lastActivityAt DateTime @default(now()) @map("last_activity_at")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id             String    @id @default(cuid())
+  title          String    @db.VarChar(255)
+  slug           String    @unique @db.VarChar(300)
+  content        String    @db.Text
+  authorId       String    @map("author_id")
+  categoryId     String    @map("category_id")
+  pinned         Boolean   @default(false)
+  locked         Boolean   @default(false)
+  resolved       Boolean   @default(false)
+  // Tópico privado (denúncias): só o autor e a staff veem; fora das listas e da busca
+  private        Boolean   @default(false)
+  views          Int       @default(0)
+  tags           String?   @db.Text
+  // Última edição do título ou do conteúdo (updatedAt também muda com as views)
+  editedAt       DateTime? @map("edited_at")
+  lastActivityAt DateTime  @default(now()) @map("last_activity_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
-  author    User          @relation(fields: [authorId], references: [id])
-  category  ForumCategory @relation(fields: [categoryId], references: [id])
-  comments  Comment[]
-  reactions Reaction[]
+  author        User           @relation(fields: [authorId], references: [id])
+  category      ForumCategory  @relation(fields: [categoryId], references: [id])
+  comments      Comment[]
+  reactions     Reaction[]
+  notifications Notification[]
 
+  @@index([categoryId, pinned, lastActivityAt])
+  @@index([authorId, createdAt])
   @@map("posts")
 }
 
 model Comment {
-  id        String   @id @default(cuid())
-  content   String   @db.Text
-  authorId  String   @map("author_id")
-  postId    String   @map("post_id")
-  parentId  String?  @map("parent_id")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id        String    @id @default(cuid())
+  content   String    @db.Text
+  authorId  String    @map("author_id")
+  postId    String    @map("post_id")
+  parentId  String?   @map("parent_id")
+  editedAt  DateTime? @map("edited_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
 
-  author    User       @relation(fields: [authorId], references: [id])
-  post      Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
-  parent    Comment?   @relation("CommentReplies", fields: [parentId], references: [id])
-  replies   Comment[]  @relation("CommentReplies")
-  reactions Reaction[]
+  author        User           @relation(fields: [authorId], references: [id])
+  post          Post           @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parent        Comment?       @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies       Comment[]      @relation("CommentReplies")
+  reactions     Reaction[]
+  notifications Notification[]
 
+  @@index([postId, parentId, createdAt])
+  @@index([authorId, createdAt])
   @@map("comments")
 }
 
@@ -261,18 +303,45 @@ enum ReactionType {
   DISLIKE
 }
 
-model Report {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  reason    String   @db.Text
-  postId    String?  @map("post_id")
-  commentId String?  @map("comment_id")
-  resolved  Boolean  @default(false)
-  createdAt DateTime @default(now()) @map("created_at")
+// Notificações do fórum (RN-FORUM-09). As denúncias são tópicos da categoria
+// "denuncias", por isso não há um modelo próprio de denúncia.
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String           @map("user_id")
+  type      NotificationType
+  // Quem causou a notificação (nulo em avisos do sistema, ex.: banimento)
+  actorId   String?          @map("actor_id")
+  postId    String?          @map("post_id")
+  commentId String?          @map("comment_id")
+  // Texto curto para avisos sem tópico (ex.: motivo do banimento)
+  message   String?          @db.VarChar(255)
+  readAt    DateTime?        @map("read_at")
+  createdAt DateTime         @default(now()) @map("created_at")
 
-  user User @relation(fields: [userId], references: [id])
+  user    User     @relation("NotificationUser", fields: [userId], references: [id], onDelete: Cascade)
+  actor   User?    @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  post    Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
-  @@map("reports")
+  @@index([userId, readAt, createdAt])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  // Alguém respondeu ao seu tópico
+  REPLY_TOPIC
+  // Alguém respondeu ao seu comentário
+  REPLY_COMMENT
+  // Seu tópico recebeu uma curtida
+  LIKE_POST
+  // Seu comentário recebeu uma curtida
+  LIKE_COMMENT
+  // Você foi mencionado com @nick
+  MENTION
+  // Aviso da moderação (tópico fechado, movido, banimento)
+  MODERATION
+  // Para a staff: nova denúncia aberta
+  REPORT
 }
 
 // Blog

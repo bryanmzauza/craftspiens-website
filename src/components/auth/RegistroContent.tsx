@@ -123,12 +123,14 @@ export function RegistroContent() {
           email: form.email,
           password: form.password,
           birthdate: form.birthdate,
+          terms: form.terms,
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
+        if (data.code === "NickDoJogo") setUsernameStatus("taken");
         setError(data.error || "Erro ao criar conta.");
         return;
       }
@@ -236,7 +238,13 @@ export function RegistroContent() {
               <p className="mt-1 text-xs text-error">3-16 caracteres: letras, números e _ apenas</p>
             )}
             {usernameStatus === "taken" && (
-              <p className="mt-1 text-xs text-error">Este username já está em uso</p>
+              <p className="mt-1 text-xs text-error">
+                Este nick já existe no servidor. Se ele é seu,{" "}
+                <Link href="/login" className="font-medium underline">
+                  entre com o nick e a senha do jogo
+                </Link>
+                .
+              </p>
             )}
             {usernameStatus === "available" && (
               <p className="mt-1 text-xs text-green-cs">Username disponível!</p>
@@ -363,6 +371,10 @@ export function RegistroContent() {
               Li e concordo com os{" "}
               <Link href="/termos" className="text-green-cs hover:underline" target="_blank">
                 Termos e Condições
+              </Link>{" "}
+              e a{" "}
+              <Link href="/termos#dados-coletados" className="text-green-cs hover:underline" target="_blank">
+                Política de Privacidade
               </Link>{" "}
               e a{" "}
               <Link href="/termos" className="text-green-cs hover:underline" target="_blank">

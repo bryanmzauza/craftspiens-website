@@ -5,6 +5,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { AnimatedBackground } from "@/components/layout/AnimatedBackground";
 import { Providers } from "@/app/providers";
+import { AccountGate } from "@/components/layout/AccountGate";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -55,6 +56,7 @@ export default function RootLayout({
         <Providers>
           <AnimatedBackground />
           <Navbar />
+          <AccountGate />
           <main className="relative z-[1] flex-1">{children}</main>
           <Footer />
         </Providers>

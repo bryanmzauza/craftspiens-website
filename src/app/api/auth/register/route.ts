@@ -10,21 +10,11 @@ import { Prisma } from "@/generated/prisma-pg";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/client-ip";
 import { sendWelcomeEmail } from "@/lib/email";
+import { isAtLeastMinAge, MIN_AGE, parseBirthDate } from "@/lib/birth-date";
+import { TERMS_VERSION } from "@/lib/terms";
 
 const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,16}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-function isAtLeast13(dateStr: string): boolean {
-  const birth = new Date(dateStr);
-  if (isNaN(birth.getTime())) return false;
-  const today = new Date();
-  let age = today.getFullYear() - birth.getFullYear();
-  const monthDiff = today.getMonth() - birth.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-    age--;
-  }
-  return age >= 13;
-}
 
 export async function POST(request: Request) {
   try {
@@ -80,17 +70,35 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!isAtLeast13(birthdate)) {
+    const birth = parseBirthDate(birthdate);
+    if (!birth) {
+      return NextResponse.json({ error: "Data de nascimento inválida." }, { status: 400 });
+    }
+    if (!isAtLeastMinAge(birth)) {
       return NextResponse.json(
-        { error: "Você precisa ter pelo menos 13 anos para se registrar." },
+        { error: `Você precisa ter pelo menos ${MIN_AGE} anos para se registrar.` },
         { status: 400 }
       );
     }
 
+    // Aceite dos Termos e da Política de Privacidade (registrado em terms_acceptances)
+    if (body.terms !== true) {
+      return NextResponse.json(
+        { error: "Você precisa aceitar os Termos e Condições e a Política de Privacidade." },
+        { status: 400 }
+      );
+    }
+
+    // Nick já cadastrado no servidor (tabela nlogin): a conta do site é criada
+    // sozinha no primeiro login com o nick e a senha do jogo. Não se cria outra
+    // conta com o mesmo nick, nem em nome de quem já joga.
     const existingNlogin = await findNloginByUsername(username);
     if (existingNlogin) {
       return NextResponse.json(
-        { error: "Este username já está em uso." },
+        {
+          error: "Este nick já existe no servidor. Se ele é seu, entre com o nick e a senha que você usa no jogo.",
+          code: "NickDoJogo",
+        },
         { status: 409 }
       );
     }
@@ -105,11 +113,22 @@ export async function POST(request: Request) {
 
     const passwordHash = await hashPassword(password);
     const nloginRecord = await createNloginEntry(username, passwordHash);
-    const user = await createUserWithProfile(
-      nloginRecord.id,
-      email,
-      new Date(birthdate)
-    );
+    const user = await createUserWithProfile(nloginRecord.id, email, birth);
+
+    const acceptedAt = new Date();
+    await prisma.$transaction([
+      prisma.termsAcceptance.create({
+        data: {
+          userId: user.id,
+          version: TERMS_VERSION,
+          acceptedAt,
+          ip: ip.slice(0, 45),
+          userAgent: (request.headers.get("user-agent") ?? "").slice(0, 255),
+          source: "cadastro",
+        },
+      }),
+      prisma.user.update({ where: { id: user.id }, data: { termsVersion: TERMS_VERSION, termsAcceptedAt: acceptedAt } }),
+    ]);
 
     // Email de boas-vindas (fire-and-forget)
     sendWelcomeEmail(email, username).catch((err) =>

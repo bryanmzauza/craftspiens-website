@@ -1,17 +1,27 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import {
-  Search,
-  MessageSquare,
-  Users,
-  TrendingUp,
-  Loader2,
-} from "lucide-react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
+import { Search, MessageSquare, Users, MessagesSquare, Loader2, Plus, X, ShieldCheck, Bell, Flag } from "lucide-react";
 import { CategoryIcon } from "@/components/comunidade/CategoryIcon";
+import { NewTopicDialog } from "@/components/comunidade/NewTopicDialog";
+import {
+  api,
+  EmptyState,
+  inputClass,
+  Paginator,
+  primaryButtonClass,
+  secondaryButtonClass,
+  TopicRow,
+  When,
+  type Pagination,
+  type TopicSummary,
+} from "@/components/comunidade/shared";
 import { PageHero } from "@/components/ui/PageHero";
+import { REPORTS_CATEGORY_SLUG } from "@/lib/forum/constants";
 
 interface Category {
   id: string;
@@ -21,64 +31,97 @@ interface Category {
   icon: string | null;
   staffOnly: boolean;
   topicCount: number;
-  lastPost: {
-    title: string;
-    author: string;
-    date: string;
-  } | null;
+  commentCount: number;
+  lastPost: { title: string; slug: string; author: string; date: string } | null;
 }
 
 interface CategoriesResponse {
   categories: Category[];
-  stats: {
-    totalTopics: number;
-    totalMembers: number;
-  };
+  stats: { totalTopics: number; totalComments: number; totalMembers: number };
 }
 
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return "agora";
-  if (minutes < 60) return `${minutes}min`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h atrás`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d atrás`;
-  return new Date(dateStr).toLocaleDateString("pt-BR");
+interface TopicsResponse {
+  topics: TopicSummary[];
+  pagination: Pagination;
 }
 
 export function ComunidadeContent() {
-  const [busca, setBusca] = useState("");
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [stats, setStats] = useState({ totalTopics: 0, totalMembers: 0 });
-  const [loading, setLoading] = useState(true);
+  const { data: session } = useSession();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const busca = searchParams.get("busca") ?? "";
+  const tag = searchParams.get("tag") ?? "";
+  const page = Math.max(1, Number(searchParams.get("pagina") ?? 1) || 1);
 
-  const fetchCategories = useCallback(async () => {
-    try {
-      const res = await fetch("/api/forum/categorias");
-      if (!res.ok) throw new Error();
-      const data: CategoriesResponse = await res.json();
-      setCategories(data.categories);
-      setStats(data.stats);
-    } catch {
-      // Silently fail — show empty state
-    } finally {
+  const [query, setQuery] = useState(busca);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [stats, setStats] = useState({ totalTopics: 0, totalComments: 0, totalMembers: 0 });
+  const [loading, setLoading] = useState(true);
+  const [recent, setRecent] = useState<TopicSummary[]>([]);
+  const [results, setResults] = useState<{ key: string; data: TopicsResponse } | null>(null);
+  const [newTopicOpen, setNewTopicOpen] = useState(false);
+
+  const role = session?.user?.role;
+  const moderator = role === "ADMIN" || role === "MODERADOR";
+  const searchMode = busca.length > 0 || tag.length > 0;
+  const searchKey = `${busca}|${tag}|${page}`;
+  const searching = searchMode && results?.key !== searchKey;
+  const searchResults = results?.key === searchKey ? results.data : null;
+
+  // O campo de busca segue a URL (ajuste de estado durante o render)
+  const [prevBusca, setPrevBusca] = useState(busca);
+  if (prevBusca !== busca) {
+    setPrevBusca(busca);
+    setQuery(busca);
+  }
+
+  useEffect(() => {
+    api<CategoriesResponse>("/api/forum/categorias").then((res) => {
+      if (res.ok) {
+        setCategories(res.data.categories);
+        setStats(res.data.stats);
+      }
       setLoading(false);
-    }
+    });
+    api<TopicsResponse>("/api/forum/topicos?limite=6&ordem=atividade").then((res) => {
+      if (res.ok) setRecent(res.data.topics);
+    });
   }, []);
 
   useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
+    if (!searchMode) return;
+    let cancelled = false;
+    const params = new URLSearchParams({ pagina: String(page) });
+    if (busca) params.set("busca", busca);
+    if (tag) params.set("tag", tag);
+    api<TopicsResponse>(`/api/forum/topicos?${params}`).then((res) => {
+      if (cancelled) return;
+      setResults({
+        key: searchKey,
+        data: res.ok ? res.data : { topics: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 1 } },
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [busca, tag, page, searchMode, searchKey]);
 
-  const filteredCategories = busca.trim()
-    ? categories.filter(
-        (c) =>
-          c.name.toLowerCase().includes(busca.toLowerCase()) ||
-          (c.description ?? "").toLowerCase().includes(busca.toLowerCase())
-      )
-    : categories;
+  const navigate = useCallback(
+    (next: { busca?: string; tag?: string; pagina?: number }) => {
+      const params = new URLSearchParams();
+      if (next.busca) params.set("busca", next.busca);
+      if (next.tag) params.set("tag", next.tag);
+      if (next.pagina && next.pagina > 1) params.set("pagina", String(next.pagina));
+      const qs = params.toString();
+      router.push(qs ? `/comunidade?${qs}` : "/comunidade");
+    },
+    [router]
+  );
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    navigate({ busca: query.trim(), tag });
+  }
 
   return (
     <>
@@ -89,21 +132,43 @@ export function ComunidadeContent() {
       />
 
       <div className="mx-auto max-w-7xl px-4 pb-16 lg:px-6">
-        {/* Busca */}
+        {/* Busca e ações */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center"
         >
-          <div className="relative">
-            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A0A0A0]" />
+          <form onSubmit={handleSearch} className="relative flex-1">
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A0A0A0]" aria-hidden="true" />
             <input
-              type="text"
-              placeholder="Buscar no fórum..."
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              className="w-full rounded-xl border border-white/20 bg-bg-card/50 py-3 pl-10 pr-4 text-sm text-white placeholder:text-white/40 focus:border-green-cs focus:outline-none"
+              type="search"
+              placeholder="Buscar em todo o fórum..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              aria-label="Buscar no fórum"
+              className={`${inputClass} pl-10`}
             />
+          </form>
+          <div className="flex flex-wrap items-center gap-2">
+            {session?.user ? (
+              <>
+                <Link href="/comunidade/notificacoes" className={secondaryButtonClass}>
+                  <Bell size={16} /> Notificações
+                </Link>
+                {moderator && (
+                  <Link href="/comunidade/moderacao" className={secondaryButtonClass}>
+                    <ShieldCheck size={16} /> Moderação
+                  </Link>
+                )}
+                <button type="button" onClick={() => setNewTopicOpen(true)} className={primaryButtonClass}>
+                  <Plus size={16} /> Novo tópico
+                </button>
+              </>
+            ) : (
+              <Link href="/login?redirect=/comunidade" className={primaryButtonClass}>
+                Entrar para participar
+              </Link>
+            )}
           </div>
         </motion.div>
 
@@ -111,11 +176,43 @@ export function ComunidadeContent() {
           <div className="flex justify-center py-20">
             <Loader2 size={32} className="animate-spin text-green-cs" />
           </div>
+        ) : searchMode ? (
+          <section aria-label="Resultados da busca">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-lg font-bold text-white">
+                {busca ? `Resultados para "${busca}"` : `Tópicos com #${tag}`}
+                {searchResults && <span className="ml-2 text-sm font-normal text-[#A0A0A0]">({searchResults.pagination.total})</span>}
+              </h2>
+              <button type="button" onClick={() => navigate({})} className={secondaryButtonClass}>
+                <X size={14} /> Limpar busca
+              </button>
+            </div>
+            {searching ? (
+              <div className="flex justify-center py-12">
+                <Loader2 size={28} className="animate-spin text-green-cs" />
+              </div>
+            ) : searchResults && searchResults.topics.length > 0 ? (
+              <>
+                <div className="space-y-2">
+                  {searchResults.topics.map((topic) => (
+                    <TopicRow key={topic.id} topic={topic} showCategory />
+                  ))}
+                </div>
+                <Paginator
+                  page={searchResults.pagination.page}
+                  totalPages={searchResults.pagination.totalPages}
+                  onChange={(p) => navigate({ busca, tag, pagina: p })}
+                />
+              </>
+            ) : (
+              <EmptyState title="Nada encontrado" description="Tente outras palavras ou navegue pelas categorias." />
+            )}
+          </section>
         ) : (
           <>
-            {/* Lista de Categorias */}
-            <div className="space-y-2">
-              {filteredCategories.map((cat, i) => (
+            {/* Categorias */}
+            <section aria-label="Categorias" className="space-y-2">
+              {categories.map((cat, i) => (
                 <motion.div
                   key={cat.id}
                   initial={{ opacity: 0, y: 10 }}
@@ -126,37 +223,45 @@ export function ComunidadeContent() {
                     href={`/comunidade/${cat.slug}`}
                     className="flex w-full items-center gap-4 rounded-xl border border-white/10 bg-bg-card/50 p-4 text-left transition-all hover:border-white/20 hover:bg-bg-card/80"
                   >
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/5 text-xl">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/5">
                       <CategoryIcon icon={cat.icon} />
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <h3 className="font-bold text-white">{cat.name}</h3>
                         {cat.staffOnly && (
-                          <span className="rounded bg-yellow-500/20 px-1.5 py-0.5 text-[10px] font-bold text-yellow-500">
-                            STAFF
+                          <span className="rounded bg-warning/20 px-1.5 py-0.5 text-[10px] font-bold text-warning">
+                            EQUIPE
                           </span>
+                        )}
+                        {cat.slug === REPORTS_CATEGORY_SLUG && (
+                          <Flag size={12} className="text-error" aria-hidden="true" />
                         )}
                       </div>
                       <p className="text-sm text-[#A0A0A0]">{cat.description}</p>
+                      <p className="mt-1 text-xs text-[#A0A0A0] sm:hidden">
+                        {cat.topicCount} tópicos · {cat.commentCount} comentários
+                      </p>
                     </div>
 
                     <div className="hidden shrink-0 items-center gap-6 text-xs text-[#A0A0A0] sm:flex">
-                      <div className="text-center">
+                      <div className="w-14 text-center">
                         <p className="font-bold text-white">{cat.topicCount}</p>
                         <p>tópicos</p>
                       </div>
+                      <div className="w-16 text-center">
+                        <p className="font-bold text-white">{cat.commentCount}</p>
+                        <p>comentários</p>
+                      </div>
                     </div>
 
-                    <div className="hidden shrink-0 text-right lg:block">
+                    <div className="hidden w-56 shrink-0 text-right lg:block">
                       {cat.lastPost ? (
                         <>
-                          <p className="max-w-[200px] truncate text-sm text-white">
-                            {cat.lastPost.title}
-                          </p>
+                          <p className="truncate text-sm text-white">{cat.lastPost.title}</p>
                           <p className="text-xs text-[#A0A0A0]">
-                            {cat.lastPost.author} · {timeAgo(cat.lastPost.date)}
+                            {cat.lastPost.author} · <When date={cat.lastPost.date} />
                           </p>
                         </>
                       ) : (
@@ -167,13 +272,22 @@ export function ComunidadeContent() {
                 </motion.div>
               ))}
 
-              {filteredCategories.length === 0 && !loading && (
-                <div className="py-12 text-center text-[#A0A0A0]">
-                  <MessageSquare size={40} className="mx-auto mb-4 opacity-30" />
-                  <p className="text-lg font-medium">Nenhuma categoria encontrada</p>
-                </div>
+              {categories.length === 0 && (
+                <EmptyState title="Nenhuma categoria encontrada" description="As categorias do fórum ainda não foram criadas." />
               )}
-            </div>
+            </section>
+
+            {/* Atividade recente */}
+            {recent.length > 0 && (
+              <section aria-label="Atividade recente" className="mt-10">
+                <h2 className="mb-3 text-lg font-bold text-white">Atividade recente</h2>
+                <div className="space-y-2">
+                  {recent.map((topic) => (
+                    <TopicRow key={topic.id} topic={topic} showCategory />
+                  ))}
+                </div>
+              </section>
+            )}
 
             {/* Estatísticas */}
             <motion.div
@@ -187,17 +301,28 @@ export function ComunidadeContent() {
                 <span className="font-bold text-white">{stats.totalTopics}</span> tópicos
               </div>
               <div className="flex items-center gap-2 text-sm text-[#A0A0A0]">
-                <TrendingUp size={16} className="text-green-cs" />
-                <span className="font-bold text-white">—</span> comentários
+                <MessagesSquare size={16} className="text-green-cs" />
+                <span className="font-bold text-white">{stats.totalComments}</span> comentários
               </div>
-              <div className="flex items-center gap-2 text-sm text-[#A0A0A0]">
+              <Link
+                href="/comunidade/membros"
+                className="flex items-center gap-2 rounded-lg px-2 py-1 text-sm text-[#A0A0A0] transition-colors hover:bg-white/5 hover:text-white"
+                title="Ver a lista de membros"
+              >
                 <Users size={16} className="text-green-cs" />
                 <span className="font-bold text-white">{stats.totalMembers}</span> membros
-              </div>
+              </Link>
             </motion.div>
           </>
         )}
       </div>
+
+      <NewTopicDialog
+        open={newTopicOpen}
+        onClose={() => setNewTopicOpen(false)}
+        categories={categories}
+        role={role}
+      />
     </>
   );
 }

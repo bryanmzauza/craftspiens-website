@@ -37,7 +37,7 @@
 7. Redireciona para `/perfil` (ou URL de redirect, se existir no query param)
 
 #### Verificação de Disponibilidade (Live)
-- Ao digitar o username, verificar em tempo real se já existe (debounce 500ms)
+- Ao digitar o username, verificar em tempo real se já existe (debounce 500ms). Nick já cadastrado no servidor (tabela `nlogin`) não pode ser registrado de novo: a tela orienta a entrar com o nick e a senha do jogo, e a conta do site é criada sozinha nesse primeiro login (`code: "NickDoJogo"` em `/api/auth/register` e `reason: "NickDoJogo"` em `/api/auth/check-username`)
 - Exibir "Disponível" ou "Username já em uso"
 - Mesma verificação para email
 

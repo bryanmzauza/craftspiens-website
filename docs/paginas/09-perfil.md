@@ -75,7 +75,14 @@ Exibir 4-6 cards com métricas principais:
 #### Dados Pessoais
 - Email: exibido em modo leitura; "Alterar e-mail" abre a confirmação por código de 6 dígitos (`/confirmar-email?alterar=1`). O novo e-mail só vale depois de confirmado (RN-AUTH-02c em `07-auth.md`)
 - Bio (texto livre, máx 500 caracteres)
-- Data de nascimento (não editável após registro)
+- Data de nascimento: contas criadas pelo Google entram sem ela e informam uma única vez (pelo menos 13 anos, `PUT /api/perfil { birthDate }`); depois de registrada não muda
+- CPF de quem paga as compras (`PUT /api/perfil { payerCpf }`, validado pelos dígitos; mostrado mascarado). Também pode ser informado na própria compra
+
+#### Exigências da conta (`src/lib/account-requirements.ts`)
+- Para participar do fórum: e-mail confirmado, nick do Minecraft vinculado e data de nascimento registrada. Para comprar: os mesmos três e o CPF
+- Quem está sem algum item vê, depois do login, o aviso no topo de todas as páginas (`AccountGate`, dados de `GET /api/perfil/pendencias`) com um link por pendência. Fechar o aviso vale até a próxima sessão do navegador
+- As APIs recusam a ação com um código próprio: `EmailNaoVerificado` (proxy), `SemNick`, `SemIdade`, `CpfObrigatorio` (loja), `TermosNaoAceitos` (ver `12-termos.md`)
+- `GET /api/perfil/pendencias` também informa `terms.accepted`; sem o aceite vigente, o diálogo de aceite aparece antes do aviso de pendências
 
 #### Alterar Senha
 - Senha atual (obrigatória para validação)

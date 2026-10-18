@@ -406,3 +406,53 @@ export async function sendContactToTeam(message: {
   await send(inbox, subject, content, { replyTo: message.email, footer: "equipe" });
   return true;
 }
+
+// --- Fórum ---
+
+export interface ForumNotificationEmail {
+  username: string;
+  /** Nick de quem respondeu ou mencionou */
+  actor: string;
+  kind: "resposta-topico" | "resposta-comentario" | "mencao";
+  topicTitle: string;
+  /** Trecho do comentário, já em texto simples */
+  excerpt: string;
+  url: string;
+}
+
+/** Resposta ou menção no fórum (preferência "Respostas no fórum" = e-mail) */
+export async function sendForumNotificationEmail(to: string, data: ForumNotificationEmail): Promise<void> {
+  const headline =
+    data.kind === "mencao"
+      ? `${data.actor} mencionou você`
+      : data.kind === "resposta-comentario"
+        ? `${data.actor} respondeu ao seu comentário`
+        : `${data.actor} respondeu ao seu tópico`;
+
+  const content = `
+    <h2 style="color:#fff;margin:0 0 16px;font-size:22px">${escapeHtml(headline)}</h2>
+    <p style="color:#E0E0E0;font-size:15px;line-height:1.6;margin:0 0 16px">
+      Olá <strong style="color:#4CAF50">${escapeHtml(data.username)}</strong>, há novidade no tópico
+      <strong>${escapeHtml(data.topicTitle)}</strong>.
+    </p>
+    ${
+      data.excerpt
+        ? `<div style="background:rgba(255,255,255,0.05);border-left:3px solid #4CAF50;border-radius:8px;padding:12px 16px;margin:0 0 20px">
+      <p style="color:#E0E0E0;font-size:14px;line-height:1.6;margin:0">${escapeHtml(data.excerpt)}</p>
+    </div>`
+        : ""
+    }
+    <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:8px 0 24px">
+      <a href="${escapeHtml(data.url)}" style="display:inline-block;background:#4CAF50;color:#fff;font-size:16px;font-weight:bold;text-decoration:none;padding:14px 40px;border-radius:8px">
+        VER NO FÓRUM
+      </a>
+    </td></tr></table>
+    <p style="color:#888;font-size:12px;line-height:1.5;margin:0">
+      Você recebe este aviso porque a opção "Respostas no fórum" está como e-mail. Para mudar, abra
+      <a href="${siteUrl()}/perfil/configuracoes" style="color:#4CAF50">Configurações &gt; Notificações</a>.
+      Um e-mail por tópico a cada hora, no máximo.
+    </p>`;
+
+  const subject = `${headline} — CraftSapiens`.replace(/[\r\n]+/g, " ").slice(0, 200);
+  await send(to, subject, content);
+}

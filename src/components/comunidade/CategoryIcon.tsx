@@ -6,6 +6,7 @@ import {
   Bug,
   Hammer,
   Gamepad2,
+  Flag,
   type LucideIcon,
 } from "lucide-react";
 
@@ -19,6 +20,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Bug,
   Hammer,
   Gamepad2,
+  Flag,
 };
 
 export function CategoryIcon({ icon, size = 22 }: { icon: string | null; size?: number }) {

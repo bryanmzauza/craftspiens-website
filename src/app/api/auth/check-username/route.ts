@@ -24,7 +24,9 @@ export async function GET(request: Request) {
     );
   }
 
+  // Nick existente no nlogin pertence a quem joga com ele; o dono entra no site
+  // com a senha do jogo em vez de se cadastrar
   const existing = await findNloginByUsername(username);
 
-  return NextResponse.json({ available: !existing });
+  return NextResponse.json({ available: !existing, reason: existing ? "NickDoJogo" : undefined });
 }

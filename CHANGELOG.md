@@ -7,6 +7,41 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.21] — 18/10/2026 — Fórum da comunidade pronto para uso
+
+### Adicionado
+
+- **Moderação e edição na interface**: editar e excluir tópicos e comentários (autor em 30 minutos ou sem respostas; moderação sempre), marcar como resolvido (autor ou moderação), fixar, fechar e reabrir, tornar privado ou público e mover de categoria (moderação). Ações da moderação avisam o autor
+- **Denúncias**: nova categoria `Denúncias` (`npm run db:seed:forum`). O botão Reportar em tópicos e comentários abre uma denúncia já preenchida com o link e o autor. As denúncias nascem públicas; a moderação pode torná-las privadas (só o autor e a moderação veem) e encerrá-las. Toda denúncia nova notifica a moderação
+- **Notificações**: tabela `notifications`, sino na navbar com contagem por ler (desktop e celular) e página `/comunidade/notificacoes`. Avisos de resposta ao tópico ou comentário, curtida, menção `@nick`, ações da moderação e denúncias. Respostas e menções também por e-mail, conforme a preferência "Respostas e menções no fórum" em Configurações (no máximo um e-mail por tópico a cada hora)
+- **Suspensão do fórum**: a moderação suspende um membro por 1 a 365 dias ou permanentemente, com motivo; quem está suspenso continua lendo, mas não escreve nem reage. Campos `forum_banned_until`, `forum_ban_reason` e `forum_banned_by_id` em `users`
+- **Lista de membros** (`/comunidade/membros`, pelo link "membros" das estatísticas): membros com nick vinculado, busca pelo nick, ordenação por atividade ou data de entrada, 24 por página
+- **Página pública do membro** (`/comunidade/membro/[nick]`): skin, cargo do servidor, tempo de servidor, reputação, tópicos e comentários recentes; botão de suspender para a moderação
+- **Página de moderação** (`/comunidade/moderacao`, só moderação): denúncias abertas, suspensões ativas e contagens
+- **Busca global e filtros**: a busca da página principal procura em todo o fórum (título e conteúdo, sem diferenciar maiúsculas), com paginação; nas categorias, ordenação (última atividade, recentes, mais comentados, mais vistos), filtro (em aberto, resolvidos, sem resposta) e filtro por tag, tudo na URL
+- **Editor Markdown** com barra de ferramentas e pré-visualização: títulos, negrito, itálico, riscado, código, citações, listas, links, imagens por URL https e menções `@nick`. Conversor próprio em `src/lib/forum/markdown.ts`, que escapa toda a entrada antes de converter (sem dependências)
+- **Tags** nos tópicos (até 5), clicáveis para filtrar
+- **Atividade recente** na página principal, contagem de comentários por categoria e nas estatísticas, link do último tópico de cada categoria
+- Página do tópico com título e descrição próprios (`generateMetadata`), links `#comentario-<id>` que abrem a página certa dos comentários, reações com o estado atual destacado, visualizações só de quem não é o autor
+- **Aceite dos Termos e da Política de Privacidade (LGPD)**: depois do login, quem ainda não aceitou a versão vigente (`TERMS_VERSION` em `src/lib/terms.ts`) vê um diálogo que bloqueia o site até aceitar ou sair, com resumo dos dados coletados, links para os textos completos e três declarações (termos, privacidade, maioridade ou autorização do responsável). Cada aceite fica registrado na nova tabela `terms_acceptances` (versão, data, IP, navegador e origem) e em `users.terms_version`. O cadastro pelo site exige e registra o aceite; contas do Google, da Microsoft e as já existentes aceitam no próximo acesso. Fórum e loja recusam escritas sem o aceite (`TermosNaoAceitos`). Mudar o texto dos termos e a versão obriga todo mundo a aceitar de novo
+- **Exigências da conta**: para participar do fórum é preciso e-mail confirmado, nick do Minecraft vinculado e data de nascimento registrada; para comprar, também o CPF. Quem está sem algum item vê, depois do login, um aviso no topo de todas as páginas com um link por pendência (`GET /api/perfil/pendencias`). Fórum e loja recusam a ação com o código `SemIdade` quando falta a data de nascimento
+- Configurações > Dados pessoais: contas criadas pelo Google informam a data de nascimento uma única vez (pelo menos 13 anos) e qualquer conta pode salvar ou trocar o CPF de quem paga as compras; a regra de idade do cadastro passou para `src/lib/birth-date.ts`, com testes
+- **Testes automatizados**: Vitest (`npm test`) com as regras do fórum em `src/lib/forum/*.test.ts` (Markdown e sanitização, permissões, reputação, banimento, slugs e tags, datas relativas)
+- `docs/paginas/06-comunidade.md` reescrito conforme o que está implementado, com os passos de lançamento
+
+### Alterado
+
+- `prisma/schema.pg.prisma`: `User.termsVersion`, `User.termsAcceptedAt` e o modelo `TermsAcceptance`; `Post.private`, `Post.editedAt`, `Comment.editedAt`, respostas apagadas junto com o comentário pai, índices nas listas, modelo `Notification` e campos de suspensão em `User`. O modelo `Report`, sem uso, foi removido. Exige `npm run db:push:pg` na produção (deploy manual com `--com-schema`, depois do backup)
+- A moderação (fixar, fechar, privar, mover, suspender, editar conteúdo alheio) é de `MODERADOR` e `ADMIN`; `PROFESSOR` mantém a tag e as categorias da equipe. Antes o professor editava e excluía qualquer conteúdo
+- Reações ao próprio conteúdo são recusadas (evita inflar a reputação)
+- Tags de reputação renomeadas (Iniciante, Participante, Colaborador, Referência) para não se confundirem com as tags de tempo de servidor do perfil
+- Autores sem registro no nLogin aparecem pelo nome de exibição, não mais como "Unknown"
+- Rótulos da preferência de notificação em Configurações: "E-mail e no site", "Apenas no site", "Desligado"
+- Cadastro com um nick que já existe no servidor: a mensagem passa a orientar a entrar com o nick e a senha do jogo (a conta do site é criada no primeiro login), em vez de só "já está em uso"
+- A seção continua restrita ao grupo `dev` até o lançamento (passos em `docs/paginas/06-comunidade.md`)
+
+---
+
 ## [v0.20.1] — 15/10/2026 — Site no domínio, atrás da Cloudflare
 
 ### Alterado

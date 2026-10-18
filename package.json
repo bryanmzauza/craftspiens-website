@@ -1,6 +1,6 @@
 {
   "name": "craftsapiens-website",
-  "version": "0.20.1",
+  "version": "0.21.0",
   "private": true,
   "engines": {
     "node": ">=20.9.0"
@@ -11,6 +11,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "postinstall": "npm run db:generate",
     "db:generate": "prisma generate --config prisma.config.ts && prisma generate --config prisma.pg.config.ts",
     "db:push:pg": "prisma db push --config prisma.pg.config.ts",
@@ -55,6 +56,9 @@
     "eslint-config-next": "16.2.0",
     "prisma": "^7.5.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite": "^8.3.4",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^5.0.5"
   }
 }

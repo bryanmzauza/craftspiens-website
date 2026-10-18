@@ -8,6 +8,13 @@
 
 ## Regras de Negócio
 
+### RN-TERMOS-00: Aceite obrigatório (LGPD)
+- Versão vigente em `src/lib/terms.ts` (`TERMS_VERSION`, a data da última atualização mostrada na página). Ao alterar o texto dos termos ou da política, atualizar a constante e a data da página: todas as contas precisam aceitar de novo
+- No cadastro pelo site, o aceite é obrigatório (`terms: true` em `POST /api/auth/register`) e registrado. Contas criadas pelo Google ou pela Microsoft, e contas antigas, aceitam no primeiro acesso seguinte
+- Depois do login, sem o aceite da versão vigente, um diálogo bloqueia o site (`AccountGate` em `src/components/layout/AccountGate.tsx`) com o resumo dos dados coletados, links para os termos e a política, e três declarações obrigatórias: aceite dos termos, concordância com a política de privacidade e maioridade ou autorização do responsável. As opções são aceitar ou sair da conta; a página `/termos` continua acessível para leitura
+- `POST /api/perfil/termos { termos, privacidade, idade }` grava o aceite em `terms_acceptances` (versão, data, IP, navegador, origem `cadastro` ou `formulario`) e em `users.terms_version` / `users.terms_accepted_at`. `GET /api/perfil/termos` informa a versão e se a conta já aceitou
+- Fórum e loja recusam escritas sem o aceite vigente (`code: "TermosNaoAceitos"`)
+
 ### RN-TERMOS-01: Página de Termos e Condições (`/termos`)
 
 #### Hero
