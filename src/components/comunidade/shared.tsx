@@ -4,14 +4,39 @@
 // tópicos, paginação, chamadas à API e avisos de acesso.
 
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Eye, Lock, MessageSquare, Pin, CheckCircle, EyeOff, Clock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, Lock, MessageSquare, Pin, CheckCircle, EyeOff, Clock, ShieldCheck } from "lucide-react";
 import { timeAgo, fullDate } from "@/lib/forum/time";
+
+/** Cargo no servidor (LuckPerms): nome, cor do prefixo e se é moderador ou superior */
+export interface Rank {
+  group: string;
+  label: string;
+  color: string;
+  staff: boolean;
+}
 
 export interface Author {
   id: string;
   username: string;
   uuid: string | null;
+  /** Identificador da skin no mc-heads.net (conta original, Bedrock ou nick) */
+  skin?: string | null;
+  /** Cargo no servidor; nulo para contas sem nick */
+  rank?: Rank | null;
   role: string;
+}
+
+// Jogador comum (grupo "default"): nome na cor do cargo, mas sem selo
+const DEFAULT_GROUP = "default";
+
+/** Cor do nome: a do cargo no servidor; sem cargo, branco */
+export function rankColor(author: Pick<Author, "rank">): string {
+  return author.rank?.color ?? "#FFFFFF";
+}
+
+/** Moderador ou superior no servidor (peso do LuckPerms), ou moderação do site */
+export function isHighlighted(author: Pick<Author, "rank" | "role">): boolean {
+  return !!author.rank?.staff || author.role === "MODERADOR" || author.role === "ADMIN";
 }
 
 export interface TopicSummary {
@@ -118,24 +143,41 @@ export function ApiError({ error, code }: { error: string; code?: string }) {
 
 // --- Autores ---
 
-export function Avatar({ author, size = 32, className = "" }: { author: Author; size?: number; className?: string }) {
-  if (author.uuid) {
+export function Avatar({
+  author,
+  size = 32,
+  className = "",
+  highlight = false,
+}: {
+  author: Author;
+  size?: number;
+  className?: string;
+  /** Anel na cor do cargo quando o autor é moderador ou superior */
+  highlight?: boolean;
+}) {
+  const ring =
+    highlight && isHighlighted(author)
+      ? { boxShadow: `0 0 0 2px ${rankColor(author)}, 0 0 14px ${rankColor(author)}66` }
+      : undefined;
+  // Skin pela mesma regra do perfil; sem nick vinculado, a inicial do nome
+  const skinId = author.skin ?? (author.uuid ? author.username : null);
+  if (skinId) {
     return (
       // eslint-disable-next-line @next/next/no-img-element -- avatar externo (mc-heads.net)
       <img
-        src={`https://mc-heads.net/avatar/${author.uuid}/${size}`}
+        src={`https://mc-heads.net/avatar/${encodeURIComponent(skinId)}/${size}`}
         alt=""
         width={size}
         height={size}
         className={`shrink-0 rounded-md ${className}`}
-        style={{ width: size, height: size }}
+        style={{ width: size, height: size, ...ring }}
       />
     );
   }
   return (
     <div
       className={`flex shrink-0 items-center justify-center rounded-md bg-white/10 font-bold text-white ${className}`}
-      style={{ width: size, height: size, fontSize: Math.max(10, size / 2.2) }}
+      style={{ width: size, height: size, fontSize: Math.max(10, size / 2.2), ...ring }}
       aria-hidden="true"
     >
       {author.username[0]?.toUpperCase()}
@@ -151,17 +193,52 @@ export function RoleBadge({ role }: { role: string }) {
   );
 }
 
-/** Nick com link para a página do membro */
+/**
+ * Selo do cargo no servidor, na cor do prefixo do jogo. Moderador ou superior
+ * ganha o escudo e um brilho. Sem cargo no servidor, cai para o papel do site.
+ */
+export function RankBadge({ author, size = "sm" }: { author: Pick<Author, "rank" | "role">; size?: "sm" | "md" }) {
+  const rank = author.rank;
+  if (!rank || rank.group === DEFAULT_GROUP) return <RoleBadge role={author.role} />;
+  const staff = isHighlighted(author);
+  const text = size === "md" ? "text-xs px-2 py-0.5" : "text-[10px] px-1.5 py-0.5";
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded border font-bold uppercase tracking-wide ${text}`}
+      style={{
+        color: rank.color,
+        backgroundColor: `${rank.color}${staff ? "33" : "1F"}`,
+        borderColor: `${rank.color}${staff ? "99" : "4D"}`,
+        boxShadow: staff ? `0 0 10px ${rank.color}59` : undefined,
+      }}
+      title={staff ? `${rank.label} (equipe do servidor)` : "Cargo no servidor"}
+    >
+      {staff && <ShieldCheck size={size === "md" ? 12 : 10} aria-hidden="true" />}
+      {rank.label}
+    </span>
+  );
+}
+
+/** Nick com link para a página do membro, na cor do cargo; equipe com brilho */
 export function AuthorName({ author, className = "" }: { author: Author; className?: string }) {
-  const staff = !!ROLE_LABELS[author.role];
+  const color = rankColor(author);
+  const staff = isHighlighted(author);
   return (
     <Link
       href={`/comunidade/membro/${author.username}`}
-      className={`font-bold hover:underline ${staff ? "text-warning" : "text-white"} ${className}`}
+      className={`font-bold hover:underline ${className}`}
+      style={{ color, textShadow: staff ? `0 0 12px ${color}99` : undefined }}
     >
       {author.username}
     </Link>
   );
+}
+
+/** Estilo de destaque para cartões e avatares da equipe (borda e brilho na cor do cargo) */
+export function staffFrameStyle(author: Pick<Author, "rank" | "role">): React.CSSProperties | undefined {
+  if (!isHighlighted(author)) return undefined;
+  const color = rankColor(author);
+  return { borderColor: `${color}80`, boxShadow: `0 0 0 1px ${color}33, 0 0 18px ${color}26` };
 }
 
 export function Tag({ tag, categorySlug }: { tag: string; categorySlug?: string }) {
@@ -206,7 +283,7 @@ export function TopicRow({ topic, showCategory = false }: { topic: TopicSummary;
       href={`/comunidade/${topic.category.slug}/${topic.slug}`}
       className="flex items-start gap-3 rounded-xl border border-white/10 bg-bg-card/50 p-4 transition-all hover:border-white/20 hover:bg-bg-card/80"
     >
-      <Avatar author={topic.author} size={36} className="mt-0.5" />
+      <Avatar author={topic.author} size={36} className="mt-0.5" highlight />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
           <TopicStatusIcons topic={topic} />
@@ -220,10 +297,16 @@ export function TopicRow({ topic, showCategory = false }: { topic: TopicSummary;
         {topic.excerpt && <p className="mt-0.5 line-clamp-1 text-sm text-[#A0A0A0]">{topic.excerpt}</p>}
         <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#A0A0A0]">
           <span className="flex items-center gap-1">
-            <span className={ROLE_LABELS[topic.author.role] ? "font-bold text-warning" : "font-medium text-[#E0E0E0]"}>
+            <span
+              className="font-semibold"
+              style={{
+                color: rankColor(topic.author),
+                textShadow: isHighlighted(topic.author) ? `0 0 10px ${rankColor(topic.author)}80` : undefined,
+              }}
+            >
               {topic.author.username}
             </span>
-            <RoleBadge role={topic.author.role} />
+            <RankBadge author={topic.author} />
           </span>
           <span className="flex items-center gap-1">
             <Clock size={12} /> <When date={topic.lastActivityAt} />

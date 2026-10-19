@@ -13,8 +13,10 @@ import {
   EmptyState,
   inputClass,
   Paginator,
-  RoleBadge,
-  ROLE_LABELS,
+  RankBadge,
+  rankColor,
+  isHighlighted,
+  staffFrameStyle,
   When,
   type Pagination,
 } from "@/components/comunidade/shared";
@@ -161,12 +163,18 @@ export function MembrosContent() {
                   <Link
                     href={`/comunidade/membro/${m.username}`}
                     className="flex h-full items-center gap-3 rounded-xl border border-white/10 bg-bg-card/50 p-4 transition-all hover:border-white/20 hover:bg-bg-card/80"
+                    style={staffFrameStyle(m)}
                   >
-                    <Avatar author={m} size={44} />
+                    <Avatar author={m} size={44} highlight />
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <span className={`truncate font-bold ${ROLE_LABELS[m.role] ? "text-warning" : "text-white"}`}>{m.username}</span>
-                        <RoleBadge role={m.role} />
+                        <span
+                          className="truncate font-bold"
+                          style={{ color: rankColor(m), textShadow: isHighlighted(m) ? `0 0 12px ${rankColor(m)}99` : undefined }}
+                        >
+                          {m.username}
+                        </span>
+                        <RankBadge author={m} />
                         {m.banned && (
                           <span className="inline-flex items-center gap-0.5 rounded bg-error/20 px-1.5 py-0.5 text-[10px] font-bold text-error">
                             <Ban size={10} /> Suspenso

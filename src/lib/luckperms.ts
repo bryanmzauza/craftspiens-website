@@ -18,6 +18,39 @@ export interface PlayerRank {
   label: string;
   /** Cor do prefixo no jogo, em hexadecimal */
   color: string;
+  /** Peso do grupo no LuckPerms (hierarquia: maior = mais alto) */
+  weight: number;
+}
+
+// Grupo de referência da equipe: quem tem peso igual ou maior que o dele é
+// destacado no site como "moderador ou superior"
+const STAFF_REFERENCE_GROUP = "moderador";
+// Peso usado se o grupo de referência não for encontrado (valor do servidor em 10/2026)
+const STAFF_FALLBACK_WEIGHT = 125;
+const STAFF_CACHE_MS = 10 * 60_000;
+let staffWeightCache: { at: number; weight: number } | null = null;
+
+/** Peso mínimo da equipe: o peso do grupo "moderador" no LuckPerms (cache de 10 minutos) */
+export async function getStaffMinWeight(): Promise<number> {
+  if (staffWeightCache && Date.now() - staffWeightCache.at < STAFF_CACHE_MS) return staffWeightCache.weight;
+  let weight = STAFF_FALLBACK_WEIGHT;
+  try {
+    const rows = await prismaMariaDb.$queryRaw<{ permission: string }[]>`
+      SELECT permission FROM luckperms_group_permissions
+      WHERE name = ${STAFF_REFERENCE_GROUP} AND value = 1 AND permission LIKE 'weight.%'
+    `;
+    const found = rows.map((r) => Number(r.permission.split(".")[1])).filter((n) => Number.isFinite(n));
+    if (found.length > 0) weight = Math.max(...found);
+  } catch (error) {
+    console.error("[luckperms] Erro ao ler o peso da equipe:", error);
+  }
+  staffWeightCache = { at: Date.now(), weight };
+  return weight;
+}
+
+/** true se o cargo é de moderador ou superior na hierarquia do LuckPerms */
+export function isStaffRank(rank: Pick<PlayerRank, "weight"> | null | undefined, minWeight: number): boolean {
+  return !!rank && rank.weight >= minWeight;
 }
 
 // Grupo padrão de todo jogador: sem outro cargo, aparece com este nome
@@ -163,11 +196,11 @@ async function loadRank(uuid: string): Promise<PlayerRank | null> {
   )[0];
 
   if (group === DEFAULT_GROUP) {
-    return { group, label: DEFAULT_LABEL, color: DEFAULT_COLOR };
+    return { group, label: DEFAULT_LABEL, color: DEFAULT_COLOR, weight: best.weight };
   }
 
   const fromPrefix = best.prefix ? cleanPrefix(best.prefix) : "";
   const label = capitalize(fromPrefix || best.displayName?.trim() || group);
   const color = (best.prefix && prefixColor(best.prefix)) || DEFAULT_COLOR;
-  return { group, label, color };
+  return { group, label, color, weight: best.weight };
 }

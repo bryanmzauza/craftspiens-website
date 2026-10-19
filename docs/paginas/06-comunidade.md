@@ -81,6 +81,11 @@ Na interface, o conteúdo de cada discussão se chama **post** (botão "Novo pos
 - Validações: título duplicado na mesma categoria em 24h (sem diferenciar maiúsculas) responde 409; rate limit de 5 tópicos por hora; conta com menos de 1 hora não cria tópicos (exceto equipe)
 - O slug vem do título; repetido ganha sufixo numérico
 
+### RN-FORUM-06b: Cargo e destaque da equipe
+- O nick de cada autor aparece na cor do cargo no servidor (cor do prefixo do grupo de maior peso no LuckPerms, `getPlayerRank` em `src/lib/luckperms.ts`), com o selo do cargo ao lado. Jogador comum (grupo `default`) tem o nome na cor do cargo, sem selo. Contas sem nick usam o papel do site
+- **Moderador ou superior**: peso do grupo igual ou maior que o do grupo `moderador` no LuckPerms (lido do banco, cache de 10 minutos; hoje 125, o que inclui moderador, admin, professor, dev, coordenador, reitor e diretoria). Também vale para quem tem papel `MODERADOR` ou `ADMIN` no site. Esses autores ganham escudo no selo, brilho no nome, anel no avatar e borda na cor do cargo no post, nos comentários, na lista e na página de membros
+- O destaque é visual. As permissões de moderação no site continuam pelo papel do site (`MODERADOR` e `ADMIN`, RN-FORUM-07)
+
 ### RN-FORUM-06: Reputação
 - Pontuação: +1 por tópico, +1 por comentário, +2 por curtida recebida em tópico, +1 por curtida recebida em comentário, -1 por descurtida recebida
 - Tags por faixa: Iniciante (0 a 10), Participante (11 a 50), Colaborador (51 a 200), Referência (201+). Os nomes são diferentes das tags de tempo de servidor do perfil (Novato, Membro, Veterano, Lenda) para não confundir as duas escalas
