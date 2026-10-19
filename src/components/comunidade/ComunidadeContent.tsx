@@ -5,9 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { Search, MessageSquare, Users, MessagesSquare, Loader2, Plus, X, ShieldCheck, Bell, Flag } from "lucide-react";
+import { Search, MessageSquare, Users, MessagesSquare, Loader2, X, ShieldCheck, Bell, Flag } from "lucide-react";
 import { CategoryIcon } from "@/components/comunidade/CategoryIcon";
-import { NewTopicDialog } from "@/components/comunidade/NewTopicDialog";
 import {
   api,
   EmptyState,
@@ -59,7 +58,6 @@ export function ComunidadeContent() {
   const [loading, setLoading] = useState(true);
   const [recent, setRecent] = useState<TopicSummary[]>([]);
   const [results, setResults] = useState<{ key: string; data: TopicsResponse } | null>(null);
-  const [newTopicOpen, setNewTopicOpen] = useState(false);
 
   const role = session?.user?.role;
   const moderator = role === "ADMIN" || role === "MODERADOR";
@@ -160,9 +158,6 @@ export function ComunidadeContent() {
                     <ShieldCheck size={16} /> Moderação
                   </Link>
                 )}
-                <button type="button" onClick={() => setNewTopicOpen(true)} className={primaryButtonClass}>
-                  <Plus size={16} /> Novo tópico
-                </button>
               </>
             ) : (
               <Link href="/login?redirect=/comunidade" className={primaryButtonClass}>
@@ -180,7 +175,7 @@ export function ComunidadeContent() {
           <section aria-label="Resultados da busca">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-bold text-white">
-                {busca ? `Resultados para "${busca}"` : `Tópicos com #${tag}`}
+                {busca ? `Resultados para "${busca}"` : `Posts com #${tag}`}
                 {searchResults && <span className="ml-2 text-sm font-normal text-[#A0A0A0]">({searchResults.pagination.total})</span>}
               </h2>
               <button type="button" onClick={() => navigate({})} className={secondaryButtonClass}>
@@ -241,14 +236,14 @@ export function ComunidadeContent() {
                       </div>
                       <p className="text-sm text-[#A0A0A0]">{cat.description}</p>
                       <p className="mt-1 text-xs text-[#A0A0A0] sm:hidden">
-                        {cat.topicCount} tópicos · {cat.commentCount} comentários
+                        {cat.topicCount} posts · {cat.commentCount} comentários
                       </p>
                     </div>
 
                     <div className="hidden shrink-0 items-center gap-6 text-xs text-[#A0A0A0] sm:flex">
                       <div className="w-14 text-center">
                         <p className="font-bold text-white">{cat.topicCount}</p>
-                        <p>tópicos</p>
+                        <p>posts</p>
                       </div>
                       <div className="w-16 text-center">
                         <p className="font-bold text-white">{cat.commentCount}</p>
@@ -265,7 +260,7 @@ export function ComunidadeContent() {
                           </p>
                         </>
                       ) : (
-                        <p className="text-xs text-[#A0A0A0]">Nenhum tópico ainda</p>
+                        <p className="text-xs text-[#A0A0A0]">Nenhum post ainda</p>
                       )}
                     </div>
                   </Link>
@@ -298,7 +293,7 @@ export function ComunidadeContent() {
             >
               <div className="flex items-center gap-2 text-sm text-[#A0A0A0]">
                 <MessageSquare size={16} className="text-green-cs" />
-                <span className="font-bold text-white">{stats.totalTopics}</span> tópicos
+                <span className="font-bold text-white">{stats.totalTopics}</span> posts
               </div>
               <div className="flex items-center gap-2 text-sm text-[#A0A0A0]">
                 <MessagesSquare size={16} className="text-green-cs" />
@@ -316,13 +311,6 @@ export function ComunidadeContent() {
           </>
         )}
       </div>
-
-      <NewTopicDialog
-        open={newTopicOpen}
-        onClose={() => setNewTopicOpen(false)}
-        categories={categories}
-        role={role}
-      />
     </>
   );
 }

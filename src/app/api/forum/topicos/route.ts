@@ -132,14 +132,14 @@ export async function POST(request: NextRequest) {
   // Rate limit: 5 tópicos/hora por usuário (RN-FORUM-05)
   const rl = await checkRateLimit(`forum-topic:${user.id}`, RATE_LIMITS.forumTopic);
   if (!rl.success) {
-    return rateLimitResponse(rl, "Limite de criação de tópicos excedido. Tente novamente mais tarde.");
+    return rateLimitResponse(rl, "Limite de criação de posts excedido. Tente novamente mais tarde.");
   }
 
   // Anti-spam: conta com mais de 1h de criação (RN-FORUM-05)
   const accountAgeMs = Date.now() - new Date(user.createdAt).getTime();
   if (accountAgeMs < MIN_ACCOUNT_AGE_MS && !isStaff(user.role)) {
     return NextResponse.json(
-      { error: "Sua conta precisa ter pelo menos 1 hora para criar tópicos." },
+      { error: "Sua conta precisa ter pelo menos 1 hora para criar posts." },
       { status: 403 }
     );
   }
@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (category.staffOnly && !isStaff(user.role)) {
-    return NextResponse.json({ error: "Apenas a equipe pode criar tópicos nesta categoria" }, { status: 403 });
+    return NextResponse.json({ error: "Apenas a equipe pode criar posts nesta categoria" }, { status: 403 });
   }
 
   // Tópico duplicado: mesmo título na mesma categoria em 24h (RN-FORUM-05)
@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
 
   if (duplicate) {
     return NextResponse.json(
-      { error: "Um tópico com esse título já foi criado nesta categoria nas últimas 24h" },
+      { error: "Um post com esse título já foi criado nesta categoria nas últimas 24h" },
       { status: 409 }
     );
   }

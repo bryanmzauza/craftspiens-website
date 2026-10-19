@@ -6,7 +6,6 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { Search, Plus, Loader2, X, Flag } from "lucide-react";
-import { NewTopicDialog } from "@/components/comunidade/NewTopicDialog";
 import {
   api,
   EmptyState,
@@ -75,7 +74,6 @@ export function CategoriaContent({ categoriaSlug }: { categoriaSlug: string }) {
   const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 20, total: 0, totalPages: 1 });
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
-  const [newTopicOpen, setNewTopicOpen] = useState(false);
 
   // Cada combinação de parâmetros é uma consulta; enquanto a atual não chega, mostra o carregamento
   const key = `${categoriaSlug}|${busca}|${tag}|${page}|${ordem}|${filtro}`;
@@ -176,7 +174,7 @@ export function CategoriaContent({ categoriaSlug }: { categoriaSlug: string }) {
           </div>
         )}
 
-        {/* Busca, filtros e novo tópico */}
+        {/* Busca, filtros e novo post */}
         <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center">
           <form
             onSubmit={(e) => {
@@ -222,9 +220,9 @@ export function CategoriaContent({ categoriaSlug }: { categoriaSlug: string }) {
               ))}
             </select>
             {canCreate ? (
-              <button type="button" onClick={() => setNewTopicOpen(true)} className={primaryButtonClass}>
-                <Plus size={16} /> {isReports ? "Nova denúncia" : "Novo tópico"}
-              </button>
+              <Link href={`/comunidade/novo?categoria=${encodeURIComponent(categoriaSlug)}`} className={primaryButtonClass}>
+                <Plus size={16} /> {isReports ? "Nova denúncia" : "Novo post"}
+              </Link>
             ) : !session?.user ? (
               <Link href={`/login?redirect=/comunidade/${categoriaSlug}`} className={primaryButtonClass}>
                 Entrar para participar
@@ -272,12 +270,12 @@ export function CategoriaContent({ categoriaSlug }: { categoriaSlug: string }) {
 
               {topics.length === 0 && (
                 <EmptyState
-                  title={busca || tag || filtro !== "todos" ? "Nenhum tópico encontrado" : "Nenhum tópico ainda"}
+                  title={busca || tag || filtro !== "todos" ? "Nenhum post encontrado" : "Nenhum post ainda"}
                   description={
                     busca || tag || filtro !== "todos"
                       ? "Tente outros termos ou filtros."
                       : canCreate
-                        ? "Seja a primeira pessoa a criar um tópico nesta categoria."
+                        ? "Seja a primeira pessoa a criar um post nesta categoria."
                         : undefined
                   }
                 />
@@ -288,13 +286,6 @@ export function CategoriaContent({ categoriaSlug }: { categoriaSlug: string }) {
           </>
         )}
       </div>
-
-      <NewTopicDialog
-        open={newTopicOpen}
-        onClose={() => setNewTopicOpen(false)}
-        defaultCategorySlug={categoriaSlug}
-        role={role}
-      />
     </>
   );
 }

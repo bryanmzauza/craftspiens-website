@@ -40,11 +40,11 @@ export function describeNotification(n: Notification): string {
   const who = n.actor?.username ?? "Alguém";
   switch (n.type) {
     case "REPLY_TOPIC":
-      return `${who} respondeu ao seu tópico`;
+      return `${who} respondeu ao seu post`;
     case "REPLY_COMMENT":
       return `${who} respondeu ao seu comentário`;
     case "LIKE_POST":
-      return `${who} curtiu seu tópico`;
+      return `${who} curtiu seu post`;
     case "LIKE_COMMENT":
       return `${who} curtiu seu comentário`;
     case "MENTION":

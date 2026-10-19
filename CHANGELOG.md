@@ -7,6 +7,19 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.21.2] — 18/10/2026 — Novo post em página própria
+
+### Alterado
+
+- **Novo post e denúncias em página própria** (`/comunidade/novo`), no lugar do diálogo, que ficava cortado pelo rodapé e apertado no celular. Editor maior, dicas ao lado (ou as instruções de denúncia, na categoria Denúncias) e aviso do navegador ao sair com texto não publicado
+  - Botões "Novo post" e "Nova denúncia" levam à página com a categoria na URL (`?categoria=`); sem login, passam pelo login e voltam
+  - "Reportar" em posts e comentários abre a página com o conteúdo denunciado na URL (`?denunciar=` e `&comentario=`); o texto inicial, com link e nick do autor, é montado na própria página
+- Na interface, "tópico" passa a se chamar **post**: botões, contagens, mensagens de erro, notificações, e-mails e títulos das páginas. Rotas, código e banco mantêm os nomes antigos
+- A página principal da comunidade não tem mais o botão de novo post: ele fica dentro de cada categoria. `/comunidade/novo` sem categoria volta para `/comunidade`
+- Removido o componente `NewTopicDialog`
+
+---
+
 ## [v0.21.1] — 18/10/2026 — Correção do deploy: dependências de teste
 
 ### Corrigido

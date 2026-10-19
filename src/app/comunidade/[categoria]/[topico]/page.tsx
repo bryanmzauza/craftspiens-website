@@ -11,7 +11,7 @@ export async function generateMetadata({ params }: { params: Promise<{ topico: s
     .findUnique({ where: { slug: topico }, select: { title: true, content: true, private: true } })
     .catch(() => null);
   if (!post || post.private) {
-    return { title: "Tópico — CraftSapiens | Comunidade", description: "Leia e participe das discussões da comunidade CraftSapiens." };
+    return { title: "Post — CraftSapiens | Comunidade", description: "Leia e participe das discussões da comunidade CraftSapiens." };
   }
   return {
     title: `${post.title} — CraftSapiens | Comunidade`,

@@ -427,12 +427,12 @@ export async function sendForumNotificationEmail(to: string, data: ForumNotifica
       ? `${data.actor} mencionou você`
       : data.kind === "resposta-comentario"
         ? `${data.actor} respondeu ao seu comentário`
-        : `${data.actor} respondeu ao seu tópico`;
+        : `${data.actor} respondeu ao seu post`;
 
   const content = `
     <h2 style="color:#fff;margin:0 0 16px;font-size:22px">${escapeHtml(headline)}</h2>
     <p style="color:#E0E0E0;font-size:15px;line-height:1.6;margin:0 0 16px">
-      Olá <strong style="color:#4CAF50">${escapeHtml(data.username)}</strong>, há novidade no tópico
+      Olá <strong style="color:#4CAF50">${escapeHtml(data.username)}</strong>, há novidade no post
       <strong>${escapeHtml(data.topicTitle)}</strong>.
     </p>
     ${
@@ -450,7 +450,7 @@ export async function sendForumNotificationEmail(to: string, data: ForumNotifica
     <p style="color:#888;font-size:12px;line-height:1.5;margin:0">
       Você recebe este aviso porque a opção "Respostas no fórum" está como e-mail. Para mudar, abra
       <a href="${siteUrl()}/perfil/configuracoes" style="color:#4CAF50">Configurações &gt; Notificações</a>.
-      Um e-mail por tópico a cada hora, no máximo.
+      Um e-mail por post a cada hora, no máximo.
     </p>`;
 
   const subject = `${headline} — CraftSapiens`.replace(/[\r\n]+/g, " ").slice(0, 200);

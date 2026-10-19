@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       select: { id: true, authorId: true, private: true },
     });
     if (!post || !canViewPost(post, user)) {
-      return NextResponse.json({ error: "Tópico não encontrado" }, { status: 404 });
+      return NextResponse.json({ error: "Post não encontrado" }, { status: 404 });
     }
     ownerId = post.authorId;
   } else {

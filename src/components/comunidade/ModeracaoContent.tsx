@@ -50,15 +50,15 @@ export function ModeracaoContent() {
   const cards = [
     { icon: Flag, label: "Denúncias abertas", value: data.counts.openReports, cor: "#E53935" },
     { icon: Ban, label: "Suspensões ativas", value: data.counts.bans, cor: "#FFC107" },
-    { icon: Lock, label: "Tópicos fechados", value: data.counts.locked, cor: "#A0A0A0" },
-    { icon: EyeOff, label: "Tópicos privados", value: data.counts.private, cor: "#9C27B0" },
+    { icon: Lock, label: "Posts fechados", value: data.counts.locked, cor: "#A0A0A0" },
+    { icon: EyeOff, label: "Posts privados", value: data.counts.private, cor: "#9C27B0" },
   ];
 
   return (
     <>
       <PageHero
         title="MODERAÇÃO"
-        subtitle="Denúncias pendentes e suspensões do fórum. As ações ficam em cada tópico e na página do membro."
+        subtitle="Denúncias pendentes e suspensões do fórum. As ações ficam em cada post e na página do membro."
         breadcrumbs={breadcrumbs}
       />
 
@@ -84,7 +84,7 @@ export function ModeracaoContent() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-[#A0A0A0]">Nenhuma denúncia pendente. Para encerrar uma, abra o tópico e marque como resolvido.</p>
+            <p className="text-sm text-[#A0A0A0]">Nenhuma denúncia pendente. Para encerrar uma, abra o post e marque como resolvido.</p>
           )}
         </section>
 

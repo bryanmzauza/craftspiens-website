@@ -100,7 +100,7 @@ type Activity = {
 
 const ACTIVITY_STYLES: Record<ActivityType, { icon: typeof BookOpen; prefix: string; cor: string }> = {
   aula: { icon: BookOpen, prefix: "Concluiu a aula", cor: "#2196F3" },
-  topico: { icon: MessageSquare, prefix: "Criou o tópico", cor: "#9C27B0" },
+  topico: { icon: MessageSquare, prefix: "Criou o post", cor: "#9C27B0" },
   comentario: { icon: MessagesSquare, prefix: "Comentou em", cor: "#FF9800" },
   compra: { icon: ShoppingCart, prefix: "Comprou", cor: "#FFD700" },
 };

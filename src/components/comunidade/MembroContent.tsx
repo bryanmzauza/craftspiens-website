@@ -156,7 +156,7 @@ export function MembroContent({ nick }: { nick: string }) {
 
   const stats = [
     { icon: Award, label: "Reputação", value: `${member.reputation} pts`, sub: member.badge, cor: "#FFD700" },
-    { icon: MessageSquare, label: "Tópicos", value: String(member.postCount), cor: "#9C27B0" },
+    { icon: MessageSquare, label: "Posts", value: String(member.postCount), cor: "#9C27B0" },
     { icon: MessagesSquare, label: "Comentários", value: String(member.commentCount), cor: "#FF9800" },
     { icon: ThumbsUp, label: "Curtidas recebidas", value: String(member.likesReceived), cor: "#4CAF50" },
   ];
@@ -292,8 +292,8 @@ export function MembroContent({ nick }: { nick: string }) {
         </div>
 
         <div className="grid gap-8 lg:grid-cols-2">
-          <section aria-label="Tópicos recentes">
-            <h3 className="mb-3 text-lg font-bold text-white">Tópicos recentes</h3>
+          <section aria-label="Posts recentes">
+            <h3 className="mb-3 text-lg font-bold text-white">Posts recentes</h3>
             {topics.length > 0 ? (
               <div className="space-y-2">
                 {topics.map((t) => (
@@ -301,7 +301,7 @@ export function MembroContent({ nick }: { nick: string }) {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-[#A0A0A0]">Nenhum tópico ainda.</p>
+              <p className="text-sm text-[#A0A0A0]">Nenhum post ainda.</p>
             )}
           </section>
 

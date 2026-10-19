@@ -4,7 +4,7 @@ import { MembrosContent } from "@/components/comunidade/MembrosContent";
 
 export const metadata: Metadata = {
   title: "Membros — CraftSapiens | Comunidade",
-  description: "Quem participa da comunidade CraftSapiens: busque pelo nick e veja os tópicos e comentários de cada membro.",
+  description: "Quem participa da comunidade CraftSapiens: busque pelo nick e veja os posts e comentários de cada membro.",
 };
 
 // Suspense: a página lê busca, ordem e página da URL (useSearchParams) no cliente
