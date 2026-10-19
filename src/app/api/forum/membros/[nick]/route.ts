@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { findNloginByUsername } from "@/lib/nlogin";
-import { getPlayerRank } from "@/lib/luckperms";
+import { getPlayerRank, getStaffMinWeight, isStaffRank } from "@/lib/luckperms";
 import { getPlayerSkin, getSeniority } from "@/lib/player-profile";
 import { getSessionUser } from "@/lib/forum/access";
 import { canBan, canModerate, visiblePostsWhere } from "@/lib/forum/permissions";
@@ -49,9 +49,10 @@ export async function GET(
   const viewer = await getSessionUser();
   const visible = visiblePostsWhere(viewer);
 
-  const [skin, rank, likesOnPosts, likesOnComments, dislikes, topics, comments] = await Promise.all([
+  const [skin, rank, staffMinWeight, likesOnPosts, likesOnComments, dislikes, topics, comments] = await Promise.all([
     getPlayerSkin(nlogin).catch(() => null),
     getPlayerRank(nlogin.unique_id).catch(() => null),
+    getStaffMinWeight(),
     prisma.reaction.count({ where: { post: { authorId: member.id }, type: "LIKE" } }),
     prisma.reaction.count({ where: { comment: { authorId: member.id }, type: "LIKE" } }),
     prisma.reaction.count({
@@ -95,7 +96,9 @@ export async function GET(
       uuid: nlogin.unique_id,
       skin,
       role: member.role,
-      rank,
+      rank: rank
+        ? { group: rank.group, label: rank.label, color: rank.color, staff: isStaffRank(rank, staffMinWeight) }
+        : null,
       seniority: getSeniority(nlogin.creation_date),
       joinedAt: member.createdAt,
       bio: member.profile?.perfilPublico === false ? null : (member.profile?.bio ?? null),

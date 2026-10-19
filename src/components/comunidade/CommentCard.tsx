@@ -9,7 +9,8 @@ import {
   Avatar,
   AuthorName,
   MarkdownBody,
-  RoleBadge,
+  RankBadge,
+  staffFrameStyle,
   When,
   primaryButtonClass,
   secondaryButtonClass,
@@ -89,14 +90,16 @@ export function CommentCard(props: CommentCardProps) {
       className={`scroll-mt-24 rounded-xl border bg-bg-card/40 ${
         highlighted ? "border-green-cs/60 shadow-[0_0_0_1px_rgba(76,175,80,0.3)]" : "border-white/10"
       } ${isReply ? "ml-6 border-l-2 border-l-white/20 sm:ml-10" : ""}`}
+      // Comentário da equipe: borda e brilho na cor do cargo (o destaque do link #comentario tem prioridade)
+      style={highlighted ? undefined : staffFrameStyle(comment.author)}
     >
       <div className="flex gap-3 p-4">
-        <Avatar author={comment.author} size={32} className="mt-0.5" />
+        <Avatar author={comment.author} size={32} className="mt-0.5" highlight />
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <AuthorName author={comment.author} />
-            <RoleBadge role={comment.author.role} />
+            <RankBadge author={comment.author} />
             <span className="text-[#A0A0A0]">
               <When date={comment.createdAt} />
               {comment.editedAt && <span title="Editado"> · editado</span>}

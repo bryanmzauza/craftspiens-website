@@ -43,7 +43,8 @@ import {
   MarkdownBody,
   Paginator,
   primaryButtonClass,
-  RoleBadge,
+  RankBadge,
+  staffFrameStyle,
   secondaryButtonClass,
   Tag,
   TopicStatusIcons,
@@ -418,7 +419,12 @@ export function TopicoContent({ categoriaSlug, topicoSlug }: { categoriaSlug: st
         )}
 
         {/* Post */}
-        <motion.article initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-white/10 bg-bg-card/50">
+        <motion.article
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl border border-white/10 bg-bg-card/50"
+          style={staffFrameStyle(post.author)}
+        >
           <div className="border-b border-white/10 p-4 sm:p-6">
             {editing ? (
               <form onSubmit={saveEdit} className="space-y-4">
@@ -483,12 +489,12 @@ export function TopicoContent({ categoriaSlug, topicoSlug }: { categoriaSlug: st
               {/* Autor */}
               <aside className="flex shrink-0 items-start gap-3 sm:w-40 sm:flex-col sm:items-center sm:text-center">
                 <Link href={`/comunidade/membro/${post.author.username}`} aria-label={`Perfil de ${post.author.username}`}>
-                  <Avatar author={post.author} size={64} className="h-14 w-14 rounded-lg sm:h-16 sm:w-16" />
+                  <Avatar author={post.author} size={64} className="h-14 w-14 rounded-lg sm:h-16 sm:w-16" highlight />
                 </Link>
                 <div>
                   <AuthorName author={post.author} />
-                  <div className="mt-0.5">
-                    <RoleBadge role={post.author.role} />
+                  <div className="mt-1">
+                    <RankBadge author={post.author} size="md" />
                   </div>
                   <p className="mt-1 text-[11px] text-[#A0A0A0]" title="Reputação no fórum">
                     {post.author.badge} · {post.author.reputation} pts

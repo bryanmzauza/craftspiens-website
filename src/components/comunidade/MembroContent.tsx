@@ -12,7 +12,10 @@ import {
   EmptyState,
   inputClass,
   primaryButtonClass,
-  RoleBadge,
+  RankBadge,
+  rankColor,
+  isHighlighted,
+  staffFrameStyle,
   secondaryButtonClass,
   TopicRow,
   When,
@@ -26,7 +29,7 @@ interface Member {
   uuid: string | null;
   skin: { id: string; source: "java" | "bedrock" | "nick" } | null;
   role: string;
-  rank: { group: string; label: string; color: string } | null;
+  rank: { group: string; label: string; color: string; staff: boolean } | null;
   seniority: { label: string; since: string };
   joinedAt: string;
   bio: string | null;
@@ -170,25 +173,25 @@ export function MembroContent({ nick }: { nick: string }) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-8 flex flex-col items-center gap-6 rounded-2xl border border-white/10 bg-bg-card/50 p-6 sm:flex-row sm:items-start"
+          style={staffFrameStyle(member)}
         >
-          <div className="h-24 w-24 shrink-0 overflow-hidden rounded-xl border-2 border-white/20 bg-bg-accent">
+          <div
+            className="h-24 w-24 shrink-0 overflow-hidden rounded-xl border-2 border-white/20 bg-bg-accent"
+            style={isHighlighted(member) ? { borderColor: rankColor(member), boxShadow: `0 0 18px ${rankColor(member)}66` } : undefined}
+          >
             {/* eslint-disable-next-line @next/next/no-img-element -- avatar externo (mc-heads.net) */}
             <img src={avatarUrl} alt={member.username} className="h-full w-full object-cover" />
           </div>
 
           <div className="flex-1 text-center sm:text-left">
             <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-              <h2 className="text-xl font-bold text-white">{member.username}</h2>
-              {member.rank && (
-                <span
-                  className="rounded border px-2 py-0.5 text-xs font-bold"
-                  style={{ color: member.rank.color, backgroundColor: `${member.rank.color}26`, borderColor: `${member.rank.color}66` }}
-                  title="Cargo no servidor"
-                >
-                  {member.rank.label}
-                </span>
-              )}
-              <RoleBadge role={member.role} />
+              <h2
+                className="text-xl font-bold"
+                style={{ color: rankColor(member), textShadow: isHighlighted(member) ? `0 0 14px ${rankColor(member)}99` : undefined }}
+              >
+                {member.username}
+              </h2>
+              <RankBadge author={member} size="md" />
               <span className="rounded bg-white/10 px-2 py-0.5 text-xs text-[#A0A0A0]" title="Tempo de servidor">
                 {member.seniority.label}
               </span>

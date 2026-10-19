@@ -7,6 +7,20 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.21.3] — 18/10/2026 — Skin e cargo dos autores no fórum
+
+### Adicionado
+
+- **Cargo do servidor no fórum**: o nick de cada autor aparece na cor do cargo no LuckPerms, com o selo do cargo ao lado, em posts, comentários, listas, membros e moderação
+- **Destaque da equipe**: quem é moderador ou superior na hierarquia do LuckPerms (peso igual ou maior que o do grupo `moderador`, lido do banco) ganha escudo no selo, brilho no nome, anel no avatar e borda na cor do cargo. O destaque é só visual; as permissões de moderação continuam pelo papel do site
+- `getPlayerRank` passa a informar o peso do grupo; nova `getStaffMinWeight` em `src/lib/luckperms.ts`
+
+### Corrigido
+
+- Avatares do fórum (posts, comentários, listas, membros, notificações e moderação) mostravam o Steve para quem não tem conta original: eram montados pelo `unique_id` do nLogin, que nessas contas é um UUID offline. Passam a usar a mesma regra do perfil e da navbar (`getPlayerSkin` em `src/lib/player-profile.ts`): UUID da conta original, textura do Bedrock ou o nick
+
+---
+
 ## [v0.21.2] — 18/10/2026 — Novo post em página própria
 
 ### Alterado
