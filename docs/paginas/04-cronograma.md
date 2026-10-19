@@ -3,6 +3,7 @@
 > **Rota**: `/cronograma`
 > **Acesso**: Público (ainda não lançada: só contas do grupo `dev` do LuckPerms veem o conteúdo; os demais veem "Em breve", com um botão para o canal #cronograma-de-aulas do Discord, onde o cronograma da semana é publicado; ver `src/lib/dev-access.ts`)
 > **Propósito**: Exibir horários de aulas, grade semanal e calendário de eventos.
+> **Dados**: as aulas são marcadas pela equipe no painel (`/painel/cronograma`, ver [13-painel.md](./13-painel.md)) e lidas de `GET /api/cronograma?inicio=&fim=`. Enquanto o cronograma não for lançado, essa API também responde só ao grupo `dev` (`devOnlyApis` em `src/proxy.ts`).
 
 ---
 
@@ -42,14 +43,14 @@
 - Botão "Limpar filtros"
 
 ### RN-CRONO-05: Detalhes da Aula (Modal/Sidebar)
-- Ao clicar em uma aula no cronograma, abre um modal ou sidebar com:
-  - Nome completo da disciplina
-  - Professor com foto
-  - Descrição da aula do dia
-  - Horário completo
-  - Link para entrar no servidor: `jogar.craftsapiens.com.br`
-  - Botão "Adicionar lembrete" (se logado) — notificação por email 15min antes
-  - Botão "Ver disciplina" → `/aulas/[slug]`
+- Ao clicar em uma aula no cronograma, abre um modal com:
+  - Nome da aula e tema do dia
+  - Professor, nível e local no jogo
+  - Descrição da aula
+  - Data e horário completos; aula cancelada aparece riscada, com o motivo
+  - Endereço do servidor: `jogar.craftsapiens.com.br`
+  - Botão "Adicionar à agenda": baixa um `.ics` da aula com lembrete 15 min antes (no lugar do lembrete por e-mail)
+  - Botão "Ver disciplina" → `/aulas/[slug]`, quando a aula está ligada a uma disciplina
 
 ### RN-CRONO-06: Próximas Aulas (Widget)
 - Sidebar ou seção mostrando as próximas 3-5 aulas em ordem cronológica
@@ -57,16 +58,13 @@
 - Atualização em tempo real (WebSocket ou polling a cada 60s)
 
 ### RN-CRONO-07: Exportar Calendário
-- Botão para exportar grade em formato `.ics` (compatível com Google Calendar, Outlook, Apple Calendar)
-- Opções:
-  - Exportar semana atual
-  - Exportar mês atual
-  - Inscrever-se no calendário (link de assinatura iCal)
+- Botão para exportar a grade em `.ics` (Google Agenda, Outlook, Calendário da Apple), gerado no navegador
+- Exporta o que está na tela: a semana ou o mês, com os filtros aplicados e sem as aulas canceladas
+- Pendente: link de assinatura iCal
 
 ### RN-CRONO-08: Aviso de Férias / Recesso
-- Se houver período de férias ou recesso, exibir banner informativo no topo:
-  - "Período de férias: [data] a [data]. As aulas retornam em [data]."
-- Dados configuráveis pelo admin
+- Aviso em texto livre no topo da página, publicado pelo painel, com data opcional para sair do ar
+- Guardado em `site_settings` (chave `cronograma.aviso`)
 
 ---
 
@@ -127,33 +125,27 @@
 
 ## Modelo de Dados
 
-### Aula Agendada (Schedule)
+### scheduled_classes (v0.23)
+
+Cada linha é uma aula com data e hora (não há regra de recorrência): "repetir por N semanas" no painel cria uma linha por semana, todas com o mesmo `series_id`. Assim cada semana pode ter o próprio tema, ser cancelada ou mudar de horário sem afetar as outras.
 
 | Campo | Tipo | Obrigatório |
 |-------|------|:-----------:|
-| `id` | INT (PK) | Sim |
-| `disciplina_id` | INT (FK) | Sim |
-| `professor_id` | INT (FK) | Sim |
-| `titulo` | VARCHAR(200) | Não |
-| `descricao` | TEXT | Não |
-| `dia_semana` | ENUM (seg, ter, qua, qui, sex, sab, dom) | Sim |
-| `hora_inicio` | TIME | Sim |
-| `hora_fim` | TIME | Sim |
-| `nivel` | VARCHAR(50) | Sim |
-| `recorrente` | BOOLEAN | Sim |
-| `data_especifica` | DATE | Não |
-| `ativo` | BOOLEAN | Sim |
-| `created_at` | DATETIME | Sim |
+| `id` | TEXT (PK) | Sim |
+| `title` | VARCHAR(120) | Sim |
+| `topic` | VARCHAR(200) | Não |
+| `description` | TEXT | Não |
+| `teacher` | VARCHAR(100) | Sim |
+| `level` | VARCHAR(50) | Não |
+| `color` | VARCHAR(20) | Sim |
+| `location` | VARCHAR(100) | Não |
+| `discipline_id` | TEXT (FK disciplines) | Não |
+| `starts_at`, `ends_at` | TIMESTAMP | Sim |
+| `cancelled`, `cancel_reason` | BOOLEAN, VARCHAR(200) | |
+| `series_id` | TEXT | Não |
+| `created_by` | VARCHAR(50) | Não (nome informado no painel) |
 
-### Lembrete
-
-| Campo | Tipo | Obrigatório |
-|-------|------|:-----------:|
-| `id` | INT (PK) | Sim |
-| `user_id` | INT (FK) | Sim |
-| `schedule_id` | INT (FK) | Sim |
-| `notificar_minutos_antes` | INT | Sim |
-| `email_enviado` | BOOLEAN | Sim |
+Lembrete por e-mail: não implementado; o `.ics` leva o lembrete para a agenda do aluno.
 
 ---
 

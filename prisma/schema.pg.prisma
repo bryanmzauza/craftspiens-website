@@ -454,7 +454,8 @@ model Discipline {
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
-  lessons Lesson[]
+  lessons          Lesson[]
+  scheduledClasses ScheduledClass[]
 
   @@map("disciplines")
 }
@@ -603,4 +604,67 @@ enum DeliveryStatus {
   PROCESSING
   DELIVERED
   FAILED
+}
+
+// =============================================================================
+// Painel da equipe (/painel), liberado pelo código de acesso PAINEL_CODIGO
+// =============================================================================
+
+// Aulas ao vivo do cronograma. Cada linha é uma aula com data e hora; "repetir
+// por N semanas" cria uma linha por semana com o mesmo seriesId, para editar ou
+// excluir a série de uma vez.
+model ScheduledClass {
+  id           String   @id @default(cuid())
+  // Disciplina ou nome da aula (ex.: "Matemática")
+  title        String   @db.VarChar(120)
+  // Tema da aula do dia (ex.: "Frações com blocos")
+  topic        String?  @db.VarChar(200)
+  description  String?  @db.Text
+  teacher      String   @db.VarChar(100)
+  level        String?  @db.VarChar(50)
+  color        String   @db.VarChar(20)
+  // Onde acontece no jogo (ex.: "Survival", "Sala de aula do lobby")
+  location     String?  @db.VarChar(100)
+  disciplineId String?  @map("discipline_id")
+  startsAt     DateTime @map("starts_at")
+  endsAt       DateTime @map("ends_at")
+  // Cancelada continua no cronograma, riscada, com o motivo
+  cancelled    Boolean  @default(false)
+  cancelReason String?  @map("cancel_reason") @db.VarChar(200)
+  seriesId     String?  @map("series_id")
+  // Nome informado ao abrir o painel
+  createdBy    String?  @map("created_by") @db.VarChar(50)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  discipline Discipline? @relation(fields: [disciplineId], references: [id], onDelete: SetNull)
+
+  @@index([startsAt])
+  @@index([seriesId])
+  @@map("scheduled_classes")
+}
+
+// Configurações editadas pelo painel (ex.: "cronograma.aviso" = aviso de recesso)
+model SiteSetting {
+  key       String   @id @db.VarChar(100)
+  value     Json
+  updatedBy String?  @map("updated_by") @db.VarChar(50)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("site_settings")
+}
+
+// Registro do que foi feito no painel: quem (nome informado ao abrir), o quê e quando
+model PanelLog {
+  id        String   @id @default(cuid())
+  actor     String   @db.VarChar(50)
+  // Ex.: "produto.preco", "cupom.criar", "aula.excluir"
+  action    String   @db.VarChar(50)
+  // Nome legível do alvo (produto, cupom, aula)
+  target    String?  @db.VarChar(255)
+  details   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("panel_logs")
 }

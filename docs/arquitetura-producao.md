@@ -903,6 +903,8 @@ MERCADOPAGO_ACCESS_TOKEN="APP_USR-..."
 MERCADOPAGO_WEBHOOK_SECRET="<assinatura secreta do painel>"
 # Token do plugin de entregas da loja (o mesmo vai no config.yml do plugin)
 DELIVERY_API_TOKEN="<openssl rand -hex 32>"
+# Código de acesso do painel da equipe (/painel). Só aqui, nunca no repositório
+PAINEL_CODIGO="<openssl rand -base64 18>"
 
 # E-mail: SMTP do Gmail com senha de app (ver docs/email.md)
 SMTP_HOST="smtp.gmail.com"

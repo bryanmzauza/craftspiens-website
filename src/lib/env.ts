@@ -37,6 +37,14 @@ const envSchema = z.object({
     z.string().min(32, "deve ter pelo menos 32 caracteres (openssl rand -hex 32)").optional()
   ),
 
+  // Código de acesso do painel da equipe (/painel). Fica só no .env do servidor,
+  // nunca no repositório. Sem ele, o painel fica desligado. Trocar o código
+  // encerra todas as sessões abertas do painel.
+  PAINEL_CODIGO: z.preprocess(
+    (v) => (v === "" ? undefined : v),
+    z.string().min(12, "deve ter pelo menos 12 caracteres").optional()
+  ),
+
   // SMTP
   SMTP_HOST: z.string().min(1),
   SMTP_PORT: z.coerce.number().int().positive().default(587),

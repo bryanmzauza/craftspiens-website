@@ -63,6 +63,7 @@ Este repositório contém o código-fonte da nova plataforma da CraftSapiens, pl
 | 10 | Status do Servidor | [10-status-servidor.md](./paginas/10-status-servidor.md) | `/status` |
 | 11 | Blog | [11-blog.md](./paginas/11-blog.md) | `/blog` |
 | 12 | Termos e Condições | [12-termos.md](./paginas/12-termos.md) | `/termos` |
+| 13 | Painel da equipe | [13-painel.md](./paginas/13-painel.md) | `/painel` |
 
 ### Componentes Globais
 
