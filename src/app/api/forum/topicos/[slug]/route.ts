@@ -56,7 +56,7 @@ export async function GET(
   });
 
   if (!post || !canViewPost(post, user)) {
-    return NextResponse.json({ error: "Tópico não encontrado" }, { status: 404 });
+    return NextResponse.json({ error: "Post não encontrado" }, { status: 404 });
   }
 
   // Views: só de quem não é o autor, sem travar a resposta
@@ -144,7 +144,7 @@ export async function PUT(
   });
 
   if (!post || !canViewPost(post, user)) {
-    return NextResponse.json({ error: "Tópico não encontrado" }, { status: 404 });
+    return NextResponse.json({ error: "Post não encontrado" }, { status: 404 });
   }
 
   let body: {
@@ -170,7 +170,7 @@ export async function PUT(
   if (wantsEdit) {
     if (!canEdit(post, user)) {
       return NextResponse.json(
-        { error: "Só o autor, em até 30 minutos, ou a moderação pode editar este tópico" },
+        { error: "Só o autor, em até 30 minutos, ou a moderação pode editar este post" },
         { status: 403 }
       );
     }
@@ -207,7 +207,7 @@ export async function PUT(
 
   if (body.resolved !== undefined) {
     if (!canResolve(post, user)) {
-      return NextResponse.json({ error: "Só o autor ou a moderação marca o tópico como resolvido" }, { status: 403 });
+      return NextResponse.json({ error: "Só o autor ou a moderação marca o post como resolvido" }, { status: 403 });
     }
     data.resolved = body.resolved === true;
   }
@@ -261,7 +261,7 @@ export async function PUT(
         type: "MODERATION",
         actorId: user.id,
         postId: post.id,
-        message: `Seu tópico foi ${moderationNotes.join(", ")}`.slice(0, 255),
+        message: `Seu post foi ${moderationNotes.join(", ")}`.slice(0, 255),
       })
     );
   }
@@ -300,12 +300,12 @@ export async function DELETE(
   });
 
   if (!post || !canViewPost(post, user)) {
-    return NextResponse.json({ error: "Tópico não encontrado" }, { status: 404 });
+    return NextResponse.json({ error: "Post não encontrado" }, { status: 404 });
   }
 
   if (!canDelete({ authorId: post.authorId, replyCount: post._count.comments }, user)) {
     return NextResponse.json(
-      { error: "Só é possível excluir um tópico sem respostas; a moderação pode excluir qualquer tópico" },
+      { error: "Só é possível excluir um post sem respostas; a moderação pode excluir qualquer post" },
       { status: 403 }
     );
   }
@@ -317,7 +317,7 @@ export async function DELETE(
       userId: post.authorId,
       type: "MODERATION",
       actorId: user.id,
-      message: `Seu tópico "${post.title}" foi removido pela moderação`.slice(0, 255),
+      message: `Seu post "${post.title}" foi removido pela moderação`.slice(0, 255),
     });
   }
 

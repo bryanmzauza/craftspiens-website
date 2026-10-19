@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
     select: { id: true, private: true, authorId: true },
   });
   if (!post || !canViewPost(post, user)) {
-    return NextResponse.json({ error: "Tópico não encontrado" }, { status: 404 });
+    return NextResponse.json({ error: "Post não encontrado" }, { status: 404 });
   }
 
   const where = { postId: topicoId, parentId: null };
@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
   const parentId = typeof body.parentId === "string" && body.parentId ? body.parentId : null;
 
   if (!postId || !content) {
-    return NextResponse.json({ error: "Tópico e conteúdo são obrigatórios" }, { status: 400 });
+    return NextResponse.json({ error: "Post e conteúdo são obrigatórios" }, { status: 400 });
   }
 
   if (content.length < COMMENT_MIN || content.length > COMMENT_MAX) {
@@ -172,11 +172,11 @@ export async function POST(request: NextRequest) {
   });
 
   if (!post || !canViewPost(post, user)) {
-    return NextResponse.json({ error: "Tópico não encontrado" }, { status: 404 });
+    return NextResponse.json({ error: "Post não encontrado" }, { status: 404 });
   }
 
   if (post.locked && !canModerate(user.role)) {
-    return NextResponse.json({ error: "Este tópico está fechado para novos comentários" }, { status: 403 });
+    return NextResponse.json({ error: "Este post está fechado para novos comentários" }, { status: 403 });
   }
 
   let parent: { id: string; authorId: string } | null = null;

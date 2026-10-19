@@ -92,7 +92,7 @@ export function MembrosContent() {
     <>
       <PageHero
         title="MEMBROS"
-        subtitle="Quem participa da comunidade. Clique num membro para ver os tópicos e comentários dele."
+        subtitle="Quem participa da comunidade. Clique num membro para ver os posts e comentários dele."
         breadcrumbs={[{ label: "Home", href: "/" }, { label: "Comunidade", href: "/comunidade" }, { label: "Membros" }]}
       />
 
@@ -174,7 +174,7 @@ export function MembrosContent() {
                         )}
                       </div>
                       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-[#A0A0A0]">
-                        <span className="flex items-center gap-1" title="Tópicos">
+                        <span className="flex items-center gap-1" title="Posts">
                           <MessageSquare size={12} /> {m.postCount}
                         </span>
                         <span className="flex items-center gap-1" title="Comentários">

@@ -6,7 +6,7 @@ export async function generateMetadata({ params }: { params: Promise<{ nick: str
   const safe = /^[A-Za-z0-9_]{3,16}$/.test(nick) ? nick : "Membro";
   return {
     title: `${safe} — CraftSapiens | Comunidade`,
-    description: `Tópicos, comentários e reputação de ${safe} na comunidade CraftSapiens.`,
+    description: `Posts, comentários e reputação de ${safe} na comunidade CraftSapiens.`,
   };
 }
 

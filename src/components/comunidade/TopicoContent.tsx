@@ -31,7 +31,7 @@ import {
 import { PageHero } from "@/components/ui/PageHero";
 import { CommentCard, type CommentData } from "@/components/comunidade/CommentCard";
 import { MarkdownEditor } from "@/components/comunidade/MarkdownEditor";
-import { NewTopicDialog, type CategoryOption } from "@/components/comunidade/NewTopicDialog";
+import type { CategoryOption } from "@/components/comunidade/NovoTopicoContent";
 import {
   api,
   ApiError,
@@ -128,8 +128,6 @@ export function TopicoContent({ categoriaSlug, topicoSlug }: { categoriaSlug: st
   const [moveTo, setMoveTo] = useState("");
   const [copied, setCopied] = useState(false);
 
-  // Denúncia
-  const [report, setReport] = useState<{ title: string; content: string } | null>(null);
 
   const fetchPost = useCallback(async () => {
     const res = await api<{ post: PostDetail }>(`/api/forum/topicos/${topicoSlug}`);
@@ -322,7 +320,7 @@ export function TopicoContent({ categoriaSlug, topicoSlug }: { categoriaSlug: st
   }
 
   async function deletePost() {
-    if (!post || !window.confirm("Excluir este tópico e todos os comentários? Esta ação não pode ser desfeita.")) return;
+    if (!post || !window.confirm("Excluir este post e todos os comentários? Esta ação não pode ser desfeita.")) return;
     setBusyAction("delete");
     const res = await api<{ success: true; categorySlug: string }>(`/api/forum/topicos/${post.slug}`, { method: "DELETE" });
     setBusyAction(null);
@@ -349,22 +347,15 @@ export function TopicoContent({ categoriaSlug, topicoSlug }: { categoriaSlug: st
     });
   }
 
+  // Denúncias abrem a página de novo tópico, que monta o texto com o link e o autor
   function reportPost() {
     if (!post) return;
-    const url = `/comunidade/${post.category.slug}/${post.slug}`;
-    setReport({
-      title: `Denúncia: ${post.title}`.slice(0, TITLE_MAX),
-      content: `Denúncia sobre o tópico [${post.title}](${url}), de @${post.author.username}.\n\n**Motivo:** \n\n**Provas:** `,
-    });
+    router.push(`/comunidade/novo?denunciar=${encodeURIComponent(post.slug)}`);
   }
 
   function reportComment(comment: CommentData) {
     if (!post) return;
-    const url = `/comunidade/${post.category.slug}/${post.slug}#comentario-${comment.id}`;
-    setReport({
-      title: `Denúncia: comentário em ${post.title}`.slice(0, TITLE_MAX),
-      content: `Denúncia sobre um [comentário](${url}) de @${comment.author.username} no tópico "${post.title}".\n\n**Motivo:** \n\n**Provas:** `,
-    });
+    router.push(`/comunidade/novo?denunciar=${encodeURIComponent(post.slug)}&comentario=${encodeURIComponent(comment.id)}`);
   }
 
   // --- Render ---
@@ -382,10 +373,10 @@ export function TopicoContent({ categoriaSlug, topicoSlug }: { categoriaSlug: st
       <>
         <PageHero
           title="COMUNIDADE"
-          breadcrumbs={[{ label: "Home", href: "/" }, { label: "Comunidade", href: "/comunidade" }, { label: "Tópico" }]}
+          breadcrumbs={[{ label: "Home", href: "/" }, { label: "Comunidade", href: "/comunidade" }, { label: "Post" }]}
         />
         <div className="mx-auto max-w-4xl px-4 pb-16 lg:px-6">
-          <EmptyState title="Tópico não encontrado" description="Ele pode ter sido removido ou ser privado." />
+          <EmptyState title="Post não encontrado" description="Ele pode ter sido removido ou ser privado." />
           <div className="text-center">
             <Link href={`/comunidade/${categoriaSlug}`} className={secondaryButtonClass}>
               Voltar para a categoria
@@ -416,7 +407,7 @@ export function TopicoContent({ categoriaSlug, topicoSlug }: { categoriaSlug: st
         {post.private && (
           <div className="mb-4 flex items-center gap-2 rounded-xl border border-xp/40 bg-xp/10 px-4 py-3 text-sm text-[#E0E0E0]">
             <EyeOff size={16} className="shrink-0 text-xp" aria-hidden="true" />
-            Tópico privado: só o autor e a moderação veem este conteúdo.
+            Post privado: só o autor e a moderação veem este conteúdo.
           </div>
         )}
         {isReport && post.resolved && (
@@ -426,7 +417,7 @@ export function TopicoContent({ categoriaSlug, topicoSlug }: { categoriaSlug: st
           </div>
         )}
 
-        {/* Tópico */}
+        {/* Post */}
         <motion.article initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-white/10 bg-bg-card/50">
           <div className="border-b border-white/10 p-4 sm:p-6">
             {editing ? (
@@ -503,7 +494,7 @@ export function TopicoContent({ categoriaSlug, topicoSlug }: { categoriaSlug: st
                     {post.author.badge} · {post.author.reputation} pts
                   </p>
                   <p className="text-[11px] text-[#A0A0A0]">
-                    {post.author.postCount} tópicos · {post.author.commentCount} comentários
+                    {post.author.postCount} posts · {post.author.commentCount} comentários
                   </p>
                   {post.author.bio && <p className="mt-2 line-clamp-3 text-[11px] text-[#A0A0A0]">{post.author.bio}</p>}
                 </div>
@@ -668,7 +659,7 @@ export function TopicoContent({ categoriaSlug, topicoSlug }: { categoriaSlug: st
             className="mt-8 scroll-mt-24 rounded-xl border border-white/10 bg-bg-card/50 p-4"
           >
             {post.locked && (
-              <p className="mb-3 text-xs text-warning">Tópico fechado: só a moderação pode comentar.</p>
+              <p className="mb-3 text-xs text-warning">Post fechado: só a moderação pode comentar.</p>
             )}
             {replyingTo && (
               <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-[#A0A0A0]">
@@ -705,7 +696,7 @@ export function TopicoContent({ categoriaSlug, topicoSlug }: { categoriaSlug: st
         ) : post.locked ? (
           <div className="mt-8 rounded-xl border border-white/10 bg-bg-card/30 p-4 text-center text-sm text-[#A0A0A0]">
             <Lock size={16} className="mx-auto mb-2" aria-hidden="true" />
-            Este tópico está fechado para novos comentários.
+            Este post está fechado para novos comentários.
           </div>
         ) : (
           <div className="mt-8 rounded-xl border border-white/10 bg-bg-card/30 p-4 text-center text-sm text-[#A0A0A0]">
@@ -716,15 +707,6 @@ export function TopicoContent({ categoriaSlug, topicoSlug }: { categoriaSlug: st
           </div>
         )}
       </div>
-
-      <NewTopicDialog
-        open={report !== null}
-        onClose={() => setReport(null)}
-        defaultCategorySlug={REPORTS_CATEGORY_SLUG}
-        initialTitle={report?.title}
-        initialContent={report?.content}
-        role={session?.user?.role}
-      />
     </>
   );
 }

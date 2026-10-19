@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: { params: Promise<{ categoria
   }
   return {
     title: `${category.name} — CraftSapiens | Comunidade`,
-    description: category.description ?? `Tópicos de ${category.name} na comunidade CraftSapiens.`,
+    description: category.description ?? `Posts de ${category.name} na comunidade CraftSapiens.`,
   };
 }
 

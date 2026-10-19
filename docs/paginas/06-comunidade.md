@@ -1,9 +1,15 @@
 # Página 06 — Comunidade (Fórum)
 
-> **Rotas**: `/comunidade`, `/comunidade/[categoria]`, `/comunidade/[categoria]/[topico]`, `/comunidade/membros`, `/comunidade/membro/[nick]`, `/comunidade/notificacoes`, `/comunidade/moderacao`
+> **Rotas**: `/comunidade`, `/comunidade/[categoria]`, `/comunidade/[categoria]/[topico]`, `/comunidade/novo`, `/comunidade/membros`, `/comunidade/membro/[nick]`, `/comunidade/notificacoes`, `/comunidade/moderacao`
 > **Acesso**: Público (leitura) / Logado com nick vinculado (participar) / Moderação (`MODERADOR` e `ADMIN`) para a página de moderação
 > **Lançamento**: ainda restrita ao grupo `dev` do LuckPerms; os demais veem "Em breve" e as APIs `/api/forum/*` respondem 403 (ver `src/lib/dev-access.ts` e a seção "Lançamento" abaixo)
 > **Propósito**: Fórum da comunidade para discussões, dúvidas, denúncias e interação entre alunos, professores e equipe.
+
+---
+
+## Nomenclatura
+
+Na interface, o conteúdo de cada discussão se chama **post** (botão "Novo post", contagens "posts", avisos "respondeu ao seu post"). No código, nas rotas e no banco os nomes continuam `topico`/`topicos`/`Post`.
 
 ---
 
@@ -29,7 +35,7 @@
 - Lista de categorias com ícone, nome, descrição, quantidade de tópicos e de comentários, e o último tópico (título, autor e tempo)
 - Seção "Atividade recente" com os 6 tópicos de atividade mais recente em todo o fórum
 - Estatísticas: tópicos, comentários e membros; "membros" leva à lista de membros (RN-FORUM-12)
-- Botões: Novo tópico (logado), Notificações (logado), Moderação (moderação)
+- Botões: Notificações (logado) e Moderação (moderação). Não há botão de novo post na página principal: ele fica dentro de cada categoria
 
 ### RN-FORUM-02: Categorias
 - Criadas pelo seed (`scripts/seed-forum.mjs`), idempotente pelo slug:
@@ -66,7 +72,8 @@
 - Visualizações só contam para quem não é o autor
 
 ### RN-FORUM-05: Criação de tópico (logado)
-- Diálogo com categoria (pré-selecionada na página da categoria), título (até 200 caracteres), conteúdo em Markdown (20 a 20.000 caracteres) com pré-visualização, e tags opcionais (até 5, com até 20 caracteres, normalizadas como slug)
+- Página própria `/comunidade/novo` (sem login, vai para o login e volta). A categoria vem da URL (`?categoria=slug`, usada pelo botão "Novo post" da página da categoria); sem categoria nem denúncia, a página volta para `/comunidade`. Ao lado do formulário, dicas para um bom tópico ou, na categoria Denúncias, as instruções de como denunciar. Sair com texto não publicado pede confirmação do navegador
+- Formulário com categoria, título (até 200 caracteres), conteúdo em Markdown (20 a 20.000 caracteres) com pré-visualização, e tags opcionais (até 5, com até 20 caracteres, normalizadas como slug)
 - Exige nick do Minecraft vinculado (o autor aparece pelo nick); sem ele a API responde 403 com `code: "SemNick"` e a tela mostra o link para Configurações
 - Exige data de nascimento registrada (`code: "SemIdade"`), que contas do Google informam em Configurações > Dados pessoais
 - Exige e-mail confirmado (bloqueio no proxy para escritas em `/api/forum`)
@@ -97,7 +104,7 @@
 ### RN-FORUM-08: Denúncias
 - São tópicos da categoria `denuncias` (`REPORTS_CATEGORY_SLUG` em `src/lib/forum/constants.ts`), por isso têm comentários, notificações e moderação como qualquer tópico
 - Nascem públicas. Se o assunto for sensível, a moderação marca o tópico como privado: só o autor e a moderação veem; ele some das listas, da busca, da página principal e dos metadados
-- O botão "Reportar" num tópico ou comentário abre o diálogo de novo tópico já na categoria Denúncias, com o link do conteúdo e o nick do autor preenchidos, e os campos Motivo e Provas para completar
+- O botão "Reportar" num tópico ou comentário abre `/comunidade/novo?denunciar=<slug do tópico>` (e `&comentario=<id>`), já na categoria Denúncias, com o link do conteúdo e o nick do autor preenchidos, e os campos Motivo e Provas para completar
 - Cada denúncia nova notifica toda a moderação (tipo `REPORT`)
 - Encerrar a denúncia = marcar como resolvido (autor ou moderação); a página de moderação lista as abertas
 
