@@ -105,7 +105,7 @@ Todas exigem a sessão do painel; escritas exigem a origem do próprio site.
 | `/api/painel/cronograma/aviso` | PUT, DELETE | Publicar ou remover o aviso |
 | `/api/painel/atividade` | GET | Registro, com `tipo` e `pagina` |
 
-A página pública usa `GET /api/cronograma?inicio=&fim=` (só campos públicos; enquanto o cronograma não for lançado, responde só ao grupo `dev`, como a página).
+A página pública usa `GET /api/cronograma?inicio=&fim=` (pública, só com os campos públicos da aula).
 
 ---
 

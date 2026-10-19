@@ -1,11 +1,11 @@
 // =============================================================================
-// Acesso às seções em desenvolvimento (hoje: cronograma)
+// Acesso às seções em desenvolvimento (hoje: nenhuma)
 // =============================================================================
 // Enquanto não forem lançadas, só contas cujo nick está no grupo "dev" do
 // LuckPerms as veem. Os demais visitantes recebem a página "Em breve". Para
 // lançar uma seção, remova o layout dela (src/app/<secao>/layout.tsx) e, se ela
 // tiver APIs restritas, tire-as de `devOnlyApis` em src/proxy.ts. A comunidade
-// foi lançada assim na v0.22.
+// foi lançada assim na v0.22 e o cronograma na v0.23.1.
 import { auth } from "@/lib/auth";
 import { getNloginById } from "@/lib/nlogin";
 import { getPlayerGroups } from "@/lib/luckperms";

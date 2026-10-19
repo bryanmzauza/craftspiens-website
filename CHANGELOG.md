@@ -7,6 +7,16 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.23.1] — 19/10/2026 — Cronograma aberto para todos
+
+### Alterado
+
+- **Lançamento do cronograma**: `/cronograma` deixa de ser restrito ao grupo `dev` e mostra a todos as aulas marcadas no painel
+  - Removido `src/app/cronograma/layout.tsx`, que mostrava "Em breve"; `GET /api/cronograma` sai de `devOnlyApis` em `src/proxy.ts`, que volta a ficar vazia
+  - Semana sem aulas mostra um link para o canal #cronograma-de-aulas do Discord
+
+---
+
 ## [v0.23] — 19/10/2026 — Painel da equipe: loja e cronograma
 
 ### Adicionado
