@@ -1,9 +1,9 @@
 # Página 04 — Cronograma / Grade Curricular
 
 > **Rota**: `/cronograma`
-> **Acesso**: Público (ainda não lançada: só contas do grupo `dev` do LuckPerms veem o conteúdo; os demais veem "Em breve", com um botão para o canal #cronograma-de-aulas do Discord, onde o cronograma da semana é publicado; ver `src/lib/dev-access.ts`)
+> **Acesso**: Público (lançada na v0.23.1; antes só o grupo `dev` via o conteúdo)
 > **Propósito**: Exibir horários de aulas, grade semanal e calendário de eventos.
-> **Dados**: as aulas são marcadas pela equipe no painel (`/painel/cronograma`, ver [13-painel.md](./13-painel.md)) e lidas de `GET /api/cronograma?inicio=&fim=`. Enquanto o cronograma não for lançado, essa API também responde só ao grupo `dev` (`devOnlyApis` em `src/proxy.ts`).
+> **Dados**: as aulas são marcadas pela equipe no painel (`/painel/cronograma`, ver [13-painel.md](./13-painel.md)) e lidas de `GET /api/cronograma?inicio=&fim=`, pública. Semana sem aulas mostra um link para o canal #cronograma-de-aulas do Discord.
 
 ---
 

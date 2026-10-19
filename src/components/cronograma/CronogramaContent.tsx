@@ -21,7 +21,7 @@ import {
   GraduationCap,
 } from "lucide-react";
 import { PageHero } from "@/components/ui/PageHero";
-import { SERVER_IP } from "@/lib/constants";
+import { DISCORD_SCHEDULE_URL, SERVER_IP } from "@/lib/constants";
 import { downloadIcs, type IcsEvent } from "@/lib/ics";
 
 // Aulas ao vivo marcadas pela equipe no painel (/painel/cronograma)
@@ -407,7 +407,17 @@ export function CronogramaContent() {
               <>
                 {filteredSchedule.length === 0 && (
                   <p className="mb-4 rounded-xl border border-dashed border-white/15 px-4 py-6 text-center text-sm text-[#A0A0A0]">
-                    {hasFilters ? "Nenhuma aula com esses filtros nesta semana." : "Nenhuma aula marcada nesta semana."}
+                    {hasFilters ? (
+                      "Nenhuma aula com esses filtros nesta semana."
+                    ) : (
+                      <>
+                        Nenhuma aula marcada nesta semana. Os avisos também saem no canal{" "}
+                        <a href={DISCORD_SCHEDULE_URL} target="_blank" rel="noopener noreferrer" className="text-green-cs hover:underline">
+                          #cronograma-de-aulas
+                        </a>{" "}
+                        do Discord.
+                      </>
+                    )}
                   </p>
                 )}
 
