@@ -21,6 +21,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { PageHero } from "@/components/ui/PageHero";
+import { ProfilePhoto } from "@/components/ui/ProfilePhoto";
 
 type ProfileData = {
   id: string;
@@ -32,6 +33,8 @@ type ProfileData = {
   emailConfirmed: boolean;
   /** Identificador da skin no mc-heads.net (UUID da conta original, textura do Bedrock ou nick) */
   skin: { id: string; source: "java" | "bedrock" | "nick" } | null;
+  /** Foto de perfil enviada (URL de /api/fotos); sem ela, o rosto da skin */
+  photo: string | null;
   /** Cargo no servidor, do LuckPerms */
   rank: { group: string; label: string; color: string } | null;
   /** Tag pelo tempo desde o registro no servidor (nLogin) */
@@ -170,8 +173,6 @@ export function PerfilContent() {
   }, [session]);
 
   const username = profile?.username || session?.user?.username || "Jogador";
-  // Cabeça da skin do jogo; sem nick vinculado, usa o nome (aparece o Steve)
-  const avatarUrl = `https://mc-heads.net/avatar/${encodeURIComponent(profile?.skin?.id ?? username)}/100`;
   // Cargo do servidor (LuckPerms); contas sem nick ficam com o papel do site
   const siteRole = getRoleLabel(profile?.role || session?.user?.role || "ALUNO");
   const roleInfo = profile?.rank ? { label: profile.rank.label, color: profile.rank.color } : siteRole;
@@ -224,16 +225,16 @@ export function PerfilContent() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8 flex flex-col items-center gap-6 rounded-2xl border border-white/10 bg-bg-card/50 p-6 sm:flex-row sm:items-start"
         >
-          <div className="relative">
-            <div className="h-24 w-24 overflow-hidden rounded-xl border-2 border-white/20 bg-bg-accent">
-              {/* eslint-disable-next-line @next/next/no-img-element -- avatar externo (mc-heads.net) */}
-              <img
-                src={avatarUrl}
-                alt={username}
-                className="h-full w-full object-cover"
-              />
-            </div>
-          </div>
+          <Link href="/perfil/configuracoes" title="Trocar foto de perfil" className="shrink-0">
+            <ProfilePhoto
+              photo={profile?.photo}
+              skinId={profile?.skin?.id ?? username}
+              name={username}
+              width={132}
+              shape="retrato"
+              alt={`Foto de ${username}`}
+            />
+          </Link>
 
           <div className="flex-1 text-center sm:text-left">
             <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">

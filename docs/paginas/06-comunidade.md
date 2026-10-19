@@ -2,7 +2,7 @@
 
 > **Rotas**: `/comunidade`, `/comunidade/[categoria]`, `/comunidade/[categoria]/[topico]`, `/comunidade/novo`, `/comunidade/membros`, `/comunidade/membro/[nick]`, `/comunidade/notificacoes`, `/comunidade/moderacao`
 > **Acesso**: Público (leitura) / Logado com nick vinculado (participar) / Moderação (`MODERADOR` e `ADMIN`) para a página de moderação
-> **Lançamento**: ainda restrita ao grupo `dev` do LuckPerms; os demais veem "Em breve" e as APIs `/api/forum/*` respondem 403 (ver `src/lib/dev-access.ts` e a seção "Lançamento" abaixo)
+> **Lançamento**: aberta para todos desde a v0.22 (19/10/2026). Antes ficou restrita ao grupo `dev` do LuckPerms durante os testes
 > **Propósito**: Fórum da comunidade para discussões, dúvidas, denúncias e interação entre alunos, professores e equipe.
 
 ---
@@ -83,8 +83,18 @@ Na interface, o conteúdo de cada discussão se chama **post** (botão "Novo pos
 
 ### RN-FORUM-06b: Cargo e destaque da equipe
 - O nick de cada autor aparece na cor do cargo no servidor (cor do prefixo do grupo de maior peso no LuckPerms, `getPlayerRank` em `src/lib/luckperms.ts`), com o selo do cargo ao lado. Jogador comum (grupo `default`) tem o nome na cor do cargo, sem selo. Contas sem nick usam o papel do site
-- **Moderador ou superior**: peso do grupo igual ou maior que o do grupo `moderador` no LuckPerms (lido do banco, cache de 10 minutos; hoje 125, o que inclui moderador, admin, professor, dev, coordenador, reitor e diretoria). Também vale para quem tem papel `MODERADOR` ou `ADMIN` no site. Esses autores ganham escudo no selo, brilho no nome, anel no avatar e borda na cor do cargo no post, nos comentários, na lista e na página de membros
+- **Moderador ou superior**: peso do grupo igual ou maior que o do grupo `moderador` no LuckPerms (lido do banco, cache de 10 minutos; hoje 125, o que inclui moderador, admin, professor, dev, coordenador, reitor e diretoria). Também vale para quem tem papel `MODERADOR` ou `ADMIN` no site. Esses autores ganham escudo no selo e borda na cor do cargo na foto e nos cartões (post, comentários, lista e página de membros), sem brilho
 - O destaque é visual. As permissões de moderação no site continuam pelo papel do site (`MODERADOR` e `ADMIN`, RN-FORUM-07)
+
+### RN-FORUM-06c: Foto de perfil
+- Cada membro pode enviar a própria foto em Configurações > Dados pessoais. Formato vertical (3:4): a pessoa enquadra arrastando e com zoom, e o navegador gera o recorte (900x1200, JPEG) antes de enviar, o que mantém o envio abaixo do limite de 2 MB do nginx
+- O servidor (`src/lib/profile-photo.ts`, com `sharp`) confere que o arquivo é JPG, PNG ou WebP de pelo menos 200x200, corrige a rotação, converte para WebP 600x800 e **apaga os metadados (EXIF, inclusive GPS)**. Guardada na tabela `user_photos` do PostgreSQL (coberta pelo backup diário), até 10 trocas por hora
+- Servida por `GET /api/fotos/[userId]?v=<versão>` com cache longo; uma foto nova muda a versão da URL. `POST`/`DELETE /api/perfil/foto` envia e remove
+- Sem foto, aparece o rosto da skin do jogo (regra de `getPlayerSkin`)
+- No post, a coluna do autor é um cartão (`AuthorCard`): foto vertical com borda grossa na cor do cargo e o nome do cargo numa aba sobre a borda de baixo, nick na cor do cargo, tag de reputação e os dados Entrou, Posts, Comentários e Reputação. A página do membro usa a mesma moldura. No celular, o autor aparece numa linha compacta
+- Aparece vertical no post, na página do membro, no perfil e na lista de membros; recortada em quadrado nos comentários, nas listas e nas notificações (componente `ProfilePhoto`)
+- Moderação: botão "Remover foto" na página do membro (`DELETE /api/forum/fotos { userId }`); o membro recebe um aviso. Qualquer membro logado pode "Denunciar perfil" (abre `/comunidade/novo?membro=<nick>` na categoria Denúncias)
+- Sem efeitos de brilho: a equipe se destaca pela cor do cargo no nome, pelo selo com escudo e pela borda na cor do cargo
 
 ### RN-FORUM-06: Reputação
 - Pontuação: +1 por tópico, +1 por comentário, +2 por curtida recebida em tópico, +1 por curtida recebida em comentário, -1 por descurtida recebida
@@ -194,10 +204,14 @@ O antigo modelo `Report` foi removido: as denúncias são tópicos.
 
 ## Lançamento
 
-1. Aplicar o schema na produção: `npm run db:push:pg` (deploy manual com `--com-schema`, depois do backup; o deploy automático bloqueia commits que mudam o schema)
-2. Criar a categoria Denúncias: `npm run db:seed:forum` (idempotente)
-3. Testar com uma conta do grupo `dev`: criar tópico, comentar, reagir, reportar, moderar, suspender, conferir o sino e o e-mail
-4. Abrir para todos: apagar `src/app/comunidade/layout.tsx` e tirar `/api/forum` de `devOnlyApis` em `src/proxy.ts`
+Feito na v0.22, nesta ordem:
+
+1. Schema aplicado na produção com o deploy manual `--com-schema` (v0.21.1)
+2. Categoria Denúncias criada com `npm run db:seed:forum` (idempotente)
+3. Testes com uma conta do grupo `dev`
+4. Abertura para todos: removido `src/app/comunidade/layout.tsx` (página "Em breve") e esvaziada a lista `devOnlyApis` em `src/proxy.ts`
+
+Para fechar de novo a seção, basta restaurar o layout e pôr `/api/forum` de volta em `devOnlyApis`.
 
 ---
 

@@ -7,6 +7,26 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.22] — 19/10/2026 — Comunidade aberta para todos
+
+### Adicionado
+
+- **Lançamento da comunidade**: o fórum deixa de ser restrito ao grupo `dev`. Qualquer visitante lê, e quem tem a conta completa (e-mail confirmado, nick vinculado, data de nascimento e aceite dos termos) participa
+  - Removido `src/app/comunidade/layout.tsx`, que mostrava "Em breve"; `devOnlyApis` em `src/proxy.ts` fica vazia, e o mecanismo de seções em teste continua disponível (hoje só o cronograma o usa)
+- `prisma/schema.pg.prisma`: modelo `UserPhoto` (tabela `user_photos`). Exige o deploy manual com `--com-schema`
+- **Foto de perfil**: cada membro envia a própria foto, vertical (3:4), em Configurações > Dados pessoais, enquadrando com arraste e zoom. O navegador gera o recorte antes de enviar; o servidor confere o arquivo, converte para WebP 600x800 e apaga os metadados (EXIF, inclusive a localização GPS). Nova tabela `user_photos`; `POST`/`DELETE /api/perfil/foto` e `GET /api/fotos/[userId]` com cache longo. Sem foto, aparece o rosto da skin
+  - Cartão do autor no post: foto vertical com borda grossa na cor do cargo e o nome do cargo numa aba, nick na cor do cargo, tag de reputação e os dados Entrou, Posts, Comentários e Reputação; a página do membro usa a mesma moldura
+  - Foto vertical no post, na página do membro, no perfil e na lista de membros; recortada em quadrado nos comentários e nas listas
+  - Moderação remove a foto de um membro pela página dele (`DELETE /api/forum/fotos`), com aviso ao membro; qualquer membro logado pode "Denunciar perfil"
+  - `sharp` passa a ser dependência direta (mesma versão que o Next já usa)
+
+### Alterado
+
+- Página do post na largura das demais páginas (antes era bem mais estreita), com coluna do autor maior
+- Destaque da equipe sem efeitos de brilho: cor do cargo no nome, selo com escudo e borda na cor do cargo
+
+---
+
 ## [v0.21.3] — 18/10/2026 — Skin e cargo dos autores no fórum
 
 ### Adicionado

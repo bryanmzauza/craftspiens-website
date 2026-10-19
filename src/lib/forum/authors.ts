@@ -4,6 +4,7 @@
 import { getNloginMap } from "@/lib/nlogin";
 import { getPlayerSkin } from "@/lib/player-profile";
 import { getPlayerRank, getStaffMinWeight, isStaffRank } from "@/lib/luckperms";
+import { profilePhotoUrl } from "@/lib/profile-photo";
 
 /** Cargo do autor no servidor (LuckPerms), como aparece no fórum */
 export interface ForumRank {
@@ -28,6 +29,8 @@ export interface ForumAuthor {
    * ele é um UUID offline, e o mc-heads.net mostra o Steve.
    */
   skin: string | null;
+  /** Foto de perfil enviada pelo jogador (URL de /api/fotos); sem ela, a skin */
+  photo: string | null;
   /** Cargo no servidor; nulo para contas sem nick ou fora do LuckPerms */
   rank: ForumRank | null;
   role: string;
@@ -39,6 +42,7 @@ export const AUTHOR_SELECT = {
   role: true,
   nloginId: true,
   displayName: true,
+  photo: { select: { updatedAt: true } },
 } as const;
 
 export interface AuthorRow {
@@ -46,6 +50,7 @@ export interface AuthorRow {
   role: string;
   nloginId: number | null;
   displayName: string | null;
+  photo?: { updatedAt: Date } | null;
 }
 
 /** Resolve vários autores de uma vez (uma consulta ao nLogin; skins em paralelo, com cache) */
@@ -72,6 +77,7 @@ export async function resolveAuthors(rows: AuthorRow[]): Promise<Map<string, For
         username: nlogin?.last_name ?? row.displayName ?? "Aluno",
         uuid: nlogin?.unique_id ?? null,
         skin,
+        photo: row.photo ? profilePhotoUrl(row.id, row.photo.updatedAt) : null,
         rank: rank
           ? { group: rank.group, label: rank.label, color: rank.color, staff: isStaffRank(rank, staffMinWeight) }
           : null,

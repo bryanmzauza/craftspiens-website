@@ -10,6 +10,7 @@ import { computeReputation, getReputationBadge } from "@/lib/forum/reputation";
 import { isBanned, isPermanentBan } from "@/lib/forum/ban";
 import { markdownToText } from "@/lib/forum/markdown";
 import { TOPIC_LIST_INCLUDE, topicSummary } from "@/lib/forum/serialize";
+import { profilePhotoUrl } from "@/lib/profile-photo";
 
 const RECENT = 8;
 
@@ -37,6 +38,7 @@ export async function GET(
           forumBannedUntil: true,
           forumBanReason: true,
           profile: { select: { bio: true, perfilPublico: true } },
+          photo: { select: { updatedAt: true } },
           _count: { select: { posts: true, comments: true } },
         },
       })
@@ -95,6 +97,7 @@ export async function GET(
       username: nlogin.last_name,
       uuid: nlogin.unique_id,
       skin,
+      photo: member.photo ? profilePhotoUrl(member.id, member.photo.updatedAt) : null,
       role: member.role,
       rank: rank
         ? { group: rank.group, label: rank.label, color: rank.color, staff: isStaffRank(rank, staffMinWeight) }
@@ -118,6 +121,7 @@ export async function GET(
             }
           : null,
       canBan: !!viewer && viewer.id !== member.id && canBan(viewer.role, member.role),
+      canRemovePhoto: moderator && !!member.photo,
     },
     topics: topics.map((t) => topicSummary(t, authors, (c) => markdownToText(c, 120))),
     comments: comments.map((c) => ({

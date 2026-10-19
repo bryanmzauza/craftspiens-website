@@ -6,6 +6,7 @@ import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit
 import { isPlaceholderEmail } from "@/lib/email-verification"
 import { isValidCpf, maskCpf, normalizeCpf } from "@/lib/cpf"
 import { isAtLeastMinAge, MIN_AGE, parseBirthDate } from "@/lib/birth-date"
+import { profilePhotoUrl } from "@/lib/profile-photo"
 import { getPlayerRank } from "@/lib/luckperms"
 import { getPlayerSkin, getSeniority } from "@/lib/player-profile"
 
@@ -19,6 +20,7 @@ export async function GET() {
     where: { id: session.user.id },
     include: {
       profile: true,
+      photo: { select: { updatedAt: true } },
       _count: {
         select: {
           orders: true,
@@ -59,6 +61,7 @@ export async function GET() {
     createdAt: user.createdAt,
     deactivatedAt: user.deactivatedAt,
     skin,
+    photo: user.photo ? profilePhotoUrl(user.id, user.photo.updatedAt) : null,
     rank,
     seniority: nlogin ? getSeniority(nlogin.creation_date) : null,
     nlogin: {

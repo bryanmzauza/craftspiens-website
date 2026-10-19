@@ -74,6 +74,7 @@ Exibir 4-6 cards com métricas principais:
 
 #### Dados Pessoais
 - Email: exibido em modo leitura; "Alterar e-mail" abre a confirmação por código de 6 dígitos (`/confirmar-email?alterar=1`). O novo e-mail só vale depois de confirmado (RN-AUTH-02c em `07-auth.md`)
+- Foto de perfil vertical, enviada e recortada pela própria pessoa; sem ela, o rosto da skin (ver RN-FORUM-06c em `06-comunidade.md`)
 - Bio (texto livre, máx 500 caracteres)
 - Data de nascimento: contas criadas pelo Google entram sem ela e informam uma única vez (pelo menos 13 anos, `PUT /api/perfil { birthDate }`); depois de registrada não muda
 - CPF de quem paga as compras (`PUT /api/perfil { payerCpf }`, validado pelos dígitos; mostrado mascarado). Também pode ser informado na própria compra
