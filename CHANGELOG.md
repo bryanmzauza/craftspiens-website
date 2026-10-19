@@ -7,6 +7,29 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.23] — 19/10/2026 — Painel da equipe: loja e cronograma
+
+### Adicionado
+
+- **Painel da equipe** em `/painel`, aberto só com o código de acesso `PAINEL_CODIGO` do `.env` do servidor (nunca no repositório). Quem entra informa o nome e recebe uma sessão de 12 horas em cookie assinado; trocar o código derruba todas as sessões. 5 tentativas por IP a cada 15 minutos; sem `PAINEL_CODIGO`, o painel fica desligado. Detalhes em `docs/paginas/13-painel.md`
+  - **Visão geral**: receita, vendas, ticket médio e compradores em 7, 30 ou 90 dias com comparação ao período anterior, gráfico de receita por dia, pendências (entregas com falha, Pix aguardando, reembolsos), formas de pagamento, mais vendidos, receita por categoria, últimas vendas, próximas aulas e atividade recente
+  - **Vendas**: busca por nick, e-mail, pedido ou cupom, filtros de status e período, exportação em CSV e detalhes do pedido com as entregas e o reenvio ao plugin
+  - **Produtos**: preço editável na própria lista, promoção por percentual com preço riscado, ligar ou desligar na loja, destaque, ordem da vitrine e editor completo com pré-visualização do card. Produto com pedidos não troca de slug nem é excluído
+  - **Cupons**: criar, editar, gerar código, limite de usos, validade, ligar ou desligar, com vendas, receita e desconto concedido por cupom
+  - **Entregas**: fila do plugin com falhas e entregas travadas em destaque e botão de reenviar
+  - **Cronograma**: grade semanal clicável para marcar aulas, repetição por várias semanas (editável como série), cancelamento com motivo, cópia da semana anterior, aviso de recesso no topo do cronograma e texto pronto para o canal do Discord
+  - **Atividade**: registro de tudo o que foi feito no painel, com quem fez e os valores antes e depois
+- `prisma/schema.pg.prisma`: modelos `ScheduledClass` (`scheduled_classes`), `SiteSetting` (`site_settings`) e `PanelLog` (`panel_logs`). Exige o deploy manual com `--com-schema`
+- `GET /api/cronograma`: aulas e aviso para a página pública; enquanto o cronograma não é lançado, responde só ao grupo `dev`, como a página
+- Testes do painel (sessão, código, nome, situação do cupom) e do arquivo `.ics`
+
+### Alterado
+
+- **`/cronograma` usa as aulas marcadas no painel** no lugar dos horários de exemplo: semana e mês com datas reais, filtros montados a partir das aulas, aulas canceladas riscadas, aviso no topo e próximas aulas atualizadas a cada minuto
+- "Exportar calendário" e "Adicionar à agenda" passam a funcionar: baixam um `.ics` (com lembrete 15 minutos antes) para o Google Agenda, Outlook ou Calendário da Apple
+
+---
+
 ## [v0.22] — 19/10/2026 — Comunidade aberta para todos
 
 ### Adicionado

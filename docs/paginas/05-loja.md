@@ -3,6 +3,7 @@
 > **Rotas**: `/loja`, `/loja/comprar/[slug]`, `/loja/pedido/[id]`
 > **Acesso**: Público (vitrine) / Logado, com nick vinculado e e-mail confirmado (comprar)
 > **Propósito**: Venda de planos VIP e Premium, pacotes de Sapiens e cosméticos, com pagamento por Pix ou cartão e entrega automática no servidor.
+> **Administração**: produtos, preços, promoções, cupons, vendas e entregas são geridos no painel da equipe (`/painel`, ver [13-painel.md](./13-painel.md)). O seed (`scripts/seed-loja.mjs`) só monta o catálogo inicial.
 
 ---
 

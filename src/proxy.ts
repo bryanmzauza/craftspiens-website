@@ -20,8 +20,8 @@ const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const unverifiedAllowedApis = ["/api/perfil/vinculos/iniciar"];
 // APIs de seções em desenvolvimento, que só respondem a contas do grupo "dev"
 // (src/lib/dev-access.ts); as páginas dessas seções são barradas no layout.
-// Vazia desde o lançamento da comunidade (v0.22).
-const devOnlyApis: string[] = [];
+// Hoje: a API do cronograma, que acompanha a página /cronograma.
+const devOnlyApis: string[] = ["/api/cronograma"];
 
 const matches = (pathname: string, routes: string[]) =>
   routes.some((route) => pathname === route || pathname.startsWith(route + "/"));
@@ -89,5 +89,6 @@ export const config = {
     "/api/cupons/:path*",
     "/api/forum/:path*",
     "/api/aulas/progresso/:path*",
+    "/api/cronograma",
   ],
 };
