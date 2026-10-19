@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useSession } from "next-auth/react";
-import { Loader2, MessageSquare, MessagesSquare, ThumbsUp, Award, Ban, ShieldCheck, Clock } from "lucide-react";
+import { Loader2, MessageSquare, MessagesSquare, ThumbsUp, Award, Ban, ShieldCheck, Clock, Flag, ImageOff } from "lucide-react";
 import { PageHero } from "@/components/ui/PageHero";
 import {
   api,
@@ -14,7 +14,6 @@ import {
   primaryButtonClass,
   RankBadge,
   rankColor,
-  isHighlighted,
   staffFrameStyle,
   secondaryButtonClass,
   TopicRow,
@@ -22,12 +21,15 @@ import {
   type TopicSummary,
 } from "@/components/comunidade/shared";
 import { BAN_MAX_DAYS, BAN_REASON_MAX } from "@/lib/forum/ban";
+import { ProfilePhoto } from "@/components/ui/ProfilePhoto";
+import { photoFrame } from "@/components/comunidade/AuthorCard";
 
 interface Member {
   id: string;
   username: string;
   uuid: string | null;
   skin: { id: string; source: "java" | "bedrock" | "nick" } | null;
+  photo: string | null;
   role: string;
   rank: { group: string; label: string; color: string; staff: boolean } | null;
   seniority: { label: string; since: string };
@@ -41,6 +43,7 @@ interface Member {
   banned: boolean;
   ban: { until: string; permanent: boolean; reason: string | null } | null;
   canBan: boolean;
+  canRemovePhoto: boolean;
 }
 
 interface MemberResponse {
@@ -104,6 +107,21 @@ export function MembroContent({ nick }: { nick: string }) {
     await load();
   }
 
+  async function removePhoto() {
+    if (!data || banBusy || !window.confirm("Remover a foto de perfil deste membro? Ele será avisado.")) return;
+    setBanBusy(true);
+    const res = await api<{ success: true }>("/api/forum/fotos", {
+      method: "DELETE",
+      body: JSON.stringify({ userId: data.member.id }),
+    });
+    setBanBusy(false);
+    if (!res.ok) {
+      setBanError({ error: res.error, code: res.code });
+      return;
+    }
+    await load();
+  }
+
   async function liftBan() {
     if (!data || banBusy || !window.confirm("Encerrar a suspensão deste membro?")) return;
     setBanBusy(true);
@@ -153,7 +171,6 @@ export function MembroContent({ nick }: { nick: string }) {
   }
 
   const { member, topics, comments } = data;
-  const avatarUrl = `https://mc-heads.net/avatar/${encodeURIComponent(member.skin?.id ?? member.username)}/100`;
   const isSelf = session?.user?.id === member.id;
   const formatMonth = (date: string) => new Date(date).toLocaleDateString("pt-BR", { month: "short", year: "numeric" });
 
@@ -175,19 +192,21 @@ export function MembroContent({ nick }: { nick: string }) {
           className="mb-8 flex flex-col items-center gap-6 rounded-2xl border border-white/10 bg-bg-card/50 p-6 sm:flex-row sm:items-start"
           style={staffFrameStyle(member)}
         >
-          <div
-            className="h-24 w-24 shrink-0 overflow-hidden rounded-xl border-2 border-white/20 bg-bg-accent"
-            style={isHighlighted(member) ? { borderColor: rankColor(member), boxShadow: `0 0 18px ${rankColor(member)}66` } : undefined}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element -- avatar externo (mc-heads.net) */}
-            <img src={avatarUrl} alt={member.username} className="h-full w-full object-cover" />
-          </div>
+          <ProfilePhoto
+            photo={member.photo}
+            skinId={member.skin?.id ?? member.username}
+            name={member.username}
+            width={176}
+            shape="retrato"
+            frame={photoFrame(member)}
+            alt={`Foto de ${member.username}`}
+          />
 
           <div className="flex-1 text-center sm:text-left">
             <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
               <h2
                 className="text-xl font-bold"
-                style={{ color: rankColor(member), textShadow: isHighlighted(member) ? `0 0 14px ${rankColor(member)}99` : undefined }}
+                style={{ color: rankColor(member) }}
               >
                 {member.username}
               </h2>
@@ -213,12 +232,25 @@ export function MembroContent({ nick }: { nick: string }) {
               </p>
             )}
 
-            {(member.canBan || isSelf) && (
+            {(member.canBan || member.canRemovePhoto || isSelf || session?.user) && (
               <div className="mt-4 flex flex-wrap justify-center gap-2 sm:justify-start">
                 {isSelf && (
-                  <Link href="/perfil" className={secondaryButtonClass}>
-                    Meu perfil
+                  <Link href="/perfil/configuracoes" className={secondaryButtonClass}>
+                    Trocar minha foto
                   </Link>
+                )}
+                {!isSelf && session?.user && (
+                  <Link
+                    href={`/comunidade/novo?membro=${encodeURIComponent(member.username)}`}
+                    className={secondaryButtonClass}
+                  >
+                    <Flag size={14} /> Denunciar perfil
+                  </Link>
+                )}
+                {member.canRemovePhoto && (
+                  <button type="button" onClick={removePhoto} disabled={banBusy} className={secondaryButtonClass}>
+                    <ImageOff size={14} /> Remover foto
+                  </button>
                 )}
                 {member.canBan && !member.banned && (
                   <button type="button" onClick={() => setBanOpen((v) => !v)} className={secondaryButtonClass}>

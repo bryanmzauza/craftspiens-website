@@ -61,8 +61,27 @@ model User {
   emailVerifications  EmailVerification[]
   lessonProgress      UserLessonProgress[]
   termsAcceptances    TermsAcceptance[]
+  photo               UserPhoto?
 
   @@map("users")
+}
+
+// Foto de perfil enviada pelo jogador: WebP vertical 600x800, sem metadados
+// (src/lib/profile-photo.ts). Servida por GET /api/fotos/[userId]; sem foto,
+// o site usa a skin do jogo. A moderação pode remover (DELETE /api/forum/fotos).
+model UserPhoto {
+  userId    String   @id @map("user_id")
+  data      Bytes
+  mime      String   @db.VarChar(30)
+  width     Int
+  height    Int
+  size      Int
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_photos")
 }
 
 // Registro de cada aceite dos Termos e da Política de Privacidade (LGPD):

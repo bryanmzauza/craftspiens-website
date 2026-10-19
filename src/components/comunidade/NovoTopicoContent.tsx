@@ -36,6 +36,8 @@ interface NovoTopicoProps {
   denunciar: string | null;
   /** Id do comentário denunciado (dentro do tópico de `denunciar`) */
   comentario: string | null;
+  /** Nick do membro denunciado pela página dele (perfil, foto ou conduta) */
+  membro: string | null;
 }
 
 interface ReportedPost {
@@ -87,7 +89,7 @@ async function buildReport(topicSlug: string, commentId: string | null): Promise
   };
 }
 
-export function NovoTopicoContent({ categoriaSlug, denunciar, comentario }: NovoTopicoProps) {
+export function NovoTopicoContent({ categoriaSlug, denunciar, comentario, membro }: NovoTopicoProps) {
   const router = useRouter();
   const { data: session } = useSession();
   const role = session?.user?.role;
@@ -102,6 +104,18 @@ export function NovoTopicoContent({ categoriaSlug, denunciar, comentario }: Novo
   const [published, setPublished] = useState(false);
   const [error, setError] = useState<{ error: string; code?: string } | null>(null);
   const [prefilling, setPrefilling] = useState(!!denunciar);
+  // Denúncia de um membro: texto inicial montado direto, sem consulta
+  const memberNick = membro && /^[A-Za-z0-9_]{3,16}$/.test(membro) ? membro : null;
+  const [prefilledMember, setPrefilledMember] = useState<string | null>(null);
+  if (memberNick && prefilledMember !== memberNick) {
+    setPrefilledMember(memberNick);
+    setTitle((current) => current || `Denúncia: perfil de ${memberNick}`);
+    setContent(
+      (current) =>
+        current ||
+        `Denúncia sobre o perfil de [@${memberNick}](/comunidade/membro/${memberNick}) (foto, bio ou conduta).\n\n**Motivo:** \n\n**Provas:** `
+    );
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -132,7 +146,7 @@ export function NovoTopicoContent({ categoriaSlug, denunciar, comentario }: Novo
 
   const options = (categories ?? []).filter((c) => !c.staffOnly || staff);
   // Denúncia sempre cai na categoria Denúncias; senão, a da URL ou a primeira
-  const wantedSlug = denunciar ? REPORTS_CATEGORY_SLUG : categoriaSlug;
+  const wantedSlug = denunciar || memberNick ? REPORTS_CATEGORY_SLUG : categoriaSlug;
   const preferred = options.find((c) => c.slug === wantedSlug) ?? options[0];
   const selectedCategoryId = options.some((c) => c.id === categoryId) ? categoryId : (preferred?.id ?? "");
   const selected = options.find((c) => c.id === selectedCategoryId) ?? null;
@@ -231,7 +245,7 @@ export function NovoTopicoContent({ categoriaSlug, denunciar, comentario }: Novo
                     placeholder={isReport ? "Ex.: Denúncia contra NickDoJogador por ofensas no chat" : "Resuma o assunto em uma frase"}
                     className={inputClass}
                     required
-                    autoFocus={!denunciar}
+                    autoFocus={!denunciar && !memberNick}
                   />
                   <p className="mt-1 text-right text-xs text-[#A0A0A0]">
                     {title.length}/{TITLE_MAX}
@@ -251,7 +265,7 @@ export function NovoTopicoContent({ categoriaSlug, denunciar, comentario }: Novo
                   maxLength={CONTENT_MAX}
                   placeholder="Descreva com detalhes. Dá para usar Markdown, links, imagens por URL e @nick."
                   rows={16}
-                  autoFocus={!!denunciar}
+                  autoFocus={!!denunciar || !!memberNick}
                 />
               )}
 

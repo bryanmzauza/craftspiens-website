@@ -18,8 +18,10 @@ const verifiedApis = [
 const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 // Liberada sem e-mail confirmado: vincular o Google é uma das formas de confirmá-lo
 const unverifiedAllowedApis = ["/api/perfil/vinculos/iniciar"];
-// Seções em desenvolvimento (src/lib/dev-access.ts); as páginas são barradas no layout
-const devOnlyApis = ["/api/forum"];
+// APIs de seções em desenvolvimento, que só respondem a contas do grupo "dev"
+// (src/lib/dev-access.ts); as páginas dessas seções são barradas no layout.
+// Vazia desde o lançamento da comunidade (v0.22).
+const devOnlyApis: string[] = [];
 
 const matches = (pathname: string, routes: string[]) =>
   routes.some((route) => pathname === route || pathname.startsWith(route + "/"));
@@ -31,7 +33,7 @@ export default auth(async (req) => {
   const emailConfirmed = user?.emailConfirmed === true;
 
   if (pathname.startsWith("/api/")) {
-    // Comunidade ainda não lançada: o fórum só responde a contas do grupo "dev"
+    // Seções ainda não lançadas: só respondem a contas do grupo "dev"
     if (matches(pathname, devOnlyApis) && !(await isDevAccount(user?.nloginId))) {
       return NextResponse.json({ error: "Em breve.", code: "EmBreve" }, { status: 403 });
     }

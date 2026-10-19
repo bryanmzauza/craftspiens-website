@@ -6,6 +6,7 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Eye, Lock, MessageSquare, Pin, CheckCircle, EyeOff, Clock, ShieldCheck } from "lucide-react";
 import { timeAgo, fullDate } from "@/lib/forum/time";
+import { ProfilePhoto } from "@/components/ui/ProfilePhoto";
 
 /** Cargo no servidor (LuckPerms): nome, cor do prefixo e se é moderador ou superior */
 export interface Rank {
@@ -21,6 +22,8 @@ export interface Author {
   uuid: string | null;
   /** Identificador da skin no mc-heads.net (conta original, Bedrock ou nick) */
   skin?: string | null;
+  /** Foto de perfil enviada pelo jogador; sem ela, o rosto da skin */
+  photo?: string | null;
   /** Cargo no servidor; nulo para contas sem nick */
   rank?: Rank | null;
   role: string;
@@ -148,40 +151,28 @@ export function Avatar({
   size = 32,
   className = "",
   highlight = false,
+  shape = "quadrado",
 }: {
   author: Author;
   size?: number;
   className?: string;
-  /** Anel na cor do cargo quando o autor é moderador ou superior */
+  /** Borda na cor do cargo quando o autor é moderador ou superior */
   highlight?: boolean;
+  /** "retrato" (vertical, 3:4) nas áreas grandes; "quadrado" nas listas */
+  shape?: "retrato" | "quadrado";
 }) {
-  const ring =
-    highlight && isHighlighted(author)
-      ? { boxShadow: `0 0 0 2px ${rankColor(author)}, 0 0 14px ${rankColor(author)}66` }
-      : undefined;
-  // Skin pela mesma regra do perfil; sem nick vinculado, a inicial do nome
+  // Foto enviada; sem ela, o rosto da skin (mesma regra do perfil); sem nick, a inicial
   const skinId = author.skin ?? (author.uuid ? author.username : null);
-  if (skinId) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element -- avatar externo (mc-heads.net)
-      <img
-        src={`https://mc-heads.net/avatar/${encodeURIComponent(skinId)}/${size}`}
-        alt=""
-        width={size}
-        height={size}
-        className={`shrink-0 rounded-md ${className}`}
-        style={{ width: size, height: size, ...ring }}
-      />
-    );
-  }
   return (
-    <div
-      className={`flex shrink-0 items-center justify-center rounded-md bg-white/10 font-bold text-white ${className}`}
-      style={{ width: size, height: size, fontSize: Math.max(10, size / 2.2), ...ring }}
-      aria-hidden="true"
-    >
-      {author.username[0]?.toUpperCase()}
-    </div>
+    <ProfilePhoto
+      photo={author.photo}
+      skinId={skinId}
+      name={author.username}
+      width={size}
+      shape={shape}
+      accent={highlight && isHighlighted(author) ? rankColor(author) : null}
+      className={className}
+    />
   );
 }
 
@@ -208,8 +199,7 @@ export function RankBadge({ author, size = "sm" }: { author: Pick<Author, "rank"
       style={{
         color: rank.color,
         backgroundColor: `${rank.color}${staff ? "33" : "1F"}`,
-        borderColor: `${rank.color}${staff ? "99" : "4D"}`,
-        boxShadow: staff ? `0 0 10px ${rank.color}59` : undefined,
+        borderColor: `${rank.color}${staff ? "B3" : "4D"}`,
       }}
       title={staff ? `${rank.label} (equipe do servidor)` : "Cargo no servidor"}
     >
@@ -219,26 +209,25 @@ export function RankBadge({ author, size = "sm" }: { author: Pick<Author, "rank"
   );
 }
 
-/** Nick com link para a página do membro, na cor do cargo; equipe com brilho */
+/** Nick com link para a página do membro, na cor do cargo */
 export function AuthorName({ author, className = "" }: { author: Author; className?: string }) {
   const color = rankColor(author);
-  const staff = isHighlighted(author);
   return (
     <Link
       href={`/comunidade/membro/${author.username}`}
       className={`font-bold hover:underline ${className}`}
-      style={{ color, textShadow: staff ? `0 0 12px ${color}99` : undefined }}
+      style={{ color }}
     >
       {author.username}
     </Link>
   );
 }
 
-/** Estilo de destaque para cartões e avatares da equipe (borda e brilho na cor do cargo) */
+/** Destaque de cartões da equipe: só a borda na cor do cargo, sem brilho */
 export function staffFrameStyle(author: Pick<Author, "rank" | "role">): React.CSSProperties | undefined {
   if (!isHighlighted(author)) return undefined;
   const color = rankColor(author);
-  return { borderColor: `${color}80`, boxShadow: `0 0 0 1px ${color}33, 0 0 18px ${color}26` };
+  return { borderColor: `${color}80` };
 }
 
 export function Tag({ tag, categorySlug }: { tag: string; categorySlug?: string }) {
@@ -299,10 +288,7 @@ export function TopicRow({ topic, showCategory = false }: { topic: TopicSummary;
           <span className="flex items-center gap-1">
             <span
               className="font-semibold"
-              style={{
-                color: rankColor(topic.author),
-                textShadow: isHighlighted(topic.author) ? `0 0 10px ${rankColor(topic.author)}80` : undefined,
-              }}
+              style={{ color: rankColor(topic.author) }}
             >
               {topic.author.username}
             </span>

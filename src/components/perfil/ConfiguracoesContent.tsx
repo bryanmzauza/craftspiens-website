@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useSyncExternalStore } from "react";
+import { useState, useEffect, useCallback, useRef, useSyncExternalStore } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { motion } from "framer-motion";
 import {
@@ -21,10 +21,14 @@ import {
   ShieldCheck,
   ShieldAlert,
   CreditCard,
+  ImageUp,
 } from "lucide-react";
 import { PageHero } from "@/components/ui/PageHero";
 import { ContasVinculadas } from "@/components/perfil/ContasVinculadas";
 import { formatCpf, isValidCpf, normalizeCpf } from "@/lib/cpf";
+import { ProfilePhoto } from "@/components/ui/ProfilePhoto";
+import { PhotoCropper, type CropExporter } from "@/components/perfil/PhotoCropper";
+import { PHOTO_ACCEPT, PHOTO_PICK_MAX_BYTES } from "@/lib/profile-photo-rules";
 
 type Tab = "dados" | "vinculos" | "senha" | "notificacoes" | "privacidade" | "perigo";
 
@@ -45,6 +49,8 @@ type ProfileData = {
   birthDate: string | null;
   /** CPF de quem paga, já mascarado pela API */
   payerCpf: string | null;
+  skin: { id: string } | null;
+  photo: string | null;
   profile: {
     bio: string | null;
     perfilPublico: boolean;
@@ -79,6 +85,14 @@ export function ConfiguracoesContent() {
   const [emailConfirmed, setEmailConfirmed] = useState(false);
   const [bio, setBio] = useState("");
   const [birthDate, setBirthDate] = useState("");
+  // Foto de perfil: enviada pela pessoa; sem ela, o rosto da skin
+  const [skinId, setSkinId] = useState<string | null>(null);
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [photoSrc, setPhotoSrc] = useState<string | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState("");
+  const [photoSaved, setPhotoSaved] = useState(false);
+  const cropRef = useRef<CropExporter | null>(null);
   // Sem data registrada (contas do Google), o campo aceita a data uma única vez
   const [birthDateMissing, setBirthDateMissing] = useState(false);
   const [birthDateInput, setBirthDateInput] = useState("");
@@ -131,6 +145,8 @@ export function ConfiguracoesContent() {
             : "Não informada"
         );
         setBirthDateMissing(!data.birthDate);
+        setSkinId(data.skin?.id ?? (data.hasNick ? data.username : null));
+        setPhoto(data.photo ?? null);
         setSavedCpf(data.payerCpf ?? null);
         setEditingCpf(!data.payerCpf);
 
@@ -159,6 +175,75 @@ export function ConfiguracoesContent() {
     setError("");
     setTimeout(() => setSaved(false), 2000);
   }, []);
+
+  // Libera a URL local da imagem escolhida ao trocar ou sair
+  useEffect(() => {
+    if (!photoSrc) return;
+    return () => URL.revokeObjectURL(photoSrc);
+  }, [photoSrc]);
+
+  function pickPhoto(file: File | undefined) {
+    setPhotoError("");
+    setPhotoSaved(false);
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setPhotoError("Escolha um arquivo JPG, PNG ou WebP.");
+      return;
+    }
+    if (file.size > PHOTO_PICK_MAX_BYTES) {
+      setPhotoError("A imagem é grande demais. Escolha uma de até 20 MB.");
+      return;
+    }
+    setPhotoSrc(URL.createObjectURL(file));
+  }
+
+  async function savePhoto() {
+    if (!cropRef.current || photoBusy) return;
+    setPhotoBusy(true);
+    setPhotoError("");
+    try {
+      const blob = await cropRef.current();
+      if (!blob) {
+        setPhotoError("Não foi possível preparar a imagem. Tente outra.");
+        return;
+      }
+      const form = new FormData();
+      form.append("foto", blob, "foto.jpg");
+      const res = await fetch("/api/perfil/foto", { method: "POST", body: form });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPhotoError(data.error || "Não foi possível enviar a foto.");
+        return;
+      }
+      setPhoto(data.photo);
+      setPhotoSrc(null);
+      setPhotoSaved(true);
+      setTimeout(() => setPhotoSaved(false), 2500);
+    } catch {
+      setPhotoError("Erro de conexão. Tente novamente.");
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
+  async function removeOwnPhoto() {
+    if (photoBusy || !window.confirm("Remover sua foto de perfil? Você volta a aparecer com a skin do jogo.")) return;
+    setPhotoBusy(true);
+    setPhotoError("");
+    try {
+      const res = await fetch("/api/perfil/foto", { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setPhotoError(data.error || "Não foi possível remover a foto.");
+        return;
+      }
+      setPhoto(null);
+    } catch {
+      setPhotoError("Erro de conexão. Tente novamente.");
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
 
   const cpfDigits = normalizeCpf(cpfInput);
   const cpfInvalid = editingCpf && cpfDigits.length === 11 && !isValidCpf(cpfDigits);
@@ -396,6 +481,71 @@ export function ConfiguracoesContent() {
                     <p className="mt-1 text-xs text-[#A0A0A0]">
                       O novo e-mail passa a valer depois de confirmado com o código enviado para ele.
                     </p>
+                  </div>
+
+                  <div>
+                    <p className="mb-1 block text-sm font-medium text-[#E0E0E0]">Foto de perfil</p>
+                    <p className="mb-3 text-xs text-[#A0A0A0]">
+                      Aparece no fórum e no seu perfil, em formato vertical. JPG, PNG ou WebP. Sem foto, usamos o rosto
+                      da sua skin. Não use fotos com dados pessoais, como endereço, escola ou uniforme. A moderação pode
+                      remover fotos que não sigam as regras.
+                    </p>
+                    <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start">
+                      {photoSrc ? (
+                        <PhotoCropper src={photoSrc} exportRef={cropRef} />
+                      ) : (
+                        <ProfilePhoto photo={photo} skinId={skinId} name={username || "?"} width={180} shape="retrato" alt="Sua foto de perfil" />
+                      )}
+                      <div className="flex flex-col gap-2 sm:pt-1">
+                        {photoSrc ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={savePhoto}
+                              disabled={photoBusy}
+                              className="flex items-center justify-center gap-1.5 rounded-lg bg-green-cs px-5 py-2 text-sm font-bold text-white transition-all hover:bg-green-dark disabled:opacity-40"
+                            >
+                              {photoBusy ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Salvar foto
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPhotoSrc(null)}
+                              disabled={photoBusy}
+                              className="rounded-lg border border-white/20 px-5 py-2 text-sm text-[#E0E0E0] transition-colors hover:bg-white/5"
+                            >
+                              Cancelar
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-white/20 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-white/5">
+                              <ImageUp size={16} /> {photo ? "Trocar foto" : "Enviar foto"}
+                              <input
+                                type="file"
+                                accept={PHOTO_ACCEPT}
+                                className="sr-only"
+                                onChange={(e) => {
+                                  pickPhoto(e.target.files?.[0]);
+                                  e.target.value = "";
+                                }}
+                              />
+                            </label>
+                            {photo && (
+                              <button
+                                type="button"
+                                onClick={removeOwnPhoto}
+                                disabled={photoBusy}
+                                className="rounded-lg px-5 py-2 text-sm text-[#A0A0A0] transition-colors hover:text-error"
+                              >
+                                Remover foto
+                              </button>
+                            )}
+                          </>
+                        )}
+                        {photoSaved && <p className="text-xs text-green-cs">Foto atualizada.</p>}
+                        {photoError && <p className="max-w-xs text-xs text-error">{photoError}</p>}
+                      </div>
+                    </div>
                   </div>
 
                   <div>

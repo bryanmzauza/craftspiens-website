@@ -15,7 +15,6 @@ import {
   Paginator,
   RankBadge,
   rankColor,
-  isHighlighted,
   staffFrameStyle,
   When,
   type Pagination,
@@ -165,12 +164,12 @@ export function MembrosContent() {
                     className="flex h-full items-center gap-3 rounded-xl border border-white/10 bg-bg-card/50 p-4 transition-all hover:border-white/20 hover:bg-bg-card/80"
                     style={staffFrameStyle(m)}
                   >
-                    <Avatar author={m} size={44} highlight />
+                    <Avatar author={m} size={48} shape="retrato" highlight />
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span
                           className="truncate font-bold"
-                          style={{ color: rankColor(m), textShadow: isHighlighted(m) ? `0 0 12px ${rankColor(m)}99` : undefined }}
+                          style={{ color: rankColor(m) }}
                         >
                           {m.username}
                         </span>

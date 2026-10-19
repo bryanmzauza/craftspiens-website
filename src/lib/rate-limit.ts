@@ -74,4 +74,5 @@ export const RATE_LIMITS = {
   accountDelete: { maxAttempts: 5, windowMs: 15 * 60 * 1000 },   // 5 tentativas de exclusão / 15 min
   emailCode: { maxAttempts: 5, windowMs: 15 * 60 * 1000 },       // 5 códigos de verificação / 15 min
   emailConfirm: { maxAttempts: 10, windowMs: 15 * 60 * 1000 },   // 10 tentativas de código / 15 min
+  profilePhoto: { maxAttempts: 10, windowMs: 60 * 60 * 1000 },   // 10 trocas de foto de perfil / 1 hora
 } as const;
