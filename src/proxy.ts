@@ -16,8 +16,9 @@ const verifiedApis = [
   "/api/aulas/progresso",
 ];
 const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
-// Liberada sem e-mail confirmado: vincular o Google é uma das formas de confirmá-lo
-const unverifiedAllowedApis = ["/api/perfil/vinculos/iniciar"];
+// Liberadas sem e-mail confirmado: vincular o Google é uma das formas de confirmá-lo,
+// e o diálogo de aceite dos termos bloqueia o site inteiro, inclusive /confirmar-email
+const unverifiedAllowedApis = ["/api/perfil/vinculos/iniciar", "/api/perfil/termos"];
 // APIs de seções em desenvolvimento, que só respondem a contas do grupo "dev"
 // (src/lib/dev-access.ts); as páginas dessas seções são barradas no layout.
 // Vazia desde o lançamento do cronograma (v0.23.1).

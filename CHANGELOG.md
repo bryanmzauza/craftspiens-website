@@ -7,6 +7,15 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.23.2] — 19/10/2026 — Aceite dos termos sem e-mail confirmado
+
+### Corrigido
+
+- **Contas sem e-mail confirmado travadas no diálogo dos termos**: o aceite era recusado com "Confirme seu e-mail para continuar", e o diálogo cobre também `/confirmar-email`, então a conta não conseguia nem aceitar nem confirmar o e-mail
+  - `POST /api/perfil/termos` entra em `unverifiedAllowedApis` no `src/proxy.ts`; fórum e loja continuam exigindo o e-mail confirmado
+
+---
+
 ## [v0.23.1] — 19/10/2026 — Cronograma aberto para todos
 
 ### Alterado
