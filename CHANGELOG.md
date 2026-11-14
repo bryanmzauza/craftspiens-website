@@ -7,6 +7,16 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.23.3] — 14/11/2026 — Novo convite do Discord
+
+### Alterado
+
+- **Convite do Discord**: o link do site passa a ser `discord.gg/bTBsXDGtEV`
+  - `DISCORD_INVITE_CODE` em `src/lib/constants.ts` muda para `bTBsXDGtEV`; `SOCIAL_LINKS.discord` passa a ser montado a partir dele, então os botões e a contagem de membros e online (`/api/discord`) usam o mesmo convite
+  - O convite do canal #cronograma-de-aulas (`DISCORD_SCHEDULE_URL`) não muda
+
+---
+
 ## [v0.23.2] — 19/10/2026 — Aceite dos termos sem e-mail confirmado
 
 ### Corrigido

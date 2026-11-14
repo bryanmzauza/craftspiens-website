@@ -23,7 +23,7 @@
 
 ### RN-CONTATO-03: Redes Sociais
 - Grid de ícones linkando para todas as redes:
-  - Discord: discord.gg/craftsapiens
+  - Discord: discord.gg/bTBsXDGtEV
   - Instagram: @universidadecraftsapiens
   - YouTube: canal oficial
   - Telegram: t.me/craftsapiens

@@ -79,7 +79,7 @@ Este repositório contém o código-fonte da nova plataforma da CraftSapiens, pl
 
 | Rede | Link |
 |------|------|
-| Discord | discord.gg/craftsapiens |
+| Discord | discord.gg/bTBsXDGtEV |
 | YouTube | youtube.com/channel/UCdea6doNy_AypHr4S2tPUTw |
 | Instagram | @universidadecraftsapiens |
 | TikTok | @craftsapiens |

@@ -176,7 +176,7 @@ A documentação detalhada do projeto está em [`docs/`](./docs/README.md), incl
 |---|---|
 | **IP do Servidor** | `jogar.craftsapiens.com.br` |
 | **E-mail** | contato@craftsapiens.com.br |
-| **Discord** | discord.gg/craftsapiens |
+| **Discord** | discord.gg/bTBsXDGtEV |
 | **YouTube** | youtube.com/channel/UCdea6doNy_AypHr4S2tPUTw |
 | **Instagram** | @universidadecraftsapiens |
 | **TikTok** | @craftsapiens |
