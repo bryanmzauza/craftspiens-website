@@ -12,6 +12,7 @@ vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => undefined })
 
 const { checkPanelCode, createPanelToken, normalizePanelName, readPanelToken } = await import("@/lib/painel/session");
 const { couponState } = await import("@/lib/painel/store");
+const { couponSchema } = await import("@/lib/painel/validation");
 const { buildIcs } = await import("@/lib/ics");
 
 afterEach(() => {
@@ -112,5 +113,25 @@ describe("buildIcs", () => {
   it("marca aulas canceladas", () => {
     const ics = buildIcs([{ id: "x", title: "Física", startsAt: new Date(), endsAt: new Date(), cancelled: true }]);
     expect(ics).toContain("STATUS:CANCELLED");
+  });
+});
+
+describe("couponSchema", () => {
+  const base = { code: "TESTE10", discount: 10 };
+
+  it("sem o campo, a lista fica ausente (uma aba antiga não amplia o cupom)", () => {
+    expect(couponSchema.parse(base).productIds).toBeUndefined();
+  });
+
+  it("lista vazia enviada de propósito vale para todos", () => {
+    expect(couponSchema.parse({ ...base, productIds: [] }).productIds).toEqual([]);
+  });
+
+  it("remove produtos repetidos", () => {
+    expect(couponSchema.parse({ ...base, productIds: ["a", "a", "b"] }).productIds).toEqual(["a", "b"]);
+  });
+
+  it("recusa ID vazio", () => {
+    expect(couponSchema.safeParse({ ...base, productIds: [""] }).success).toBe(false);
   });
 });

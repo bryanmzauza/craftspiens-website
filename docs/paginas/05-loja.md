@@ -73,12 +73,12 @@ Definido em `scripts/seed-loja.mjs` (`npm run db:seed:loja`). Benefícios dos pl
 ### RN-LOJA-02: Compra (`/loja/comprar/[slug]`)
 - Resumo do produto e benefícios; aviso de para qual nick a entrega vai.
 - Exigências: nick vinculado (`SemNick`), conta do jogo existente no nLogin (`ContaJogoNaoEncontrada`; `GET /api/loja/conta-jogo` mostra nick e edição Java ou Bedrock antes de pagar), e-mail confirmado (`EmailNaoVerificado`), data de nascimento registrada (`SemIdade`), CPF válido de quem paga (`CpfObrigatorio`/`CpfInvalido`; fica salvo em `users.payer_cpf`), aceite dos termos (16 anos ou responsável).
-- Cupom percentual (`POST /api/cupons/validar`).
-- Planos mensais com combo: opção "Adicionar os cosméticos" troca o produto do pedido entre o plano e o combo, sem sair da página.
+- Cupom percentual (`POST /api/cupons/validar` `{ code, slug }`). O cupom pode valer só para alguns produtos (regra `couponAppliesTo` em `src/lib/coupons.ts`; lista vazia vale para todos). Fora da lista, responde 400 "Este cupom não vale para este produto."; sem `slug` (aba de compra antiga), 400 "Atualize a página e tente de novo."; produto inexistente ou desativado, 400 "Produto não encontrado."
+- Planos mensais com combo: opção "Adicionar os cosméticos" troca o produto do pedido entre o plano e o combo, sem sair da página. Com cupom aplicado, a troca confere o cupom de novo: se ele não vale para o outro produto, é removido e a mensagem aparece; durante a conferência o desconto some e o botão de pagar fica desabilitado.
 - Forma de pagamento: **Pix** (recomendado, sem juros) ou **Cartão** (Mercado Pago, à vista ou até 3x com juros).
 - Cartão: tabela de parcelas com valor de cada parcela, juros em reais e em % sobre o valor, taxa efetiva ao mês e ao ano e total. As taxas vêm de `GET /api/loja/parcelas` (API de parcelas do Mercado Pago, Mastercard como referência, cache de 1 h); o cálculo em `src/lib/installments.ts` reproduz o do Mercado Pago (total = valor x (1 + taxa), parcela = total / n). Abaixo do mínimo do Mercado Pago (R$ 10 para 2x, R$ 15 para 3x) só aparece o à vista. Se a consulta falhar, a página avisa que os valores aparecem no Checkout Pro.
 - `POST /api/loja/pedidos` `{ slug, method, couponCode?, cpf? }`:
-  - cria `orders` (1 item, status `PENDING`, total mínimo R$ 1,00) e incrementa o uso do cupom;
+  - cria `orders` (1 item, status `PENDING`, total mínimo R$ 1,00) e incrementa o uso do cupom, depois de conferir de novo que o cupom vale para o produto (400 "Este cupom não vale para este produto.");
   - Pix: cria o pagamento na API do MercadoPago (`payment_method_id: pix`, `date_of_expiration` em 30 min, `X-Idempotency-Key` = `pix-<pedido>`), guarda `pix_code`, `pix_qr_base64`, `pix_expires_at`; responde `{ orderId }`;
   - Cartão: cria a preferência do Checkout Pro (`back_urls` para `/loja/pedido/[id]`, boleto excluído, 3 parcelas) e responde `{ redirectUrl }`;
   - um Pix ainda válido (mais de 5 min) para o mesmo produto e valor é reaproveitado em vez de criar outro pedido;

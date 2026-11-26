@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logPanel, requirePanel } from "@/lib/painel/session";
 import { couponSchema, parseBody } from "@/lib/painel/validation";
-import { toPanelCoupon } from "@/lib/painel/store";
+import { resolveCouponProducts, toPanelCoupon } from "@/lib/painel/store";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -31,6 +31,28 @@ export async function PUT(request: Request, { params }: Params) {
     }
   }
 
+  // Sem o campo (aba antiga do painel), a lista atual é mantida; a conferência só vale para uma lista enviada
+  let productIds = current.productIds;
+  let productSlugs: string[];
+  if (input.productIds) {
+    const resolved = await resolveCouponProducts(input.productIds);
+    if (!resolved) {
+      return NextResponse.json(
+        { error: "Um dos produtos escolhidos não existe mais. Recarregue a página.", field: "productIds" },
+        { status: 400 }
+      );
+    }
+    productIds = input.productIds;
+    productSlugs = resolved;
+  } else {
+    // IDs de produtos excluídos simplesmente ficam sem slug no log
+    const kept =
+      productIds.length > 0
+        ? await prisma.product.findMany({ where: { id: { in: productIds } }, select: { slug: true } })
+        : [];
+    productSlugs = kept.map((product) => product.slug);
+  }
+
   const coupon = await prisma.coupon.update({
     where: { id },
     data: {
@@ -39,6 +61,7 @@ export async function PUT(request: Request, { params }: Params) {
       maxUses: input.maxUses ?? null,
       expiresAt: input.expiresAt ?? null,
       active: input.active,
+      productIds,
     },
   });
 
@@ -47,6 +70,7 @@ export async function PUT(request: Request, { params }: Params) {
     limite: input.maxUses ?? null,
     validade: input.expiresAt?.toISOString() ?? null,
     ativo: input.active,
+    produtos: productIds.length > 0 ? productSlugs : "todos",
   });
   return NextResponse.json({ coupon: toPanelCoupon(coupon) });
 }

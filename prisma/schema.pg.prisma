@@ -218,14 +218,15 @@ model OrderItem {
 }
 
 model Coupon {
-  id        String    @id @default(cuid())
-  code      String    @unique @db.VarChar(50)
-  discount  Decimal   @db.Decimal(5, 2) // percentual
-  maxUses   Int?      @map("max_uses")
-  uses      Int       @default(0)
-  active    Boolean   @default(true)
-  expiresAt DateTime? @map("expires_at")
-  createdAt DateTime  @default(now()) @map("created_at")
+  id         String    @id @default(cuid())
+  code       String    @unique @db.VarChar(50)
+  discount   Decimal   @db.Decimal(5, 2) // percentual
+  maxUses    Int?      @map("max_uses")
+  uses       Int       @default(0)
+  active     Boolean   @default(true)
+  expiresAt  DateTime? @map("expires_at")
+  productIds String[]  @default([]) @map("product_ids") // vazio = vale para todos os produtos
+  createdAt  DateTime  @default(now()) @map("created_at")
 
   orders Order[]
 

@@ -50,6 +50,10 @@ O código é comparado em tempo constante (hash SHA-256 dos dois lados). O nome 
 - Editor: código (ou "Gerar"), desconto em %, limite de usos opcional, validade até 23h59 do dia escolhido (horário de Brasília) e ligado ou desligado.
 - Cupom usado em algum pedido não troca de código nem é excluído; só é desligado.
 - "Usos" conta todo pedido criado com o cupom (é o contador que a compra confere); "pagos" conta só os aprovados.
+- **Vale para**: "Todos os produtos" (lista vazia, vale também para produtos criados depois) ou "Produtos escolhidos", com caixas agrupadas em Planos, Sapiens, Cosméticos e Outros, cada grupo com "Marcar todos". Produto desligado aparece marcado como "desativado". Salvar "escolhidos" sem nenhum produto marcado é bloqueado ("Marque ao menos um produto.") e a API recusa IDs de produtos que não existem (400, campo `productIds`).
+- O cartão mostra "Vale para: ..." (ex.: "VIP, Premium e mais 2"). IDs de produtos excluídos são ignorados na tela; se todos os produtos escolhidos foram excluídos, o cupom abre como "Produtos escolhidos" sem nada marcado, para nunca passar a valer para tudo sem querer.
+- Cupom já usado em pedidos pode mudar a lista de produtos (vale só para os pedidos novos). A atividade registra os slugs escolhidos ou "todos". Salvar sem enviar a lista (aba antiga do painel) mantém a lista atual do cupom.
+- Antes de voltar a produção para a v0.23 (`--voltar`), desligue os cupons restritos: o código antigo ignora a lista e eles passariam a valer para todos os produtos.
 
 ### Entregas (`/painel/entregas`)
 - Abas: precisa de atenção (falhou, travada em "Entregando" há mais de 10 minutos ou com erro na fila), na fila, entregues e todas. Atualiza sozinha a cada 20 segundos.
@@ -77,7 +81,7 @@ O código é comparado em tempo constante (hash SHA-256 dos dois lados). O nome 
 | `site_settings` | Configurações do painel em chave e valor JSON. Hoje: `cronograma.aviso` = `{ text, until }` |
 | `panel_logs` | Registro de atividade: `actor`, `action` (ex.: `produto.preco`), `target`, `details` (JSON), `created_at` |
 
-Produtos, cupons, pedidos e entregas usam as tabelas que já existiam.
+Produtos, cupons, pedidos e entregas usam as tabelas que já existiam. `coupons.product_ids` (`productIds String[]`, padrão vazio) guarda os produtos em que o cupom vale; vazio vale para todos, e os cupons anteriores continuam valendo para tudo.
 
 ---
 
@@ -95,8 +99,8 @@ Todas exigem a sessão do painel; escritas exigem a origem do próprio site.
 | `/api/painel/produtos` | GET, POST | Lista com vendas; criar |
 | `/api/painel/produtos/[id]` | PUT, PATCH, DELETE | Salvar o formulário; ações rápidas (`preco`, `ativo`, `destaque`, `promocao`, `encerrarPromocao`); excluir sem pedidos |
 | `/api/painel/produtos/ordem` | POST | Ordem de exibição `{ ids }` |
-| `/api/painel/cupons` | GET, POST | Lista com vendas; criar |
-| `/api/painel/cupons/[id]` | PUT, PATCH, DELETE | Salvar; ligar ou desligar; excluir sem pedidos |
+| `/api/painel/cupons` | GET, POST | Lista com vendas; criar (com `productIds`) |
+| `/api/painel/cupons/[id]` | PUT, PATCH, DELETE | Salvar (com `productIds`); ligar ou desligar; excluir sem pedidos |
 | `/api/painel/entregas?filtro=` | GET | Fila do plugin |
 | `/api/painel/entregas/[id]` | POST | `{ acao: "reenviar" }` |
 | `/api/painel/cronograma?inicio=&fim=` | GET, POST | Aulas do intervalo, disciplinas, professores e aviso; criar (com `repeatWeeks`) |

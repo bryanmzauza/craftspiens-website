@@ -7,6 +7,22 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.24] — 25/11/2026 — Cupom por produto
+
+### Adicionado
+
+- **Cupom restrito a produtos**: cada cupom pode valer para todos os produtos ou só para os escolhidos
+  - `prisma/schema.pg.prisma`: `Coupon.productIds String[] @default([]) @map("product_ids")`. Lista vazia vale para todos, inclusive para produtos criados depois; os cupons existentes continuam valendo para tudo. Exige `npm run db:push:pg` na produção (deploy manual com `--com-schema`, depois do backup); a coluna precisa existir antes do código novo entrar no ar, porque o cliente Prisma regenerado a seleciona em toda consulta de cupom. Se a produção voltar para a v0.23 (`--voltar`), o código antigo ignora a coluna e os cupons restritos passam a valer para todos os produtos: desligue os cupons restritos antes de voltar
+  - Regra `couponAppliesTo` em `src/lib/coupons.ts`, usada por `POST /api/cupons/validar` (agora exige `{ code, slug }`) e por `POST /api/loja/pedidos` (conferência definitiva). Fora da lista: 400 "Este cupom não vale para este produto."; sem `slug` (aba de compra antiga): 400 "Atualize a página e tente de novo."; produto inexistente ou desativado: 400 "Produto não encontrado."
+  - **Painel** (`/painel/cupons`): campo "Vale para" com "Todos os produtos" ou "Produtos escolhidos", caixas agrupadas em Planos, Sapiens, Cosméticos e Outros com "Marcar todos", produtos desligados marcados como "desativado" e bloqueio de "escolhidos" sem nenhum produto ("Marque ao menos um produto."). A API recusa IDs de produtos que não existem (400, campo `productIds`). O cartão mostra "Vale para: ..." e a atividade registra os slugs escolhidos ou "todos"
+  - IDs de produtos excluídos são ignorados na tela; se todos os escolhidos foram excluídos, o cupom abre como "Produtos escolhidos" sem nada marcado, para não passar a valer para tudo sem querer. Cupom já usado em pedidos pode mudar a lista (vale só para pedidos novos)
+
+### Alterado
+
+- **Compra**: ao trocar entre o plano e o combo com um cupom aplicado, o cupom é conferido de novo; se não vale para o outro produto, é removido e a mensagem aparece. Durante a conferência o desconto some e o botão de pagar fica desabilitado
+
+---
+
 ## [v0.23.3] — 14/11/2026 — Novo convite do Discord
 
 ### Alterado

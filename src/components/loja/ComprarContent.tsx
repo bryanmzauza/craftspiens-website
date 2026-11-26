@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { createElement, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -56,6 +56,24 @@ const METHODS: { id: Method; icon: typeof QrCode; title: string; text: string; t
   },
 ];
 
+type CouponCheck = { ok: true; code: string; discount: number } | { ok: false; error: string };
+
+// Valida o cupom para um produto: o mesmo código pode valer para o plano e não para o combo
+async function checkCoupon(code: string, slug: string): Promise<CouponCheck> {
+  try {
+    const res = await fetch("/api/cupons/validar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, slug }),
+    });
+    const data = await res.json();
+    if (!res.ok) return { ok: false, error: data.error || "Cupom inválido" };
+    return { ok: true, code: data.code, discount: data.discount };
+  } catch {
+    return { ok: false, error: "Erro ao validar cupom" };
+  }
+}
+
 export function ComprarContent({ slug }: { slug: string }) {
   const { data: session, status: sessionStatus } = useSession();
   const router = useRouter();
@@ -73,7 +91,8 @@ export function ComprarContent({ slug }: { slug: string }) {
   const [error, setError] = useState("");
 
   const [couponCode, setCouponCode] = useState("");
-  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null);
+  // "slug" é o produto para o qual o cupom foi validado pela última vez
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number; slug: string } | null>(null);
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError, setCouponError] = useState("");
 
@@ -149,6 +168,26 @@ export function ComprarContent({ slug }: { slug: string }) {
     };
   }, [session]);
 
+  // Trocou entre o plano e o combo com um cupom aplicado: confere o cupom para o novo produto
+  useEffect(() => {
+    if (!appliedCoupon || appliedCoupon.slug === selectedSlug) return;
+    let active = true;
+    checkCoupon(appliedCoupon.code, selectedSlug).then((result) => {
+      if (!active) return;
+      if (result.ok) {
+        setAppliedCoupon({ code: result.code, discount: result.discount, slug: selectedSlug });
+      } else {
+        // O código continua no campo para o comprador ver qual foi recusado
+        setCouponCode(appliedCoupon.code);
+        setAppliedCoupon(null);
+        setCouponError(result.error);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [appliedCoupon, selectedSlug]);
+
   const cpfDigits = normalizeCpf(cpf);
   const cpfInvalid = editingCpf && cpfDigits.length === 11 && !isValidCpf(cpfDigits);
   const cpfReady = editingCpf ? isValidCpf(cpfDigits) : !!savedCpf;
@@ -164,7 +203,9 @@ export function ComprarContent({ slug }: { slug: string }) {
     .filter((p) => p.category === "COSMETICO")
     .reduce((sum, p) => sum + p.price, 0);
 
-  const discount = product && appliedCoupon ? product.price * (appliedCoupon.discount / 100) : 0;
+  // Enquanto o cupom é conferido para o novo produto, o desconto não vale
+  const couponPending = !!appliedCoupon && appliedCoupon.slug !== selectedSlug;
+  const discount = product && appliedCoupon && !couponPending ? product.price * (appliedCoupon.discount / 100) : 0;
   const total = product ? Math.max(Math.round((product.price - discount) * 100) / 100, 1) : 0;
   const installmentPlans = useMemo(
     () => (installmentRates ? buildInstallmentPlans(total, installmentRates) : []),
@@ -174,31 +215,20 @@ export function ComprarContent({ slug }: { slug: string }) {
   const hasNick = session?.user.nloginId != null;
   const accountMissing = hasNick && gameAccount !== undefined && !gameAccount.exists;
   const PlatformIcon = gameAccount?.account?.platform === "BEDROCK" ? Smartphone : Monitor;
-
-  const Icon = useMemo(() => (product ? productIcon(product.category, product.slug) : QrCode), [product]);
+  const productIconType = product ? productIcon(product.category, product.slug) : QrCode;
 
   const applyCoupon = async () => {
     if (!couponCode.trim()) return;
     setCouponError("");
     setCouponLoading(true);
-    try {
-      const res = await fetch("/api/cupons/validar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: couponCode }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setCouponError(data.error || "Cupom inválido");
-        setAppliedCoupon(null);
-      } else {
-        setAppliedCoupon({ code: data.code, discount: data.discount });
-      }
-    } catch {
-      setCouponError("Erro ao validar cupom");
-    } finally {
-      setCouponLoading(false);
+    const result = await checkCoupon(couponCode, selectedSlug);
+    if (result.ok) {
+      setAppliedCoupon({ code: result.code, discount: result.discount, slug: selectedSlug });
+    } else {
+      setCouponError(result.error);
+      setAppliedCoupon(null);
     }
+    setCouponLoading(false);
   };
 
   const submit = async () => {
@@ -228,7 +258,7 @@ export function ComprarContent({ slug }: { slug: string }) {
         return;
       }
       if (data.method === "cartao" && data.redirectUrl) {
-        window.location.href = data.redirectUrl;
+        window.location.assign(data.redirectUrl);
         return;
       }
       router.push(`/loja/pedido/${data.orderId}`);
@@ -307,7 +337,7 @@ export function ComprarContent({ slug }: { slug: string }) {
                   className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl"
                   style={{ backgroundColor: `${color}22` }}
                 >
-                  <Icon size={32} style={{ color }} />
+                  {createElement(productIconType, { size: 32, style: { color } })}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-bold uppercase tracking-wide" style={{ color }}>
@@ -349,7 +379,10 @@ export function ComprarContent({ slug }: { slug: string }) {
             {basePlan && comboPlan && (
               <button
                 type="button"
-                onClick={() => setSelectedSlug(withCosmetics ? basePlan.slug : comboPlan.slug)}
+                onClick={() => {
+                  setCouponError("");
+                  setSelectedSlug(withCosmetics ? basePlan.slug : comboPlan.slug);
+                }}
                 aria-pressed={withCosmetics}
                 className={`flex w-full items-start gap-4 rounded-xl border p-5 text-left transition-all ${
                   withCosmetics ? "border-green-cs bg-green-cs/10" : "border-dashed border-white/20 bg-white/5 hover:border-white/40"
@@ -687,7 +720,7 @@ export function ComprarContent({ slug }: { slug: string }) {
               <button
                 type="button"
                 onClick={submit}
-                disabled={processing || !cpfReady || !termsAccepted || !hasNick || accountMissing || birthDateMissing || !product.inStock}
+                disabled={processing || couponPending || !cpfReady || !termsAccepted || !hasNick || accountMissing || birthDateMissing || !product.inStock}
                 className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-green-cs py-3 text-sm font-bold uppercase text-white transition-all hover:bg-green-dark disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {processing ? (

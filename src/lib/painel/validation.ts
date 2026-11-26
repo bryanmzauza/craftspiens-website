@@ -66,6 +66,11 @@ export const couponSchema = z.object({
     (v) => (v === "" ? null : v),
     z.coerce.date({ message: "data inválida" }).nullable().optional()
   ),
+  productIds: z
+    .array(z.string().min(1).max(50))
+    .max(200, "no máximo 200 produtos")
+    .transform((ids) => [...new Set(ids)])
+    .optional(),
   active: z.boolean().default(true),
 });
 
