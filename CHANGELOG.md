@@ -7,6 +7,24 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.24.1] — 26/11/2026 — Dependências com falhas de segurança
+
+### Dependências
+
+- **next** 16.2.0 para 16.4.6: corrige falhas críticas de execução remota de código na otimização de imagens (SVG e AVIF), em funções `use cache` e em `next/og`, além de desvios do proxy, SSRF e envenenamento de cache. Sem mudança de código no site; o build passa sem avisos
+- **next-auth** 5.0.0-beta.30 para 5.0.0-beta.32 (`@auth/core` 0.41.3): corrige checagens de login que passavam com erro de configuração e a validação de e-mail com caracteres parecidos
+- **Prisma** (`prisma`, `@prisma/client`, `@prisma/adapter-pg`, `@prisma/adapter-mariadb`) 7.5.0 para 7.10.1, todos na mesma versão. O schema não muda; o deploy é automático
+- `npm audit fix` sem troca de versão principal: `mariadb` 3.5.4 (injeção de SQL e vazamento de senha), `zod` 4.6.7, `lodash`, `picomatch`, `postcss` e outras dependências indiretas
+- **nodemailer** 7.0.7 para 10.6.1: corrige injeção de comandos SMTP e de cabeçalhos, desvios na validação de destinatários e negações de serviço no envio. As mudanças incompatíveis da 8, 9 e 10 (Node 20, código `NoAuth` renomeado, certificado validado ao baixar anexos remotos) não atingem o uso do site. A 10 traz os próprios tipos, então `@types/nodemailer` sai
+- **sharp** 0.34.5 para 0.35.5, a mesma versão que o Next já usa: corrige falhas herdadas da libvips, libheif e librsvg. O tipo `Metadata` passa a ser importado direto (`import sharp, { type Metadata } from "sharp"`) em `src/lib/profile-photo.ts`
+- `overrides` no `package.json`:
+  - `nodemailer: "$nodemailer"`: o `next-auth` declara só nodemailer 7 ou 8 (dependência opcional, usada apenas pelo login por e-mail, que o site não tem) e toda versão até a 10.1.3 é vulnerável. Sem isso o `npm ci` recusa a instalação
+  - `effect: "3.22.5"`: o `@prisma/config` 7.10.1 fixa o `effect` 3.20.0, que tem ReDoS. A 3.22.5 é da mesma versão principal; `prisma generate` e o build passam. Remover quando o Prisma 7.x atualizar a dependência
+- `eslint-config-next` fica na 16.2.0: a 16.4.6 traz regras novas do `eslint-plugin-react-hooks` 7.1 que apontam 6 trechos antigos. A atualização do lint e esses ajustes ficam para outra versão
+- Fica para outra versão: `mercadopago` 2 para 3 (troca a versão principal do pagamento). Restam 2 alertas moderados do `npm audit` (`mercadopago` e `uuid`), nenhum alto ou crítico
+
+---
+
 ## [v0.24] — 25/11/2026 — Cupom por produto
 
 ### Adicionado

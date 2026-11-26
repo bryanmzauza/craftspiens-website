@@ -8,7 +8,7 @@
 //
 // Fica guardada no PostgreSQL (tabela user_photos), coberta pelo backup diário,
 // e é servida por GET /api/fotos/[userId]. Sem foto, o site usa a skin do jogo.
-import sharp from "sharp";
+import sharp, { type Metadata } from "sharp";
 import { PHOTO_HEIGHT, PHOTO_MAX_BYTES, PHOTO_WIDTH } from "@/lib/profile-photo-rules";
 
 export { PHOTO_HEIGHT, PHOTO_MAX_BYTES, PHOTO_WIDTH };
@@ -32,7 +32,7 @@ export async function processProfilePhoto(input: Buffer): Promise<ProcessedPhoto
   if (input.length === 0) throw new PhotoError("Arquivo vazio.");
   if (input.length > PHOTO_MAX_BYTES) throw new PhotoError("A foto deve ter no máximo 5 MB.");
 
-  let meta: sharp.Metadata;
+  let meta: Metadata;
   try {
     meta = await sharp(input, { limitInputPixels: MAX_INPUT_PIXELS }).metadata();
   } catch {
