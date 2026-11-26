@@ -7,6 +7,15 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [v0.24.2] — 26/11/2026 — uuid corrigido no Mercado Pago
+
+### Dependências
+
+- `overrides` no `package.json`: `uuid: "11.1.1"`. O `mercadopago` 2.13.0 pede `uuid` `^9.0.0`, e a 9.0.1 tem falha moderada (falta conferir o tamanho do buffer nas funções v3, v5 e v6). O SDK só usa `uuid.v4()`, para a chave de idempotência das requisições, que funciona igual na 11; a 11.1.1 mantém o `require` (CommonJS) que o SDK usa. Remover quando o site passar para o `mercadopago` 3
+- O `npm audit` fica sem nenhum alerta
+
+---
+
 ## [v0.24.1] — 26/11/2026 — Dependências com falhas de segurança
 
 ### Dependências
