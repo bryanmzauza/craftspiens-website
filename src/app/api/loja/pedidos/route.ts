@@ -6,6 +6,7 @@ import { createCardCheckout, createPixPayment } from "@/lib/mercadopago";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit";
 import { isUnlimitedStock } from "@/lib/products";
 import { isValidCpf, normalizeCpf } from "@/lib/cpf";
+import { couponAppliesTo } from "@/lib/coupons";
 import { hasAcceptedCurrentTerms } from "@/lib/terms";
 
 // POST /api/loja/pedidos — cria o pedido de UM produto e o pagamento correspondente.
@@ -124,6 +125,9 @@ export async function POST(request: Request) {
     }
     if (coupon.maxUses && coupon.uses >= coupon.maxUses) {
       return NextResponse.json({ error: "Cupom esgotado." }, { status: 400 });
+    }
+    if (!couponAppliesTo(coupon.productIds, product.id)) {
+      return NextResponse.json({ error: "Este cupom não vale para este produto." }, { status: 400 });
     }
     discountPercent = Number(coupon.discount);
     couponId = coupon.id;

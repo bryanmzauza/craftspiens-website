@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logPanel, requirePanel } from "@/lib/painel/session";
 import { couponSchema, parseBody } from "@/lib/painel/validation";
-import { approvedTotals, couponState, round2, toPanelCoupon } from "@/lib/painel/store";
+import { approvedTotals, couponState, resolveCouponProducts, round2, toPanelCoupon } from "@/lib/painel/store";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +46,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Já existe um cupom com este código.", field: "code" }, { status: 409 });
   }
 
+  const productIds = input.productIds ?? [];
+  const productSlugs = await resolveCouponProducts(productIds);
+  if (!productSlugs) {
+    return NextResponse.json(
+      { error: "Um dos produtos escolhidos não existe mais. Recarregue a página.", field: "productIds" },
+      { status: 400 }
+    );
+  }
+
   const coupon = await prisma.coupon.create({
     data: {
       code: input.code,
@@ -53,6 +62,7 @@ export async function POST(request: Request) {
       maxUses: input.maxUses ?? null,
       expiresAt: input.expiresAt ?? null,
       active: input.active,
+      productIds,
     },
   });
 
@@ -60,6 +70,7 @@ export async function POST(request: Request) {
     desconto: input.discount,
     limite: input.maxUses ?? null,
     validade: input.expiresAt?.toISOString() ?? null,
+    produtos: productSlugs.length > 0 ? productSlugs : "todos",
   });
   return NextResponse.json({ coupon: toPanelCoupon(coupon) }, { status: 201 });
 }

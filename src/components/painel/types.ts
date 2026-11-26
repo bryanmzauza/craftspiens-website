@@ -53,6 +53,7 @@ export interface PanelCoupon {
   active: boolean;
   expiresAt: string | null;
   createdAt: string;
+  productIds: string[];
   state: "ativo" | "desligado" | "vencido" | "esgotado";
   locked: boolean;
   stats: { orders: number; revenue: number; discount: number };

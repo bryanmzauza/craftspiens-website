@@ -76,7 +76,21 @@ export function toPanelCoupon(coupon: Coupon) {
     active: coupon.active,
     expiresAt: coupon.expiresAt,
     createdAt: coupon.createdAt,
+    productIds: coupon.productIds,
   };
+}
+
+/**
+ * Confere se todos os produtos escolhidos para o cupom existem.
+ * Devolve os slugs (para o log) ou null quando algum ID não existe mais.
+ * Lista vazia (todos os produtos) não consulta o banco.
+ */
+export async function resolveCouponProducts(ids: string[]): Promise<string[] | null> {
+  if (ids.length === 0) return [];
+  const found = await prisma.product.findMany({ where: { id: { in: ids } }, select: { id: true, slug: true } });
+  const foundIds = new Set(found.map((product) => product.id));
+  if (ids.some((id) => !foundIds.has(id))) return null;
+  return found.map((product) => product.slug);
 }
 
 /** Situação do cupom para a lista: ativo, desligado, vencido ou esgotado */

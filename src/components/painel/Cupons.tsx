@@ -23,7 +23,8 @@ import {
   useToast,
   type Tone,
 } from "@/components/painel/ui";
-import type { PanelCoupon } from "@/components/painel/types";
+import type { PanelCoupon, PanelProduct } from "@/components/painel/types";
+import { couponProductsLabel } from "@/lib/coupons";
 
 const STATES: Record<PanelCoupon["state"], { label: string; tone: Tone }> = {
   ativo: { label: "Ativo", tone: "green" },
@@ -43,6 +44,9 @@ export function Cupons() {
   const { ask, dialog } = useConfirm();
   const { data, error, reload: load } = usePanelData<{ coupons: PanelCoupon[] }>("/api/painel/cupons");
   const coupons = data?.coupons ?? null;
+  const { data: productsData, error: productsError } = usePanelData<{ products: PanelProduct[] }>("/api/painel/produtos");
+  const products = productsData?.products ?? null;
+  const productNames = useMemo(() => (products ? new Map(products.map((p) => [p.id, p.name])) : null), [products]);
   const [filter, setFilter] = useState<"todos" | "ativos" | "outros">("todos");
   const [editing, setEditing] = useState<PanelCoupon | null>(null);
   const [open, setOpen] = useState(false);
@@ -183,6 +187,10 @@ export function Cupons() {
                   )}
                 </div>
 
+                {productNames && (
+                  <p className="mt-2 text-xs text-[#A0A0A0]">Vale para: {couponProductsLabel(coupon.productIds, productNames)}</p>
+                )}
+
                 <div className="mt-3">
                   <div className="flex justify-between text-xs text-[#A0A0A0]">
                     <span>
@@ -225,7 +233,15 @@ export function Cupons() {
         &quot;Usos&quot; conta todo pedido criado com o cupom, inclusive os que não foram pagos; &quot;pagos&quot; conta só as vendas aprovadas.
       </p>
 
-      <CouponEditor key={editorKey} coupon={editing} open={open} onClose={() => setOpen(false)} onSaved={load} />
+      <CouponEditor
+        key={editorKey}
+        coupon={editing}
+        products={products}
+        productsFailed={productsError != null}
+        open={open}
+        onClose={() => setOpen(false)}
+        onSaved={load}
+      />
       {dialog}
     </>
   );
@@ -239,7 +255,84 @@ function randomCode(): string {
   return `SAPIENS-${Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("")}`;
 }
 
-function CouponEditor({ coupon, open, onClose, onSaved }: { coupon: PanelCoupon | null; open: boolean; onClose: () => void; onSaved: () => void }) {
+/** Seções do seletor de produtos, na ordem em que aparecem */
+const PRODUCT_SECTIONS: { title: string; categories: PanelProduct["category"][] }[] = [
+  { title: "Planos", categories: ["VIP"] },
+  { title: "Sapiens", categories: ["MOEDA"] },
+  { title: "Cosméticos", categories: ["COSMETICO"] },
+  { title: "Outros", categories: ["RANK", "KIT"] },
+];
+
+/** Caixas de seleção dos produtos, agrupadas por categoria */
+function ProductPicker({ products, checked, onChange }: { products: PanelProduct[]; checked: ReadonlySet<string>; onChange: (ids: string[]) => void }) {
+  function setMany(ids: string[], value: boolean) {
+    const next = new Set(checked);
+    for (const id of ids) {
+      if (value) next.add(id);
+      else next.delete(id);
+    }
+    onChange(Array.from(next));
+  }
+
+  const sections = PRODUCT_SECTIONS.map((section) => ({
+    title: section.title,
+    items: products.filter((p) => section.categories.includes(p.category)),
+  })).filter((section) => section.items.length > 0);
+
+  return (
+    <div className="mt-3 flex flex-col gap-3">
+      {sections.map((section) => {
+        const ids = section.items.map((p) => p.id);
+        const allChecked = ids.every((id) => checked.has(id));
+        return (
+          <div key={section.title} className="rounded-xl border border-white/10 bg-black/10 p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#A0A0A0]">{section.title}</p>
+              <Btn
+                variant="ghost"
+                className="!px-2 !py-1 text-xs"
+                aria-label={`${allChecked ? "Desmarcar todos" : "Marcar todos"}: ${section.title}`}
+                onClick={() => setMany(ids, !allChecked)}
+              >
+                {allChecked ? "Desmarcar todos" : "Marcar todos"}
+              </Btn>
+            </div>
+            <div className="flex flex-col">
+              {section.items.map((product) => (
+                <label key={product.id} className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm text-white hover:bg-white/5">
+                  <input
+                    type="checkbox"
+                    checked={checked.has(product.id)}
+                    onChange={(e) => setMany([product.id], e.target.checked)}
+                    className="h-4 w-4 shrink-0 accent-green-cs"
+                  />
+                  <span className="min-w-0 flex-1 truncate">{product.name}</span>
+                  {!product.active && <Badge>desativado</Badge>}
+                </label>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function CouponEditor({
+  coupon,
+  products,
+  productsFailed,
+  open,
+  onClose,
+  onSaved,
+}: {
+  coupon: PanelCoupon | null;
+  products: PanelProduct[] | null;
+  productsFailed: boolean;
+  open: boolean;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
   const toast = useToast();
   // O pai troca a key a cada abertura: os campos começam do cupom escolhido
   const [code, setCode] = useState(coupon?.code ?? "");
@@ -251,9 +344,28 @@ function CouponEditor({ coupon, open, onClose, onSaved }: { coupon: PanelCoupon 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<{ field: string | null; message: string } | null>(null);
 
+  // A lista de produtos pode chegar depois de o editor abrir. Enquanto o
+  // usuário não mexe, modo e marcados vêm do cupom; ao mexer, valem os dele.
+  const savedIds = coupon?.productIds ?? [];
+  const knownIds = products ? new Set(products.map((p) => p.id)) : null;
+  const [modeChoice, setModeChoice] = useState<"todos" | "escolhidos" | null>(null);
+  const [checkedChoice, setCheckedChoice] = useState<string[] | null>(null);
+  // Cupom restrito abre em "escolhidos" mesmo se os produtos salvos foram excluídos:
+  // assim salvar exige marcar algo, em vez de liberar o cupom para todos os produtos
+  const mode = modeChoice ?? (savedIds.length > 0 ? "escolhidos" : "todos");
+  const checkedIds = checkedChoice ?? (knownIds ? savedIds.filter((id) => knownIds.has(id)) : savedIds);
+  const checked = new Set(checkedIds);
+
   async function save() {
-    setSaving(true);
     setError(null);
+    if (mode === "escolhidos") {
+      if (!products) {
+        const message = productsFailed ? "Não foi possível carregar os produtos." : "Aguarde os produtos carregarem.";
+        return setError({ field: "productIds", message });
+      }
+      if (!products.some((p) => checked.has(p.id))) return setError({ field: "productIds", message: "Marque ao menos um produto." });
+    }
+    setSaving(true);
     const body = {
       code,
       discount: Number(discount.replace(",", ".")),
@@ -261,6 +373,8 @@ function CouponEditor({ coupon, open, onClose, onSaved }: { coupon: PanelCoupon 
       // Vale até o fim do dia escolhido, no horário de Brasília
       expiresAt: expires ? `${expires}T23:59:59-03:00` : null,
       active,
+      // Só os produtos que ainda existem; lista vazia vale para todos
+      productIds: mode === "todos" || !products ? [] : products.filter((p) => checked.has(p.id)).map((p) => p.id),
     };
     const res = coupon
       ? await panelApi(`/api/painel/cupons/${coupon.id}`, { method: "PUT", json: body })
@@ -351,6 +465,32 @@ function CouponEditor({ coupon, open, onClose, onSaved }: { coupon: PanelCoupon 
             )}
           </div>
         </Field>
+
+        {/* Não usa Field: ele é um <label> e repassaria cliques no título, na dica e nas áreas vazias ao primeiro botão, trocando o modo sem querer */}
+        <div role="group" aria-label="Vale para">
+          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#A0A0A0]">Vale para</span>
+          <Segmented
+            value={mode}
+            onChange={setModeChoice}
+            options={[
+              { value: "todos", label: "Todos os produtos" },
+              { value: "escolhidos", label: "Produtos escolhidos" },
+            ]}
+          />
+          {fieldError("productIds") ? (
+            <span className="mt-1 block text-xs text-[#ff8a87]">{fieldError("productIds")}</span>
+          ) : (
+            <span className="mt-1 block text-xs text-[#7a7a90]">Com produtos escolhidos, o desconto vale só para eles.</span>
+          )}
+          {mode === "escolhidos" &&
+            (products ? (
+              <ProductPicker products={products} checked={checked} onChange={setCheckedChoice} />
+            ) : productsFailed ? (
+              <p className="mt-3 text-sm text-[#ff8a87]">Não foi possível carregar os produtos.</p>
+            ) : (
+              <Loading label="Carregando produtos" />
+            ))}
+        </div>
 
         <label className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-black/10 p-4 text-sm text-white">
           <Toggle checked={active} onChange={setActive} label="Cupom ligado" />
