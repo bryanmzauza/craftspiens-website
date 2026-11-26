@@ -1,6 +1,6 @@
 {
   "name": "craftsapiens-website",
-  "version": "0.24.1",
+  "version": "0.24.2",
   "private": true,
   "engines": {
     "node": ">=20.9.0"
@@ -63,6 +63,7 @@
   },
   "overrides": {
     "effect": "3.22.5",
-    "nodemailer": "$nodemailer"
+    "nodemailer": "$nodemailer",
+    "uuid": "11.1.1"
   }
 }
